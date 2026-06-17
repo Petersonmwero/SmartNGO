@@ -208,7 +208,7 @@ See the live Swagger UI for full request/response schemas.
 ## Testing
 
 ```bash
-# Backend (119 tests) — runs on in-memory SQLite, no MySQL needed
+# Backend (119 tests) — locally on in-memory SQLite, no MySQL needed
 cd backend && ./venv/bin/python -m pytest
 
 # Mobile (31 tests) + static analysis
@@ -219,6 +219,9 @@ Coverage includes every endpoint, all four role permission classes, the report
 and password-reset workflows, notification signals, the cron command, the Dio
 JWT-refresh interceptor, and a dedicated security-boundary suite
 (cross-role denials, token expiry, refresh blacklisting, rate limiting).
+
+CI (GitHub Actions) runs the backend suite against a real **MySQL 8** service
+(`config.settings.ci`) and the mobile suite via `flutter analyze` + `flutter test`.
 
 ---
 

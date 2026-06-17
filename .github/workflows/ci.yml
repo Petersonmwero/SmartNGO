@@ -8,11 +8,24 @@ on:
 
 jobs:
   backend:
-    name: Backend (pytest)
+    name: Backend (pytest + MySQL)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: smartngo
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - uses: actions/checkout@v4
 
@@ -27,11 +40,17 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          # Needed for PyMySQL to negotiate MySQL 8's caching_sha2_password auth.
+          pip install cryptography
 
-      - name: Run tests (SQLite settings)
+      - name: Run tests against MySQL
         env:
-          DJANGO_SETTINGS_MODULE: config.settings.test_sqlite
-        run: python -m pytest -q
+          DB_NAME: smartngo
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+        run: python -m pytest -q --ds=config.settings.ci
 
   mobile:
     name: Mobile (analyze + test)
