@@ -46,6 +46,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
@@ -67,6 +68,8 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # CorsMiddleware must come before CommonMiddleware (and any that responds).
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -121,6 +124,15 @@ DATABASES = {
 AUTH_USER_MODEL = "accounts.User"
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@smartngo.local")
+
+# ---------------------------------------------------------------------------
+# CORS — browser origins allowed to call the API (auth is via Bearer tokens,
+# so credentials/cookies are not needed). Dev opens this up (see dev.py);
+# in production set CORS_ALLOWED_ORIGINS via env.
+# ---------------------------------------------------------------------------
+CORS_ALLOWED_ORIGINS = [
+    o for o in env("CORS_ALLOWED_ORIGINS", "").split(",") if o
+]
 
 # BCryptSHA256 first (handles passwords > 72 bytes safely), per security spec.
 PASSWORD_HASHERS = [
