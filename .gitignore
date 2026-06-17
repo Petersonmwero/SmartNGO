@@ -25,5 +25,9 @@ mobile/.packages
 # ───── OS / editor ─────
 .DS_Store
 .idea/
-.vscode/
 *.iml
+
+# VS Code: share project settings, ignore per-user files
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
