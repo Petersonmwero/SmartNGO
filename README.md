@@ -102,6 +102,10 @@ mysql -u root -e "CREATE DATABASE smartngo CHARACTER SET utf8mb4;"
 ./venv/bin/python manage.py migrate
 ./venv/bin/python manage.py createsuperuser
 
+# (optional) load demo data: NGOs, a user per role, projects, reports, etc.
+#   prints demo logins; password for all seeded users is DemoPass123!
+./venv/bin/python manage.py seed_demo
+
 # 5. Run
 ./venv/bin/python manage.py runserver
 ```
