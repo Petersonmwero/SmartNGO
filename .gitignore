@@ -1,0 +1,29 @@
+# ───── Python / Django (backend) ─────
+backend/venv/
+**/__pycache__/
+*.py[cod]
+*.log
+backend/staticfiles/
+backend/media/
+db.sqlite3
+
+# Environment / secrets
+.env
+*.env
+!*.env.example
+
+# ───── Flutter / Dart (mobile) ─────
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+
+# ───── Claude Code (local) ─────
+.claude/settings.local.json
+
+# ───── OS / editor ─────
+.DS_Store
+.idea/
+.vscode/
+*.iml

@@ -1,0 +1,8 @@
+from django.apps import AppConfig
+
+
+class NgosConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.ngos"
+    label = "ngos"
+    verbose_name = "NGOs"
