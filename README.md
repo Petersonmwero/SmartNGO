@@ -1,7 +1,5 @@
 # Smart NGO — Monitoring & Evaluation
 
-[![CI](https://github.com/Petersonmwero/SmartNGO/actions/workflows/ci.yml/badge.svg)](https://github.com/Petersonmwero/SmartNGO/actions/workflows/ci.yml)
-
 A full-stack NGO project management and M&E (Monitoring & Evaluation) system: a
 **Django REST** backend and a **Flutter** mobile/web client. Built as a Software
 Engineering senior project at the University of Eastern Africa, Baraton.
