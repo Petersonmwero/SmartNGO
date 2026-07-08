@@ -155,9 +155,24 @@ Complete as of 2026-07-08.
 
 ---
 
-## ALL 5 PHASES COMPLETE
+## ALL 5 PHASES COMPLETE + Email Verification
 
 **Project is assessment-ready.**
 
-Backend: 155 tests · 28+ API endpoints · Swagger UI at /api/v1/docs/
+Backend: 172 tests · 30+ API endpoints · Swagger UI at /api/v1/docs/
 Mobile: 31 tests · 17 screens · flutter analyze clean · GoRouter + fl_chart + shimmer
+
+---
+
+## Email Verification & Registration Overhaul (2026-07-08)
+
+- [x] `EmailVerificationToken` model + migration (`email_verification_tokens` table)
+- [x] Registration sets `is_active=False`; sends verification email via console backend in dev
+- [x] `GET /api/v1/auth/verify-email/?token=` — activates account, single-use
+- [x] `POST /api/v1/auth/resend-verification/` — re-sends email, always 200
+- [x] Login blocked for unverified users: code `EMAIL_NOT_VERIFIED`, 401
+- [x] Admin role blocked on public register; manager now allowed to self-register
+- [x] `GET /api/v1/ngos/public/` — unauthenticated NGO list for registration dropdown
+- [x] Flutter register screen: confirm password, eye toggles, NGO dropdown, role helpers, success screen
+- [x] Flutter login screen: resend button appears on EMAIL_NOT_VERIFIED error
+- [x] **Backend: 172 tests pass. Flutter: 31 tests, 0 analyze issues.**

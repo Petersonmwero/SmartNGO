@@ -2,6 +2,19 @@ import '../../core/api_client.dart';
 import '../../core/api_exception.dart';
 import '../../core/paginated.dart';
 
+/// Lightweight NGO representation returned by the public (unauthenticated) list.
+class NgoPublic {
+  final int id;
+  final String name;
+
+  const NgoPublic({required this.id, required this.name});
+
+  factory NgoPublic.fromJson(Map<String, dynamic> json) => NgoPublic(
+        id: json['id'] as int,
+        name: (json['name'] ?? '') as String,
+      );
+}
+
 class Ngo {
   final int id;
   final String name;
@@ -40,6 +53,18 @@ class NgoRepository {
     return apiGuard(() async {
       final res = await _api.dio.get('/ngos/', queryParameters: {'page': page});
       return Paginated.fromJson(res.data as Map<String, dynamic>, Ngo.fromJson);
+    });
+  }
+
+  /// Fetch the public NGO list used on the registration screen. No auth required.
+  Future<List<NgoPublic>> listPublic() {
+    return apiGuard(() async {
+      final res = await _api.dio.get('/ngos/public/');
+      final list = res.data as List<dynamic>;
+      return list
+          .cast<Map<String, dynamic>>()
+          .map(NgoPublic.fromJson)
+          .toList();
     });
   }
 }

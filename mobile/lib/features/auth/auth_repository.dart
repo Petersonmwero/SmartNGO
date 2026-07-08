@@ -93,4 +93,14 @@ class AuthRepository {
   }
 
   Future<bool> hasSession() async => (await _store.readAccess()) != null;
+
+  /// Ask the backend to re-send the verification email for [email].
+  /// Always succeeds (server returns 200 even for unknown addresses).
+  Future<void> resendVerification(String email) async {
+    try {
+      await _api.dio.post('/auth/resend-verification/', data: {'email': email});
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
 }

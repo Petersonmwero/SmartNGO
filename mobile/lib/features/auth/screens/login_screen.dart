@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
 import '../auth_provider.dart';
+import '../auth_repository.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
@@ -19,6 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  bool _showResend = false;
+  bool _resendBusy = false;
 
   @override
   void dispose() {
@@ -29,15 +33,51 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _showResend = false);
     final auth = context.read<AuthProvider>();
     final ok = await auth.login(
       _emailController.text.trim(),
       _passwordController.text,
     );
     if (!ok && mounted) {
+      if (auth.errorCode == 'EMAIL_NOT_VERIFIED') {
+        setState(() => _showResend = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please verify your email first. Check your inbox.'),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(auth.error ?? 'Login failed')),
+        );
+      }
+    }
+  }
+
+  Future<void> _resendVerification() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error ?? 'Login failed')),
+        const SnackBar(content: Text('Enter your email above first')),
       );
+      return;
+    }
+    setState(() => _resendBusy = true);
+    try {
+      await context.read<AuthRepository>().resendVerification(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Verification email resent. Check your inbox.'),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _resendBusy = false);
     }
   }
 
@@ -195,6 +235,21 @@ class _LoginScreenState extends State<LoginScreen> {
                                 )
                               : const Text('Sign in'),
                         ),
+                        // Shown only after EMAIL_NOT_VERIFIED error.
+                        if (_showResend) ...[
+                          const SizedBox(height: 4),
+                          TextButton.icon(
+                            onPressed: _resendBusy ? null : _resendVerification,
+                            icon: _resendBusy
+                                ? const SizedBox(
+                                    height: 14,
+                                    width: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2))
+                                : const Icon(Icons.email_outlined, size: 16),
+                            label: const Text('Resend verification email'),
+                          ),
+                        ],
                         const SizedBox(height: 10),
                         TextButton(
                           onPressed: auth.busy

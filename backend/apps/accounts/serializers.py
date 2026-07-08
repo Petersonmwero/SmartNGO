@@ -2,6 +2,7 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from apps.ngos.models import NGO
@@ -10,10 +11,18 @@ from .models import Role
 
 User = get_user_model()
 
-# Open self-registration is limited to non-privileged roles. Admin and manager
-# accounts are provisioned by an administrator (Phase 2 users/ endpoint) so a
-# stranger cannot self-elevate to a role with write access to projects.
-SELF_REGISTRABLE_ROLES = {Role.OFFICER, Role.DONOR}
+# Admin accounts must be created by an existing admin via the /users/ endpoint
+# or the Django admin panel. All other roles may self-register.
+SELF_REGISTRABLE_ROLES = {Role.OFFICER, Role.DONOR, Role.MANAGER}
+
+
+class _EmailNotVerifiedException(AuthenticationFailed):
+    """Raised during login when the user's email has not been verified yet."""
+
+    default_code = "EMAIL_NOT_VERIFIED"
+    default_detail = (
+        "Please verify your email before logging in. Check your inbox."
+    )
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -34,8 +43,8 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate_role(self, value):
         if value not in SELF_REGISTRABLE_ROLES:
             raise serializers.ValidationError(
-                "Self-registration is only allowed for 'officer' or 'donor'. "
-                "Admin and manager accounts are created by an administrator."
+                "Admin accounts cannot be created through self-registration. "
+                "Please contact your organisation's administrator."
             )
         return value
 
@@ -111,6 +120,17 @@ class SmartTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        # Intercept before Django's authenticate() so we can surface a specific
+        # error when the account exists but email verification is still pending.
+        email = attrs.get(self.username_field, "")
+        unverified = (
+            User.objects.filter(email__iexact=email, is_active=False)
+            .filter(email_verification_tokens__used=False)
+            .exists()
+        )
+        if unverified:
+            raise _EmailNotVerifiedException()
+
         data = super().validate(attrs)
         data["user"] = {
             "id": self.user.id,

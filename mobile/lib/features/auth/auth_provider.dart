@@ -16,6 +16,7 @@ class AuthProvider extends ChangeNotifier {
   User? user;
   bool busy = false;
   String? error;
+  String? errorCode;
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
 
@@ -44,9 +45,11 @@ class AuthProvider extends ChangeNotifier {
       user = await _repo.login(email, password);
       status = AuthStatus.authenticated;
       error = null;
+      errorCode = null;
       return true;
     } on ApiException catch (e) {
       error = e.message;
+      errorCode = e.code;
       return false;
     } finally {
       _setBusy(false);

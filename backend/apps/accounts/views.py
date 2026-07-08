@@ -1,4 +1,6 @@
-"""Authentication endpoints: register, login, logout, token refresh, password reset."""
+"""Authentication endpoints: register, login, logout, token refresh, password reset,
+email verification."""
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
@@ -22,16 +24,139 @@ from .serializers import (
     UserManagementSerializer,
     UserProfileSerializer,
 )
-from .tokens import consume_reset_token, issue_reset_token
+from .tokens import (
+    consume_email_verification_token,
+    consume_reset_token,
+    issue_email_verification_token,
+    issue_reset_token,
+)
 
 User = get_user_model()
 
 
+def _send_verification_email(user, raw_token):
+    """Send an email verification link to the newly registered user."""
+    base_url = getattr(settings, "BACKEND_BASE_URL", "http://localhost:8000")
+    verify_link = f"{base_url}/api/v1/auth/verify-email/?token={raw_token}"
+    send_mail(
+        subject="Smart NGO — Verify your email address",
+        message=(
+            f"Hi {user.full_name},\n\n"
+            "Thank you for registering with Smart NGO M&E.\n\n"
+            "Click the link below to verify your email address and activate your account:\n\n"
+            f"{verify_link}\n\n"
+            "This link expires in 24 hours. If you did not create this account, "
+            "you can safely ignore this email."
+        ),
+        from_email=None,
+        recipient_list=[user.email],
+        fail_silently=True,
+    )
+
+
 class RegisterView(generics.CreateAPIView):
-    """Create a new (officer/donor) account. Returns the created user."""
+    """Create a new (officer/manager/donor) account.
+
+    The account is created with is_active=False. A verification email is sent;
+    the user must click the link before they can log in.
+    Admin accounts must be created by an existing admin via POST /api/v1/users/.
+    """
 
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
+
+    def perform_create(self, serializer):
+        user = serializer.save(is_active=False)
+        raw_token = issue_email_verification_token(user)
+        _send_verification_email(user, raw_token)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {
+                "status": "success",
+                "message": (
+                    "Account created. A verification email has been sent to "
+                    f"{request.data.get('email', '')}. "
+                    "Please check your inbox and click the link to activate your account."
+                ),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class VerifyEmailView(APIView):
+    """Validate a verification token and activate the user's account.
+
+    GET /api/v1/auth/verify-email/?token=<raw_token>
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        raw_token = request.query_params.get("token", "").strip()
+        if not raw_token:
+            return Response(
+                {"error": "Verification token is required.", "code": "token_required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        record = consume_email_verification_token(raw_token)
+        if record is None:
+            return Response(
+                {
+                    "error": "This verification link is invalid or has expired. "
+                    "Please request a new one.",
+                    "code": "token_invalid",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = record.user
+        user.is_active = True
+        user.save(update_fields=["is_active"])
+        record.used = True
+        record.save(update_fields=["used"])
+        return Response(
+            {
+                "status": "success",
+                "message": "Email verified successfully. You can now log in.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ResendVerificationView(APIView):
+    """Re-send the verification email for an unverified account.
+
+    POST /api/v1/auth/resend-verification/  — body: {"email": "..."}
+    Always responds 200 to prevent user enumeration.
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get("email", "").strip()
+        if not email:
+            return Response(
+                {"error": "Email is required.", "code": "email_required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        User = get_user_model()
+        user = User.objects.filter(email__iexact=email, is_active=False).first()
+        if user is not None:
+            raw_token = issue_email_verification_token(user)
+            _send_verification_email(user, raw_token)
+        return Response(
+            {
+                "status": "success",
+                "message": (
+                    "If that email belongs to an unverified account, "
+                    "a new verification link has been sent."
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class LoginView(TokenObtainPairView):

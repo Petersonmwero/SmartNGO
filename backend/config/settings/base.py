@@ -126,6 +126,10 @@ AUTH_USER_MODEL = "accounts.User"
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@smartngo.local")
 
+# Base URL used when constructing verification links sent via email.
+# Override with the real domain in production.
+BACKEND_BASE_URL = env("BACKEND_BASE_URL", "http://localhost:8000")
+
 # ---------------------------------------------------------------------------
 # CORS — browser origins allowed to call the API (auth is via Bearer tokens,
 # so credentials/cookies are not needed). Dev opens this up (see dev.py);

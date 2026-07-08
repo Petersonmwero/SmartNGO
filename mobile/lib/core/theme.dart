@@ -15,6 +15,9 @@ abstract final class AppColors {
 
   static const muted = Color(0xFF73796E);
   static const border = Color(0xFFE3E6E0);
+  static const charcoal = Color(0xFF1C1C1E);
+  static const success = Color(0xFF166534);
+  static const error = Color(0xFFDC2626);
 }
 
 ThemeData buildAppTheme() {

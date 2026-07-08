@@ -120,3 +120,30 @@ class PasswordResetToken(models.Model):
 
     def __str__(self):
         return f"reset-token user={self.user_id} used={self.used}"
+
+
+class EmailVerificationToken(models.Model):
+    """Single-use, hashed, 24-hour token for email verification on registration.
+
+    Only the SHA-256 hash is persisted; the plaintext is emailed so a DB leak
+    cannot yield usable tokens. Invalidate any outstanding tokens before issuing
+    a new one (see tokens.py). Mark used=True once the email is verified.
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="email_verification_tokens",
+        db_column="user_id",
+    )
+    token = models.CharField(max_length=255, unique=True)  # SHA-256 hash
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "email_verification_tokens"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"verify-token user={self.user_id} used={self.used}"

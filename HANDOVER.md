@@ -1,58 +1,97 @@
-# Session Handover — 2026-07-08 | Phase 5 Complete — Project Finished
+# Session Handover — 2026-07-08 | Email Verification + Registration Overhaul
 
 ---
 
 ## Completed This Session
 
-### Phase 5 — Quality Assurance & Polish
+### Email Verification Flow (Backend)
 
-1. **Verified approve endpoint** — `POST /reports/{id}/approve/` exists in `apps/reports/views.py` (line 77). The Flutter `ReportDetailScreen` calls the correct URL.
+1. **New model** `EmailVerificationToken` in `apps/accounts/models.py` — SHA-256 hashed, 24-hour TTL, single-use, same pattern as PasswordResetToken.
 
-2. **Backend test suite** — `155 passed, 0 failed` (confirmed after notifications N+1 fix)
+2. **New token helpers** in `apps/accounts/tokens.py`:
+   - `issue_email_verification_token(user)` — invalidates old tokens, returns raw token
+   - `consume_email_verification_token(raw_token)` — returns record or None, marks expired tokens used
 
-3. **Flutter test suite** — `31/31 passed`
+3. **Registration changed** (`apps/accounts/views.py` `RegisterView`):
+   - `perform_create()` saves user with `is_active=False`, generates token, sends verification email
+   - `create()` returns `{"status": "success", "message": "...verification email sent..."}` instead of user data
+   - `_send_verification_email()` helper uses `settings.BACKEND_BASE_URL` (default: http://localhost:8000)
 
-4. **Flutter analyze** — `0 issues`
+4. **New endpoints** added to `apps/accounts/urls.py`:
+   - `GET /api/v1/auth/verify-email/?token=<raw>` — validates token, sets user.is_active=True, marks token used
+   - `POST /api/v1/auth/resend-verification/` — re-sends email; always returns 200 (no enumeration)
 
-5. **N+1 audit** — All ViewSet querysets audited:
-   - Reports: `select_related("officer", "project").prefetch_related(images)` ✓
-   - Projects: `select_related("ngo")` ✓ (assignments: `select_related("user")` ✓; milestones: `select_related("project")` ✓)
-   - Beneficiaries: `select_related("project")` ✓
-   - Indicators: `select_related("project")` ✓
-   - Accounts/Users: `select_related("ngo")` ✓
-   - Notifications: **added** `select_related("user")` (was missing)
-   - NGOs: no FK — no join needed ✓
+5. **Login blocked** for unverified users in `SmartTokenObtainPairSerializer.validate()`:
+   - Checks `User.objects.filter(is_active=False).filter(email_verification_tokens__used=False).exists()`
+   - Raises `_EmailNotVerifiedException` (AuthenticationFailed subclass, code=`EMAIL_NOT_VERIFIED`)
+   - Custom exception handler returns `{"error": "...", "code": "EMAIL_NOT_VERIFIED"}`
 
-6. **Debug print scan** — `grep -rn "print("` on all app code returned 0 results
+6. **Role restriction updated** — `SELF_REGISTRABLE_ROLES` now includes `{OFFICER, DONOR, MANAGER}` (admin still blocked). Error message updated to say "Admin accounts cannot be created through self-registration."
 
-7. **Security test review** — `apps/accounts/tests/test_security_boundaries.py` covers:
-   - Cross-role permission denials (officer/donor cannot create projects; non-admin cannot hit `/ngos/`)
-   - Donor read-only across all write endpoints (4 resources)
-   - Officer cannot create indicators or milestones
-   - Multi-tenant isolation (manager cannot see foreign-NGO projects — returns 404)
-   - Unauthenticated requests rejected (401)
-   - Expired access token rejected (401)
-   - Tampered token rejected (401)
-   - Blacklisted refresh after logout cannot mint new access (401)
-   - Anonymous rate limiting triggers 429 on 21st request
+7. **Public NGO endpoint** (`apps/ngos/views.py`) — `@action` at `GET /api/v1/ngos/public/` returns `[{id, name}]`, no auth required, used by register screen.
 
-8. **README.md updated** — test counts corrected (119 → 155), new endpoints added, GoRouter/fl_chart/shimmer added to tech stack, 17 screens listed
+8. **`BACKEND_BASE_URL` setting** added to `config/settings/base.py` (default: http://localhost:8000, override via env var in production).
+
+9. **Migration** `apps/accounts/migrations/0002_emailverificationtoken.py` — creates `email_verification_tokens` table.
+
+10. **Tests** — `apps/accounts/tests/test_email_verification.py` (17 new tests). Updated `test_auth.py::test_register_officer_succeeds` for new response format. **Backend total: 172 passed.**
+
+### Registration Screen Overhaul (Flutter)
+
+11. **`register_screen.dart`** — complete rewrite:
+    - Confirm password field with inline validator ("Passwords do not match")
+    - Eye icon toggles on BOTH password fields (independent state)
+    - NGO dropdown via `NgoRepository.listPublic()` — loading/error/retry states
+    - Role selector shows Field Officer / Project Manager / Donor (no Admin)
+    - Role helper text below dropdown, changes per role
+    - On success: shows `_SuccessScreen` with green checkmark, email, "Back to Login" button
+    - Does NOT navigate to dashboard on success
+
+12. **`login_screen.dart`** — handles `EMAIL_NOT_VERIFIED` error code:
+    - `_showResend` state flag set on `auth.errorCode == 'EMAIL_NOT_VERIFIED'`
+    - "Resend verification email" `TextButton.icon` appears below Sign in button
+    - Clicking resend calls `AuthRepository.resendVerification(email)` and shows snackbar
+
+13. **`auth_provider.dart`** — added `errorCode` field alongside `error`; set/cleared in `login()`
+
+14. **`auth_repository.dart`** — added `resendVerification(email)` method
+
+15. **`ngo_repository.dart`** — added `NgoPublic` class (id, name) and `listPublic()` method calling `/ngos/public/`
+
+16. **`api_client.dart`** — added `/auth/verify-email/`, `/auth/resend-verification/`, `/ngos/public/` to `_publicPaths` (skip token/refresh)
+
+17. **`theme.dart`** — added `AppColors.charcoal`, `AppColors.success`, `AppColors.error`
+
+18. **`flutter analyze`**: 0 issues. **`flutter test`**: 31/31 passed.
 
 ---
 
 ## Files Created / Modified
 
 ### Backend
-- `apps/notifications/views.py` — added `select_related("user")` to `get_queryset()`
+- `apps/accounts/models.py` — EmailVerificationToken model added
+- `apps/accounts/tokens.py` — issue_email_verification_token, consume_email_verification_token
+- `apps/accounts/serializers.py` — SELF_REGISTRABLE_ROLES + MANAGER, _EmailNotVerifiedException, login check
+- `apps/accounts/views.py` — RegisterView overrides, VerifyEmailView, ResendVerificationView
+- `apps/accounts/urls.py` — verify-email/, resend-verification/
+- `apps/ngos/views.py` — public_list @action
+- `config/settings/base.py` — BACKEND_BASE_URL setting
+- `apps/accounts/tests/test_auth.py` — test_register_officer_succeeds updated
+- `apps/accounts/tests/test_email_verification.py` — NEW (17 tests)
+- `apps/accounts/migrations/0002_emailverificationtoken.py` — NEW migration
 
-### Docs
-- `README.md` — updated test counts, API table, tech stack, screens list, feature layout
-- `HANDOVER.md` — this file
-- `PROGRESS.md` — Phase 5 marked complete
+### Flutter
+- `mobile/lib/features/auth/screens/register_screen.dart` — full rewrite
+- `mobile/lib/features/auth/screens/login_screen.dart` — EMAIL_NOT_VERIFIED handling + resend
+- `mobile/lib/features/auth/auth_provider.dart` — errorCode field
+- `mobile/lib/features/auth/auth_repository.dart` — resendVerification()
+- `mobile/lib/features/ngos/ngo_repository.dart` — NgoPublic + listPublic()
+- `mobile/lib/core/api_client.dart` — public paths updated
+- `mobile/lib/core/theme.dart` — AppColors.charcoal/success/error added
 
 ---
 
-## In Progress (Partially Done)
+## In Progress
 
 Nothing in progress.
 
@@ -60,74 +99,46 @@ Nothing in progress.
 
 ## Decisions Made
 
-None new this session.
+- Used `email_verification_tokens__used=False` (FK filter) in login to distinguish unverified users from admin-deactivated users who have no tokens. This correctly handles: (a) self-registered unverified → EMAIL_NOT_VERIFIED, (b) admin-deactivated verified user → generic 401, (c) admin-created user → no token → generic 401.
+- `manager` role added to self-registrable roles (Flutter shows "Project Manager" option). Admin remains the only blocked role.
+- Resend verification endpoint always returns 200 (prevents user enumeration).
 
 ---
 
 ## Known Issues / Warnings
 
-1. **JWT key length warning in tests** — The test SQLite settings use a 22-byte secret key. PyJWT emits `InsecureKeyLengthWarning` (needs 32+ bytes for SHA256). Non-blocking for tests; production `.env` must use a 32+ character secret. (`233 warnings` in pytest output are all this one warning repeated per JWT-touching test.)
-
-2. **sqflite offline draft storage** — Not implemented. The Submit Report screen keeps draft state in memory only. If demo requires offline capability, add `sqflite: ^2.x` and a local drafts table.
-
-3. **Inline validation on blur** — Form fields validate on submit only, not on field blur. Low priority for the demo assessment.
-
-4. **Flat requirements.txt** — `backend/requirements.txt` (flat, original) still coexists with `backend/requirements/` (split). Safe to remove the flat file after confirming CI/deploy scripts reference the split files.
-
-5. **Report approve endpoint path** — Flutter calls `POST /reports/{id}/approve/`. Backend has this as a DRF `@action` with `url_path="approve"` on the ReportsViewSet. Verified matching.
+1. **JWT key length warning** — same as before (test key < 32 bytes). Non-blocking.
+2. **`local_sqlite.py`** — not committed to git (gitignored). Regenerate with `cp backend/config/settings/test_sqlite.py backend/config/settings/local_sqlite.py` and adjust path if needed.
+3. **Verification email in dev** — printed to console (EMAIL_BACKEND = console). The link is `http://localhost:8000/api/v1/auth/verify-email/?token=<raw>`. Open it in the browser to verify.
 
 ---
 
 ## Exact Next Steps
 
-**The project is feature-complete and assessment-ready.**
-
-If further work is needed:
-
-1. **Production deploy checklist**:
-   - Set `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS=<domain>` in `.env`
-   - Use a 32+ char `DJANGO_SECRET_KEY`
-   - Configure MySQL 8 connection creds
-   - Run `python manage.py migrate && python manage.py createsuperuser`
-   - Optionally `python manage.py seed_demo` for demo data
-   - Set up daily cron: `0 7 * * * python manage.py notify_due_milestones`
-
-2. **Android/iOS build** (if mobile demo needed beyond web):
-   - `flutter build apk --release --dart-define=API_BASE_URL=https://<your-api>`
-
-3. **Offline draft storage** (if required):
-   - Add `sqflite: ^2.x` to pubspec.yaml
-   - Create a `DraftRepository` using sqflite
-   - Wire it into `SubmitReportScreen` to persist before GPS/photo upload
-
----
+1. Test the full flow in the browser:
+   - Register a new user → see console email → open link → log in
+   - Try logging in before verifying → see "Resend" button
+   - Try reusing the same token → see 400 error
+2. Commit changes: `git add -A && git commit -m "feat: email verification flow + register screen overhaul"`
 
 ## Commands to Re-run on Resume
 
 ```bash
-# Backend — run tests
+# Backend tests (172 expected)
 cd /Users/admin/Desktop/SmartNGO/backend
 source venv/bin/activate
-python -m pytest -q --ds=config.settings.test_sqlite
-# Expected: 155 passed
+python -m pytest --ds=config.settings.test_sqlite -q
 
-# Mobile — run tests + analyze
+# Flutter
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter test && flutter analyze
-# Expected: 31 tests, 0 issues
 
-# Start backend dev server
+# Dev server (SQLite)
 cd /Users/admin/Desktop/SmartNGO/backend
 source venv/bin/activate
-python manage.py runserver  # needs .env with MySQL creds, or use test_sqlite settings
-
-# Run Flutter on Chrome
-cd /Users/admin/Desktop/SmartNGO/mobile
-flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
+DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver
 ```
-
----
 
 ## Blockers
 
-**None.** Project is complete.
+None.

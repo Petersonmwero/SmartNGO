@@ -13,6 +13,9 @@ pytestmark = pytest.mark.django_db
 
 class TestRegister:
     def test_register_officer_succeeds(self, api_client, ngo):
+        """Registration returns 201 with a success envelope; user is inactive pending verification."""
+        from apps.accounts.models import User
+
         resp = api_client.post(
             REGISTER,
             {
@@ -25,8 +28,13 @@ class TestRegister:
             format="json",
         )
         assert resp.status_code == 201
+        assert resp.data["status"] == "success"
+        assert "verification" in resp.data["message"].lower()
+        # Password must never appear in the response.
         assert "password" not in resp.data
-        assert resp.data["email"] == "jane@example.org"
+        # Account is inactive until email is verified.
+        user = User.objects.get(email="jane@example.org")
+        assert user.is_active is False
 
     def test_cannot_self_register_as_admin(self, api_client, ngo):
         resp = api_client.post(

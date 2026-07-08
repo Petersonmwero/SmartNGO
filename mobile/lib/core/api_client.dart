@@ -3,13 +3,16 @@ import 'package:dio/dio.dart';
 import 'config.dart';
 import 'token_storage.dart';
 
-/// Paths under /auth/ that must NOT receive a bearer token or trigger a refresh.
+/// Paths that must NOT receive a bearer token or trigger a refresh on 401.
 const _publicPaths = <String>{
   '/auth/login/',
   '/auth/register/',
   '/auth/token/refresh/',
   '/auth/password-reset/',
   '/auth/password-reset/confirm/',
+  '/auth/verify-email/',
+  '/auth/resend-verification/',
+  '/ngos/public/',
 };
 
 /// Called when the refresh token is no longer valid; the app should log out.
