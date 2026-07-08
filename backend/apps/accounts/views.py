@@ -2,7 +2,8 @@
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
-from rest_framework import generics, serializers, status
+from rest_framework import generics, serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -10,11 +11,16 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from apps.accounts.permissions import IsSystemAdmin
+from core.responses import SuccessResponse
+
 from .serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
     SmartTokenObtainPairSerializer,
+    UserManagementSerializer,
+    UserProfileSerializer,
 )
 from .tokens import consume_reset_token, issue_reset_token
 
@@ -60,6 +66,16 @@ class LogoutView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class MeView(generics.RetrieveAPIView):
+    """Return the currently authenticated user's own profile."""
+
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
 
 
 class PasswordResetRequestView(APIView):
@@ -125,4 +141,37 @@ class PasswordResetConfirmView(APIView):
         return Response(
             {"detail": "Password has been reset successfully."},
             status=status.HTTP_200_OK,
+        )
+
+
+class UserManagementViewSet(viewsets.ModelViewSet):
+    """Admin-only user management: list, create, activate/deactivate.
+
+    Scoped to the admin's own NGO so a compromised admin account cannot
+    reach users in other NGOs.
+    """
+
+    serializer_class = UserManagementSerializer
+    permission_classes = [IsSystemAdmin]
+    queryset = User.objects.none()  # overridden in get_queryset; needed for schema
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return User.objects.none()
+        return (
+            User.objects.filter(ngo=self.request.user.ngo)
+            .select_related("ngo")
+            .order_by("full_name")
+        )
+
+    @action(detail=True, methods=["patch"], url_path="toggle-active")
+    def toggle_active(self, request, pk=None):
+        """Toggle a user's is_active flag (activate or deactivate)."""
+        user = self.get_object()
+        user.is_active = not user.is_active
+        user.save(update_fields=["is_active"])
+        label = "activated" if user.is_active else "deactivated"
+        return SuccessResponse(
+            data={"id": user.id, "is_active": user.is_active},
+            message=f"User {label} successfully.",
         )

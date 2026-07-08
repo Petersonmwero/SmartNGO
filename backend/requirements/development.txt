@@ -1,0 +1,12 @@
+# Development and testing dependencies.
+# Install alongside base: pip install -r requirements/development.txt
+-r base.txt
+
+attrs==26.1.0
+exceptiongroup==1.3.1
+iniconfig==2.1.0
+pluggy==1.6.0
+Pygments==2.20.0
+pytest==8.4.2
+pytest-django==4.11.1
+tomli==2.4.1

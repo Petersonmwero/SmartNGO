@@ -62,6 +62,43 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return value
 
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Read-only serializer for the /auth/me/ endpoint."""
+
+    class Meta:
+        model = User
+        fields = ["id", "full_name", "email", "role", "phone", "ngo", "is_active", "created_at"]
+        read_only_fields = ["id", "full_name", "email", "role", "phone", "ngo", "is_active", "created_at"]
+
+
+class UserManagementSerializer(serializers.ModelSerializer):
+    """Serializer for admin user management: list, create, toggle-active."""
+
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        style={"input_type": "password"},
+        required=False,
+    )
+
+    class Meta:
+        model = User
+        fields = ["id", "full_name", "email", "password", "role", "phone", "ngo", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        # Password changes go through the dedicated reset flow, not this serializer.
+        validated_data.pop("password", None)
+        return super().update(instance, validated_data)
+
+
 class SmartTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Login serializer that embeds role/ngo claims and returns user info."""
 

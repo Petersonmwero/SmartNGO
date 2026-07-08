@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:smartngo/core/paginated.dart';
+import 'package:smartngo/features/reports/models/report.dart';
 import 'package:smartngo/features/reports/report_repository.dart';
 import 'package:smartngo/features/reports/screens/submit_report_screen.dart';
 
@@ -10,6 +12,10 @@ import 'package:smartngo/features/reports/screens/submit_report_screen.dart';
 class FakeReportRepository implements ReportRepository {
   bool createCalled = false;
   bool submitted = false;
+
+  @override
+  Future<Paginated<Report>> list({int? projectId, String? status}) async =>
+      Paginated(count: 0, results: []);
 
   @override
   Future<int> createReport({
@@ -32,6 +38,20 @@ class FakeReportRepository implements ReportRepository {
   Future<void> submit(int reportId) async {
     submitted = true;
   }
+
+  @override
+  Future<Report> get(int id) async => const Report(
+        id: 1,
+        title: '',
+        description: '',
+        status: 'draft',
+        reportType: 'daily',
+        projectId: 0,
+        officerId: 0,
+      );
+
+  @override
+  Future<void> approve(int reportId) async {}
 }
 
 Widget _harness(ReportRepository repo) => Provider<ReportRepository>.value(

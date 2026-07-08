@@ -19,15 +19,23 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
 
-  /// Restore session from secure storage on app start.
+  /// Restore session from secure storage on app start, then refresh profile from server.
   Future<void> bootstrap() async {
     if (await _repo.hasSession()) {
       user = await _repo.cachedUser();
       status = AuthStatus.authenticated;
+      notifyListeners();
+      // Refresh profile in background so role/name changes propagate without re-login.
+      try {
+        user = await _repo.me();
+        notifyListeners();
+      } on ApiException {
+        // Ignore — stale cache is acceptable if the server is unreachable.
+      }
     } else {
       status = AuthStatus.unauthenticated;
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   Future<bool> login(String email, String password) async {

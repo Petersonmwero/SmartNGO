@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/theme.dart';
 import '../auth_provider.dart';
+import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,85 +44,175 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final screenHeight = MediaQuery.sizeOf(context).height;
+
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Icon(Icons.eco,
-                      size: 64, color: Theme.of(context).colorScheme.primary),
-                  const SizedBox(height: 8),
-                  Text('Smart NGO',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineMedium),
-                  Text('Monitoring & Evaluation',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(height: 32),
-                  TextFormField(
-                    key: const Key('email_field'),
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email_outlined),
-                    ),
-                    validator: (v) => (v == null || !v.contains('@'))
-                        ? 'Enter a valid email'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    key: const Key('password_field'),
-                    controller: _passwordController,
-                    obscureText: _obscure,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscure
-                            ? Icons.visibility
-                            : Icons.visibility_off),
-                        onPressed: () => setState(() => _obscure = !_obscure),
+      backgroundColor: AppColors.primary,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Branding header
+            SizedBox(
+              height: screenHeight * 0.34,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.22),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.eco_rounded,
+                        size: 44,
+                        color: AppColors.primary,
                       ),
                     ),
-                    validator: (v) => (v == null || v.length < 8)
-                        ? 'Password must be at least 8 characters'
-                        : null,
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    key: const Key('login_button'),
-                    onPressed: auth.busy ? null : _submit,
-                    child: auth.busy
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Log in'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: auth.busy
-                        ? null
-                        : () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const RegisterScreen()),
-                            ),
-                    child: const Text("Don't have an account? Register"),
-                  ),
-                ],
+                    const SizedBox(height: 18),
+                    Text(
+                      'Smart NGO',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Monitoring & Evaluation Platform',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: Colors.white.withValues(alpha: 0.72),
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
+            // Form card
+            Expanded(
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(28),
+                    topRight: Radius.circular(28),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Sign in',
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Welcome back. Enter your credentials to continue.',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(color: AppColors.muted),
+                        ),
+                        const SizedBox(height: 28),
+                        TextFormField(
+                          key: const Key('email_field'),
+                          controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          decoration: const InputDecoration(
+                            labelText: 'Email address',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: (v) => (v == null || !v.contains('@'))
+                              ? 'Enter a valid email'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          key: const Key('password_field'),
+                          controller: _passwordController,
+                          obscureText: _obscure,
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) =>
+                              auth.busy ? null : _submit(),
+                          decoration: InputDecoration(
+                            labelText: 'Password',
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscure
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined),
+                              onPressed: () =>
+                                  setState(() => _obscure = !_obscure),
+                            ),
+                          ),
+                          validator: (v) => (v == null || v.length < 8)
+                              ? 'Password must be at least 8 characters'
+                              : null,
+                        ),
+                        const SizedBox(height: 4),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen(),
+                              ),
+                            ),
+                            child: const Text('Forgot password?'),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          key: const Key('login_button'),
+                          onPressed: auth.busy ? null : _submit,
+                          child: auth.busy
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Sign in'),
+                        ),
+                        const SizedBox(height: 10),
+                        TextButton(
+                          onPressed: auth.busy
+                              ? null
+                              : () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const RegisterScreen(),
+                                    ),
+                                  ),
+                          child: const Text("Don't have an account? Register"),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

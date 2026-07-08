@@ -8,6 +8,8 @@ not depend on drf-nested-routers.
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from apps.accounts.views import UserManagementViewSet
+from apps.analytics.views import AnalyticsDashboardView
 from apps.beneficiaries.views import BeneficiaryViewSet
 from apps.indicators.views import IndicatorViewSet
 from apps.ngos.views import NGOViewSet
@@ -27,6 +29,7 @@ router.register("indicators", IndicatorViewSet, basename="indicator")
 router.register("milestones", MilestoneViewSet, basename="milestone")
 router.register("reports", ReportViewSet, basename="report")
 router.register("notifications", NotificationViewSet, basename="notification")
+router.register("users", UserManagementViewSet, basename="user")
 
 # Nested: /projects/<project_pk>/assignments/[<pk>/]
 _assignment_list = ProjectAssignmentViewSet.as_view({"get": "list", "post": "create"})
@@ -57,5 +60,6 @@ urlpatterns = [
         _report_image_detail,
         name="report-image-detail",
     ),
+    path("analytics/dashboard/", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
     *router.urls,
 ]

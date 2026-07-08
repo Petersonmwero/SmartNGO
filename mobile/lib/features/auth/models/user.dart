@@ -19,7 +19,8 @@ class User {
         fullName: (json['full_name'] ?? '') as String,
         email: (json['email'] ?? '') as String,
         role: (json['role'] ?? '') as String,
-        ngoId: json['ngo_id'] as int?,
+        // Login response uses 'ngo_id'; /auth/me/ uses 'ngo' (FK integer).
+        ngoId: (json['ngo_id'] ?? json['ngo']) as int?,
       );
 
   Map<String, dynamic> toJson() => {

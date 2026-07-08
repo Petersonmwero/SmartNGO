@@ -48,6 +48,27 @@ class ProjectRepository {
     });
   }
 
+  Future<Project> create({
+    required String name,
+    required String description,
+    required double budget,
+    required String startDate,
+    required String endDate,
+    String status = 'planning',
+  }) {
+    return apiGuard(() async {
+      final res = await _api.dio.post('/projects/', data: {
+        'project_name': name,
+        'description': description,
+        'budget': budget,
+        'start_date': startDate,
+        'end_date': endDate,
+        'status': status,
+      });
+      return Project.fromJson(res.data as Map<String, dynamic>);
+    });
+  }
+
   Future<List<ProjectAssignment>> assignments(int projectId) {
     return apiGuard(() async {
       final res = await _api.dio.get('/projects/$projectId/assignments/');

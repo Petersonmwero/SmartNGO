@@ -45,6 +45,14 @@ dependencies:
   image_picker: ^1.1.2
   # Formatting (dates, numbers)
   intl: ^0.20.2
+  # Design-system fonts (Space Grotesk + Inter)
+  google_fonts: ^6.2.1
+  # Declarative navigation with role-based route guards
+  go_router: ^14.0.0
+  # Charts for analytics dashboard
+  fl_chart: ^0.69.0
+  # Skeleton loading placeholders (replaces spinner during data fetch)
+  shimmer: ^3.0.0
 
 dev_dependencies:
   flutter_test:

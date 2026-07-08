@@ -4,11 +4,33 @@ import 'package:dio/dio.dart';
 
 import '../../core/api_client.dart';
 import '../../core/api_exception.dart';
+import '../../core/paginated.dart';
+import 'models/report.dart';
 
 class ReportRepository {
   final ApiClient _api;
 
   ReportRepository(this._api);
+
+  Future<Report> get(int id) {
+    return apiGuard(() async {
+      final res = await _api.dio.get('/reports/$id/');
+      return Report.fromJson(res.data as Map<String, dynamic>);
+    });
+  }
+
+  Future<Paginated<Report>> list({int? projectId, String? status}) {
+    return apiGuard(() async {
+      final params = <String, dynamic>{};
+      if (projectId != null) params['project_id'] = projectId;
+      if (status != null) params['status'] = status;
+      final res = await _api.dio.get('/reports/', queryParameters: params);
+      return Paginated.fromJson(
+        res.data as Map<String, dynamic>,
+        (json) => Report.fromJson(json),
+      );
+    });
+  }
 
   /// Create a draft report; returns its id.
   Future<int> createReport({
@@ -53,6 +75,13 @@ class ReportRepository {
   Future<void> submit(int reportId) {
     return apiGuard(() async {
       await _api.dio.post('/reports/$reportId/submit/');
+    });
+  }
+
+  /// Approve a submitted report (manager/admin only).
+  Future<void> approve(int reportId) {
+    return apiGuard(() async {
+      await _api.dio.post('/reports/$reportId/approve/');
     });
   }
 }

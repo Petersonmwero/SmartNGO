@@ -80,5 +80,17 @@ class AuthRepository {
     return json == null ? null : User.fromJson(json);
   }
 
+  /// Fetch the current user's live profile from /auth/me/ (refreshes cached data).
+  Future<User> me() async {
+    try {
+      final res = await _api.dio.get('/auth/me/');
+      final user = User.fromJson(res.data as Map<String, dynamic>);
+      await _store.saveUser(user.toJson());
+      return user;
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
   Future<bool> hasSession() async => (await _store.readAccess()) != null;
 }

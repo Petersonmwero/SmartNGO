@@ -27,7 +27,7 @@ API (never trusted from the client).
 
 | Layer | Technology |
 |-------|------------|
-| Mobile/Web | Flutter 3.44 / Dart · Dio · flutter_secure_storage · geolocator · image_picker · provider |
+| Mobile/Web | Flutter 3.44 / Dart · Dio · flutter_secure_storage · geolocator · image_picker · provider · go_router · fl_chart · shimmer |
 | Backend | Python · Django 4.2 LTS · Django REST Framework |
 | Auth | djangorestframework-simplejwt (15-min access / 7-day refresh, blacklist on logout) |
 | Database | MySQL 8 (via PyMySQL driver) |
@@ -72,8 +72,9 @@ SmartNGO/
 │   └── .env.example
 └── mobile/                  # Flutter client (feature-based)
     └── lib/
-        ├── core/            # config, Dio client + JWT interceptor, token storage, theme
-        └── features/        # auth, dashboard, projects, reports, beneficiaries, notifications
+        ├── core/            # config, Dio client + JWT interceptor, token storage, theme, GoRouter
+        └── features/        # auth, dashboard, projects, reports, beneficiaries,
+                             # notifications, analytics, users, ngos, splash
 ```
 
 ---
@@ -164,6 +165,12 @@ Build a release web bundle:
 flutter build web
 ```
 
+### Implemented screens (17)
+
+Splash · Login · Register · Forgot Password · Dashboard · Projects list · Project detail (4 tabs) · Create Project (3-step form) · Submit Report (GPS + photos) · Reports list · Report Detail (photo gallery + approve) · Beneficiary list · Register Beneficiary · Notifications · Profile · User Management (admin) · NGO Management (admin) · Analytics Dashboard (fl_chart)
+
+Navigation uses **GoRouter** with role-based redirect guards. Admin-only routes (`/users`, `/ngos`) redirect non-admin users to the dashboard.
+
 ---
 
 ## API overview
@@ -175,14 +182,16 @@ envelope.
 
 | Resource | Endpoints |
 |----------|-----------|
-| Auth | `register/`, `login/`, `logout/`, `token/refresh/`, `password-reset/`, `password-reset/confirm/` |
+| Auth | `register/`, `login/`, `logout/`, `token/refresh/`, `me/`, `password-reset/`, `password-reset/confirm/` |
 | NGOs | `ngos/` (admin only) |
-| Projects | `projects/` + nested `projects/{id}/assignments/` |
-| Beneficiaries | `beneficiaries/` (computed age; soft-delete) |
+| Projects | `projects/` + `projects/{id}/assignments/` |
+| Beneficiaries | `beneficiaries/`, `beneficiaries/export/` (CSV) |
 | Indicators | `indicators/` |
 | Milestones | `milestones/` |
-| Reports | `reports/` + `reports/{id}/submit/`, `reports/{id}/approve/`, nested `reports/{id}/images/` |
-| Notifications | `notifications/` (list, mark read, delete) |
+| Reports | `reports/`, `reports/{id}/submit/`, `reports/{id}/approve/`, `reports/{id}/images/` |
+| Notifications | `notifications/`, `notifications/mark-all-read/` |
+| Users | `users/`, `users/{id}/toggle-active/` (admin only) |
+| Analytics | `analytics/dashboard/` (role-filtered KPIs) |
 | PDFs | `projects/{id}/summary-pdf/`, `projects/{id}/monthly-report/?year=&month=` |
 
 Report workflow: **draft → submitted → approved** (author submits; manager/admin
@@ -210,10 +219,10 @@ See the live Swagger UI for full request/response schemas.
 ## Testing
 
 ```bash
-# Backend (119 tests) — locally on in-memory SQLite, no MySQL needed
-cd backend && ./venv/bin/python -m pytest
+# Backend (155 tests) — locally on in-memory SQLite, no MySQL needed
+cd backend && ./venv/bin/python -m pytest --ds=config.settings.test_sqlite
 
-# Mobile (31 tests) + static analysis
+# Mobile (31 tests) + static analysis (0 issues)
 cd mobile && flutter test && flutter analyze
 ```
 
