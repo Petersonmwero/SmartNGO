@@ -71,6 +71,20 @@ class RegisterView(generics.CreateAPIView):
         _send_verification_email(user, raw_token)
 
     def create(self, request, *args, **kwargs):
+        # Normalize to lowercase before any uniqueness check so "User@NGO.org"
+        # and "user@ngo.org" are treated as the same address.
+        email = request.data.get("email", "").strip().lower()
+
+        # If a previous registration attempt left an unverified record (e.g. the
+        # verification link expired), delete it so the user can re-register.
+        if email:
+            User.objects.filter(
+                email__iexact=email,
+                is_active=False,
+            ).filter(
+                email_verification_tokens__used=False,
+            ).delete()
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -79,7 +93,7 @@ class RegisterView(generics.CreateAPIView):
                 "status": "success",
                 "message": (
                     "Account created. A verification email has been sent to "
-                    f"{request.data.get('email', '')}. "
+                    f"{email or request.data.get('email', '')}. "
                     "Please check your inbox and click the link to activate your account."
                 ),
             },
@@ -286,7 +300,7 @@ class UserManagementViewSet(viewsets.ModelViewSet):
         return (
             User.objects.filter(ngo=self.request.user.ngo)
             .select_related("ngo")
-            .order_by("full_name")
+            .order_by("first_name", "last_name")
         )
 
     @action(detail=True, methods=["patch"], url_path="toggle-active")

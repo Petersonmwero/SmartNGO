@@ -33,7 +33,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _name = TextEditingController();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
@@ -52,6 +53,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Post-registration success state
   bool _showSuccess = false;
   String _registeredEmail = '';
+  String _registeredFirstName = '';
 
   @override
   void initState() {
@@ -61,7 +63,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _name.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
     _email.dispose();
     _password.dispose();
     _confirmPassword.dispose();
@@ -100,7 +103,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _busy = true);
     try {
       await context.read<AuthRepository>().register(
-            fullName: _name.text.trim(),
+            firstName: _firstName.text.trim(),
+            lastName: _lastName.text.trim(),
             email: _email.text.trim(),
             password: _password.text,
             role: _role,
@@ -110,6 +114,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _showSuccess = true;
         _registeredEmail = _email.text.trim();
+        _registeredFirstName = _firstName.text.trim();
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -122,7 +127,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_showSuccess) return _SuccessScreen(email: _registeredEmail);
+    if (_showSuccess) return _SuccessScreen(email: _registeredEmail, firstName: _registeredFirstName);
 
     return Scaffold(
       backgroundColor: AppColors.primary,
@@ -192,16 +197,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Full name
-                        TextFormField(
-                          controller: _name,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Full name',
-                            prefixIcon: Icon(Icons.person_outline),
-                          ),
-                          validator: (v) =>
-                              (v == null || v.trim().isEmpty) ? 'Required' : null,
+                        // Name row: first name + last name side-by-side
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _firstName,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  labelText: 'First name',
+                                  prefixIcon: Icon(Icons.person_outline),
+                                ),
+                                validator: (v) =>
+                                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _lastName,
+                                textInputAction: TextInputAction.next,
+                                decoration: const InputDecoration(
+                                  labelText: 'Last name',
+                                ),
+                                validator: (v) => null, // optional
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
 
@@ -230,8 +253,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(_obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined),
                               onPressed: () => setState(
                                   () => _obscurePassword = !_obscurePassword),
                             ),
@@ -252,8 +275,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(_obscureConfirm
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined),
                               onPressed: () => setState(
                                   () => _obscureConfirm = !_obscureConfirm),
                             ),
@@ -410,7 +433,8 @@ class _NgoErrorState extends StatelessWidget {
 /// Shown in place of the form after successful registration.
 class _SuccessScreen extends StatelessWidget {
   final String email;
-  const _SuccessScreen({required this.email});
+  final String firstName;
+  const _SuccessScreen({required this.email, required this.firstName});
 
   @override
   Widget build(BuildContext context) {
@@ -438,7 +462,7 @@ class _SuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  'Account Created!',
+                  firstName.isNotEmpty ? 'Welcome, $firstName!' : 'Account Created!',
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
@@ -448,8 +472,8 @@ class _SuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "We've sent a verification email to\n$email\n\n"
-                  "Please check your inbox and click the link to activate "
+                  "We've sent a verification email to:\n$email\n\n"
+                  "Check your inbox and click the link to activate "
                   "your account before logging in.",
                   style: GoogleFonts.inter(
                     fontSize: 15,

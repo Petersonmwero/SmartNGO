@@ -198,8 +198,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(_obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined),
                               onPressed: () =>
                                   setState(() => _obscure = !_obscure),
                             ),

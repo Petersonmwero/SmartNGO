@@ -7,7 +7,7 @@ from .models import PasswordResetToken, User
 class UserAdmin(admin.ModelAdmin):
     list_display = ("id", "full_name", "email", "role", "ngo", "is_active")
     list_filter = ("role", "is_active", "ngo")
-    search_fields = ("full_name", "email")
+    search_fields = ("first_name", "last_name", "email")
 
 
 @admin.register(PasswordResetToken)

@@ -66,7 +66,8 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    full_name = models.CharField(max_length=255)
+    first_name = models.CharField(max_length=150, default="")
+    last_name = models.CharField(max_length=150, blank=True, default="")
     email = models.EmailField(unique=True)
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.OFFICER)
     phone = models.CharField(max_length=30, blank=True)
@@ -86,7 +87,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["full_name"]
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     class Meta:
         db_table = "users"
@@ -94,6 +95,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.full_name} <{self.email}>"
+
+    @property
+    def full_name(self):
+        """Computed full name for backwards-compatible display."""
+        return f"{self.first_name} {self.last_name}".strip()
 
     @property
     def is_app_admin(self):

@@ -34,15 +34,15 @@ class Command(BaseCommand):
         ngo2 = self._ngo("HealthBridge Africa", "NGO-HBA-002", "Kisumu, Kenya")
 
         # ── Users (one per role + extras to show NGO scoping) ────────────
-        admin = self._user("admin@demo.ngo", "Ada Admin", Role.ADMIN, ngo1,
+        admin = self._user("admin@demo.ngo", "Ada", "Admin", Role.ADMIN, ngo1,
                             is_staff=True, is_superuser=True)
-        manager = self._user("manager@demo.ngo", "Moses Manager", Role.MANAGER, ngo1)
-        officer1 = self._user("officer1@demo.ngo", "Faith Officer", Role.OFFICER, ngo1)
-        officer2 = self._user("officer2@demo.ngo", "Brian Officer", Role.OFFICER, ngo1)
-        donor = self._user("donor@demo.ngo", "Dana Donor", Role.DONOR, ngo1)
+        manager = self._user("manager@demo.ngo", "Moses", "Manager", Role.MANAGER, ngo1)
+        officer1 = self._user("officer1@demo.ngo", "Faith", "Officer", Role.OFFICER, ngo1)
+        officer2 = self._user("officer2@demo.ngo", "Brian", "Officer", Role.OFFICER, ngo1)
+        donor = self._user("donor@demo.ngo", "Dana", "Donor", Role.DONOR, ngo1)
         # A second NGO's staff — used to demonstrate that data is NGO-scoped.
-        manager2 = self._user("manager2@demo.ngo", "Mary Manager", Role.MANAGER, ngo2)
-        officer3 = self._user("officer3@demo.ngo", "Otis Officer", Role.OFFICER, ngo2)
+        manager2 = self._user("manager2@demo.ngo", "Mary", "Manager", Role.MANAGER, ngo2)
+        officer3 = self._user("officer3@demo.ngo", "Otis", "Officer", Role.OFFICER, ngo2)
 
         # ── Projects ─────────────────────────────────────────────────────
         wells = self._project(
@@ -103,14 +103,22 @@ class Command(BaseCommand):
         )
         return ngo
 
-    def _user(self, email, full_name, role, ngo, is_staff=False, is_superuser=False):
+    def _user(self, email, first_name, last_name, role, ngo,
+              is_staff=False, is_superuser=False):
         user, created = User.objects.get_or_create(
             email=email,
-            defaults={"full_name": full_name, "role": role, "ngo": ngo,
-                      "is_staff": is_staff, "is_superuser": is_superuser},
+            defaults={
+                "first_name": first_name,
+                "last_name": last_name,
+                "role": role,
+                "ngo": ngo,
+                "is_staff": is_staff,
+                "is_superuser": is_superuser,
+            },
         )
         if created:
             user.set_password(DEMO_PASSWORD)
+            user.is_active = True
             user.save()
         return user
 

@@ -26,6 +26,8 @@ class _EmailNotVerifiedException(AuthenticationFailed):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(max_length=150, required=True, allow_blank=False)
+    last_name = serializers.CharField(max_length=150, required=False, allow_blank=True, default="")
     password = serializers.CharField(
         write_only=True, min_length=8, style={"input_type": "password"}
     )
@@ -33,7 +35,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "full_name", "email", "password", "role", "phone", "ngo"]
+        fields = ["id", "first_name", "last_name", "email", "password", "role", "phone", "ngo"]
         read_only_fields = ["id"]
 
     def validate_password(self, value):
@@ -76,8 +78,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "full_name", "email", "role", "phone", "ngo", "is_active", "created_at"]
-        read_only_fields = ["id", "full_name", "email", "role", "phone", "ngo", "is_active", "created_at"]
+        fields = ["id", "first_name", "last_name", "email", "role", "phone", "ngo", "is_active", "created_at"]
+        read_only_fields = ["id", "first_name", "last_name", "email", "role", "phone", "ngo", "is_active", "created_at"]
 
 
 class UserManagementSerializer(serializers.ModelSerializer):
@@ -92,7 +94,7 @@ class UserManagementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["id", "full_name", "email", "password", "role", "phone", "ngo", "is_active", "created_at"]
+        fields = ["id", "first_name", "last_name", "email", "password", "role", "phone", "ngo", "is_active", "created_at"]
         read_only_fields = ["id", "created_at"]
 
     def create(self, validated_data):
@@ -134,7 +136,9 @@ class SmartTokenObtainPairSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data["user"] = {
             "id": self.user.id,
-            "full_name": self.user.full_name,
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+            "full_name": self.user.full_name,  # computed property, kept for display
             "email": self.user.email,
             "role": self.user.role,
             "ngo_id": self.user.ngo_id,

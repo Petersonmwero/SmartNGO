@@ -20,7 +20,7 @@ class TestUserManagementList:
         from apps.accounts.models import User
         other = User.objects.create_user(
             email="other@elsewhere.org", password="Pw!12345",
-            full_name="Other", role=Role.OFFICER, ngo=other_ngo,
+            first_name="Other", last_name="", role=Role.OFFICER, ngo=other_ngo,
         )
         resp = auth_client(admin_user).get(USERS)
         emails = {u["email"] for u in resp.data["results"]}
@@ -38,7 +38,8 @@ class TestUserManagementList:
 class TestUserManagementCreate:
     def test_admin_can_create_manager(self, auth_client, admin_user, ngo):
         payload = {
-            "full_name": "New Manager",
+            "first_name": "New",
+            "last_name": "Manager",
             "email": "newmgr@test.org",
             "password": "Secure!99",
             "role": "manager",
@@ -50,7 +51,8 @@ class TestUserManagementCreate:
 
     def test_admin_can_create_admin(self, auth_client, admin_user, ngo):
         payload = {
-            "full_name": "New Admin",
+            "first_name": "New",
+            "last_name": "Admin",
             "email": "newadmin@test.org",
             "password": "Secure!99",
             "role": "admin",

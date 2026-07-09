@@ -19,7 +19,8 @@ class TestRegister:
         resp = api_client.post(
             REGISTER,
             {
-                "full_name": "Jane Officer",
+                "first_name": "Jane",
+                "last_name": "Officer",
                 "email": "jane@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -40,7 +41,8 @@ class TestRegister:
         resp = api_client.post(
             REGISTER,
             {
-                "full_name": "Sneaky",
+                "first_name": "Sneaky",
+                "last_name": "",
                 "email": "evil@example.org",
                 "password": PASSWORD,
                 "role": "admin",
@@ -54,7 +56,7 @@ class TestRegister:
     def test_weak_password_rejected(self, api_client, ngo):
         resp = api_client.post(
             REGISTER,
-            {"full_name": "Weak", "email": "weak@example.org", "password": "short", "ngo": ngo.id},
+            {"first_name": "Weak", "last_name": "", "email": "weak@example.org", "password": "short", "ngo": ngo.id},
             format="json",
         )
         assert resp.status_code == 400

@@ -28,7 +28,7 @@ class TestCreateAssignment:
 
     def test_cannot_assign_user_from_other_ngo(self, auth_client, manager_user, project, other_ngo):
         outsider = User.objects.create_user(
-            "outsider@x.org", "Pw!12345", full_name="Out", role=Role.OFFICER, ngo=other_ngo
+            "outsider@x.org", "Pw!12345", first_name="Out", last_name="", role=Role.OFFICER, ngo=other_ngo
         )
         resp = auth_client(manager_user).post(
             _assignments_url(project.id),

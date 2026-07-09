@@ -17,7 +17,7 @@ class TestMeEndpoint:
     def test_includes_expected_fields(self, auth_client, admin_user):
         resp = auth_client(admin_user).get(ME)
         assert resp.status_code == 200
-        for field in ["id", "full_name", "email", "role", "phone", "ngo", "is_active", "created_at"]:
+        for field in ["id", "first_name", "last_name", "email", "role", "phone", "ngo", "is_active", "created_at"]:
             assert field in resp.data
 
     def test_unauthenticated_returns_401(self, api_client):

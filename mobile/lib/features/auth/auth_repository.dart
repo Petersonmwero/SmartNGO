@@ -31,24 +31,25 @@ class AuthRepository {
     }
   }
 
-  Future<User> register({
-    required String fullName,
+  Future<void> register({
+    required String firstName,
+    required String lastName,
     required String email,
     required String password,
-    required String role, // officer | donor
+    required String role, // officer | manager | donor
     required int ngoId,
     String phone = '',
   }) async {
     try {
-      final res = await _api.dio.post('/auth/register/', data: {
-        'full_name': fullName,
+      await _api.dio.post('/auth/register/', data: {
+        'first_name': firstName,
+        'last_name': lastName,
         'email': email,
         'password': password,
         'role': role,
         'ngo': ngoId,
         'phone': phone,
       });
-      return User.fromJson(res.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

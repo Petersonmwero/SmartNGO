@@ -28,7 +28,7 @@ class TestRegistrationEmailVerification:
         resp = api_client.post(
             REGISTER,
             {
-                "full_name": "New User",
+                "first_name": "New", "last_name": "User",
                 "email": "new@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -45,7 +45,7 @@ class TestRegistrationEmailVerification:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Token User",
+                "first_name": "Token", "last_name": "User",
                 "email": "token@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -61,7 +61,7 @@ class TestRegistrationEmailVerification:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Email User",
+                "first_name": "Email", "last_name": "User",
                 "email": "email@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -80,7 +80,7 @@ class TestRegistrationEmailVerification:
         resp = api_client.post(
             REGISTER,
             {
-                "full_name": "Msg User",
+                "first_name": "Msg", "last_name": "User",
                 "email": "msg@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -97,7 +97,7 @@ class TestRegistrationEmailVerification:
         resp = api_client.post(
             REGISTER,
             {
-                "full_name": "New Manager",
+                "first_name": "New", "last_name": "Manager",
                 "email": "mgr@example.org",
                 "password": PASSWORD,
                 "role": "manager",
@@ -112,7 +112,7 @@ class TestRegistrationEmailVerification:
         resp = api_client.post(
             REGISTER,
             {
-                "full_name": "Bad Actor",
+                "first_name": "Bad", "last_name": "Actor",
                 "email": "evil@example.org",
                 "password": PASSWORD,
                 "role": "admin",
@@ -134,7 +134,7 @@ class TestVerifyEmailEndpoint:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Verify Me",
+                "first_name": "Verify", "last_name": "Me",
                 "email": email,
                 "password": PASSWORD,
                 "role": "officer",
@@ -194,7 +194,7 @@ class TestLoginBlockedForUnverified:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Unverified",
+                "first_name": "Unverified", "last_name": "",
                 "email": "unverified@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -216,7 +216,7 @@ class TestLoginBlockedForUnverified:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Verified",
+                "first_name": "Verified", "last_name": "",
                 "email": email,
                 "password": PASSWORD,
                 "role": "officer",
@@ -237,7 +237,7 @@ class TestLoginBlockedForUnverified:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Code Check",
+                "first_name": "Code", "last_name": "Check",
                 "email": "code@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -264,7 +264,7 @@ class TestResendVerification:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Resend User",
+                "first_name": "Resend", "last_name": "User",
                 "email": "resend@example.org",
                 "password": PASSWORD,
                 "role": "officer",
@@ -282,7 +282,7 @@ class TestResendVerification:
         api_client.post(
             REGISTER,
             {
-                "full_name": "Token Rotate",
+                "first_name": "Token", "last_name": "Rotate",
                 "email": "rotate@example.org",
                 "password": PASSWORD,
                 "role": "officer",

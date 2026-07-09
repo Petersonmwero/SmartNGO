@@ -96,7 +96,7 @@ class TestScoping:
         from apps.projects.models import Project
 
         foreign_officer = User.objects.create_user(
-            "fo@x.org", "Pw!12345", full_name="FO", role=Role.OFFICER, ngo=other_ngo
+            "fo@x.org", "Pw!12345", first_name="FO", last_name="", role=Role.OFFICER, ngo=other_ngo
         )
         foreign_project = Project.objects.create(project_name="Foreign", ngo=other_ngo)
         Report.objects.create(

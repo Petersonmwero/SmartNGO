@@ -21,15 +21,19 @@ class ManagedUser {
     required this.createdAt,
   });
 
-  factory ManagedUser.fromJson(Map<String, dynamic> json) => ManagedUser(
-        id: json['id'] as int,
-        fullName: (json['full_name'] ?? '') as String,
-        email: (json['email'] ?? '') as String,
-        role: (json['role'] ?? '') as String,
-        phone: (json['phone'] ?? '') as String,
-        isActive: (json['is_active'] ?? true) as bool,
-        createdAt: (json['created_at'] ?? '') as String,
-      );
+  factory ManagedUser.fromJson(Map<String, dynamic> json) {
+    final first = (json['first_name'] ?? json['full_name'] ?? '') as String;
+    final last = (json['last_name'] ?? '') as String;
+    return ManagedUser(
+      id: json['id'] as int,
+      fullName: '$first $last'.trim(),
+      email: (json['email'] ?? '') as String,
+      role: (json['role'] ?? '') as String,
+      phone: (json['phone'] ?? '') as String,
+      isActive: (json['is_active'] ?? true) as bool,
+      createdAt: (json['created_at'] ?? '') as String,
+    );
+  }
 
   String get roleLabel {
     switch (role) {

@@ -50,7 +50,8 @@ def _make_user(ngo, role, email):
     return User.objects.create_user(
         email=email,
         password=PASSWORD,
-        full_name=f"{role} user",
+        first_name=role,
+        last_name="user",
         role=role,
         ngo=ngo,
     )

@@ -72,7 +72,7 @@ class TestAccess:
         from apps.accounts.models import Role, User
 
         outsider = User.objects.create_user(
-            "out@x.org", "Pw!12345", full_name="Out", role=Role.OFFICER, ngo=other_ngo
+            "out@x.org", "Pw!12345", first_name="Out", last_name="", role=Role.OFFICER, ngo=other_ngo
         )
         resp = auth_client(outsider).post(
             _images_url(draft_report.id), {"image": make_image_file()}, format="multipart"
