@@ -126,9 +126,28 @@ AUTH_USER_MODEL = "accounts.User"
 
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@smartngo.local")
 
+# ---------------------------------------------------------------------------
+# Email — Gmail SMTP (production & development).
+# For tests, test_sqlite.py overrides this with locmem.EmailBackend so no
+# real SMTP connection is made during the test suite.
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+
 # Base URL used when constructing verification links sent via email.
 # Override with the real domain in production.
 BACKEND_BASE_URL = env("BACKEND_BASE_URL", "http://localhost:8000")
+
+# Where to send the browser after a successful email verification click.
+# In development this is the Flutter web dev-server URL (port changes per run —
+# update FLUTTER_VERIFY_SUCCESS_URL in .env to match the current port).
+FLUTTER_VERIFY_SUCCESS_URL = env(
+    "FLUTTER_VERIFY_SUCCESS_URL", "http://localhost:60860/#/verify-success"
+)
 
 # ---------------------------------------------------------------------------
 # CORS — browser origins allowed to call the API (auth is via Bearer tokens,

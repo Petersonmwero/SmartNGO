@@ -2,7 +2,8 @@
 email verification."""
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
+from django.http import HttpResponseRedirect
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -35,23 +36,60 @@ User = get_user_model()
 
 
 def _send_verification_email(user, raw_token):
-    """Send an email verification link to the newly registered user."""
+    """Send a branded HTML verification email to the newly registered user."""
     base_url = getattr(settings, "BACKEND_BASE_URL", "http://localhost:8000")
     verify_link = f"{base_url}/api/v1/auth/verify-email/?token={raw_token}"
-    send_mail(
-        subject="Smart NGO — Verify your email address",
-        message=(
-            f"Hi {user.full_name},\n\n"
-            "Thank you for registering with Smart NGO M&E.\n\n"
-            "Click the link below to verify your email address and activate your account:\n\n"
-            f"{verify_link}\n\n"
-            "This link expires in 24 hours. If you did not create this account, "
-            "you can safely ignore this email."
-        ),
-        from_email=None,
-        recipient_list=[user.email],
-        fail_silently=True,
+
+    plain_body = (
+        f"Hi {user.first_name},\n\n"
+        "Thank you for registering with Smart NGO M&E.\n\n"
+        "Click the link below to verify your email address and activate your account:\n\n"
+        f"{verify_link}\n\n"
+        "This link expires in 24 hours. If you did not create this account, "
+        "you can safely ignore this email.\n\n"
+        "— Smart NGO M&E Platform, University of Eastern Africa, Baraton"
     )
+
+    html_body = f"""<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; background: #f7f5f0; padding: 40px; margin: 0;">
+  <div style="max-width: 500px; margin: 0 auto; background: white; border-radius: 12px;
+              padding: 40px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+    <div style="background: #0D4A2F; width: 60px; height: 60px; border-radius: 50%;
+                margin: 0 auto 20px; line-height: 60px; font-size: 28px;">
+      🌍
+    </div>
+    <h2 style="color: #0D4A2F; margin: 0 0 8px;">Welcome to Smart NGO M&amp;E</h2>
+    <p style="color: #6B7280; margin: 0 0 16px;">Hi {user.first_name},</p>
+    <p style="color: #6B7280; margin: 0 0 24px; line-height: 1.6;">
+      Thank you for registering. Please verify your email address to activate your account.
+    </p>
+    <a href="{verify_link}"
+       style="display: inline-block; background: #0D4A2F; color: white;
+              padding: 14px 32px; border-radius: 8px; text-decoration: none;
+              font-weight: bold; font-size: 15px; margin-bottom: 24px;">
+      Verify My Email
+    </a>
+    <p style="color: #6B7280; font-size: 12px; margin: 0 0 16px;">
+      This link expires in 24 hours.<br>
+      If you didn&apos;t create this account, you can safely ignore this email.
+    </p>
+    <hr style="border: none; border-top: 1px solid #D1D5DB; margin: 20px 0;">
+    <p style="color: #9CA3AF; font-size: 11px; margin: 0;">
+      Smart NGO M&amp;E Platform &mdash; University of Eastern Africa, Baraton
+    </p>
+  </div>
+</body>
+</html>"""
+
+    msg = EmailMultiAlternatives(
+        subject="Verify your Smart NGO M&E Account",
+        body=plain_body,
+        from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
+        to=[user.email],
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=True)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -131,13 +169,15 @@ class VerifyEmailView(APIView):
         user.save(update_fields=["is_active"])
         record.used = True
         record.save(update_fields=["used"])
-        return Response(
-            {
-                "status": "success",
-                "message": "Email verified successfully. You can now log in.",
-            },
-            status=status.HTTP_200_OK,
+
+        # Redirect the browser to the Flutter app's verify-success screen so
+        # the user sees a branded confirmation page instead of raw JSON.
+        redirect_url = getattr(
+            settings,
+            "FLUTTER_VERIFY_SUCCESS_URL",
+            "http://localhost:60860/#/verify-success",
         )
+        return HttpResponseRedirect(redirect_url)
 
 
 class ResendVerificationView(APIView):

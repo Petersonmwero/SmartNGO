@@ -462,7 +462,9 @@ class _SuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  firstName.isNotEmpty ? 'Welcome, $firstName!' : 'Account Created!',
+                  firstName.isNotEmpty
+                      ? 'Welcome, ${firstName[0].toUpperCase()}${firstName.substring(1).toLowerCase()}!'
+                      : 'Account Created!',
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,

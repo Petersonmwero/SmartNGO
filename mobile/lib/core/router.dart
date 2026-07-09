@@ -6,6 +6,7 @@ import '../features/auth/screens/forgot_password_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/profile_screen.dart';
 import '../features/auth/screens/register_screen.dart';
+import '../features/auth/screens/verify_success_screen.dart';
 import '../features/beneficiaries/screens/beneficiary_list_screen.dart';
 import '../features/dashboard/screens/dashboard_screen.dart';
 import '../features/ngos/screens/ngo_management_screen.dart';
@@ -31,8 +32,12 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         // Still bootstrapping — send to splash until resolved.
         if (status == AuthStatus.unknown) return '/splash';
 
-        final isPublic = const ['/login', '/register', '/forgot-password']
-            .any((p) => loc == p);
+        final isPublic = const [
+          '/login',
+          '/register',
+          '/forgot-password',
+          '/verify-success',
+        ].any((p) => loc == p);
 
         if (status == AuthStatus.unauthenticated && !isPublic) return '/login';
         if (status == AuthStatus.authenticated && isPublic) return '/';
@@ -62,6 +67,10 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         GoRoute(
           path: '/forgot-password',
           builder: (_, _) => const ForgotPasswordScreen(),
+        ),
+        GoRoute(
+          path: '/verify-success',
+          builder: (_, _) => const VerifySuccessScreen(),
         ),
 
         // ── Feature screens pushed on top of the shell (no nav bar) ──────

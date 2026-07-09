@@ -148,10 +148,10 @@ class TestVerifyEmailEndpoint:
         return user, raw
 
     def test_valid_token_activates_user(self, api_client, ngo):
-        """A valid token must flip is_active to True."""
+        """A valid token must flip is_active to True and redirect to the Flutter success screen."""
         user, raw = self._register_and_get_token(api_client, ngo, "valid@example.org")
         resp = api_client.get(VERIFY, {"token": raw})
-        assert resp.status_code == 200
+        assert resp.status_code == 302  # redirect → Flutter /verify-success screen
         user.refresh_from_db()
         assert user.is_active is True
 

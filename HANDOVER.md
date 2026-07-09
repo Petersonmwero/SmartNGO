@@ -1,8 +1,47 @@
-# Session Handover — 2026-07-09 | Registration Fixes
+# Session Handover — 2026-07-09 | Gmail SMTP + Verify Success Screen
 
 ---
 
 ## Completed This Session
+
+### Gmail SMTP + Professional Verification Email + Verify-Success Screen
+
+- **`config/settings/base.py`**: Replaced console backend with Gmail SMTP
+  (`EMAIL_BACKEND = smtp.EmailBackend`, host/port/TLS). Added
+  `FLUTTER_VERIFY_SUCCESS_URL` setting (default `http://localhost:60860/#/verify-success`).
+  Email credentials read from `.env` via the existing `env()` helper.
+
+- **`config/settings/dev.py`**: Removed the `EMAIL_BACKEND = console` override so
+  real SMTP is used in development. Console backend now only lives in `test_sqlite.py`.
+
+- **`apps/accounts/views.py`**:
+  - `_send_verification_email()` rebuilt with `EmailMultiAlternatives` — sends both
+    plain text and an HTML version with the green globe branding, centred layout, and
+    a "Verify My Email" button. Subject: "Verify your Smart NGO M&E Account".
+    Greets by `user.first_name` (correct capitalisation from the model).
+  - `VerifyEmailView.get()` now returns `HttpResponseRedirect(FLUTTER_VERIFY_SUCCESS_URL)`
+    on success instead of JSON, so the browser lands on the Flutter confirm screen.
+  - Re-added `send_mail` to imports (used by the password-reset view).
+
+- **`backend/.env`**: Created (gitignored) with `petersonruwa@gmail.com` pre-filled.
+  `EMAIL_HOST_PASSWORD` set to placeholder — Peterson fills in his App Password.
+
+- **`backend/.env.example`**: Added `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`,
+  `DEFAULT_FROM_EMAIL`, `BACKEND_BASE_URL`, and `FLUTTER_VERIFY_SUCCESS_URL` entries
+  with instructions for obtaining a Gmail App Password.
+
+- **Flutter `verify_success_screen.dart`** (NEW): Green checkmark + "Email Verified!"
+  title + "Your account is now active. You can log in." + "Go to Login" FilledButton
+  that routes to `/login`.
+
+- **`mobile/lib/core/router.dart`**: Added `/verify-success` GoRoute; added it to the
+  `isPublic` list so the redirect guard does not bounce unauthenticated visitors to login.
+
+- **`mobile/lib/features/auth/screens/register_screen.dart`**: Capitalised `firstName`
+  on the post-registration success screen using `[0].toUpperCase() + substring(1).toLowerCase()`.
+
+- **`apps/accounts/tests/test_email_verification.py`**: Updated
+  `test_valid_token_activates_user` to expect `302` (redirect) instead of `200`.
 
 ### Issue 1 — Re-registration allowed over unverified accounts
 
