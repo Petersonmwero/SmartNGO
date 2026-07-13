@@ -3,7 +3,7 @@ email verification."""
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives, send_mail
-from django.http import HttpResponseRedirect
+from django.shortcuts import render
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -170,14 +170,14 @@ class VerifyEmailView(APIView):
         record.used = True
         record.save(update_fields=["used"])
 
-        # Redirect the browser to the Flutter app's verify-success screen so
-        # the user sees a branded confirmation page instead of raw JSON.
-        redirect_url = getattr(
-            settings,
-            "FLUTTER_VERIFY_SUCCESS_URL",
-            "http://localhost:60860/#/verify-success",
+        # Serve a branded confirmation page directly rather than redirecting to
+        # the Flutter web app — the page works even when no Flutter dev server
+        # is running (e.g. the link is opened on a phone's browser).
+        return render(
+            request,
+            "accounts/verify_success.html",
+            {"first_name": user.first_name},
         )
-        return HttpResponseRedirect(redirect_url)
 
 
 class ResendVerificationView(APIView):

@@ -142,13 +142,6 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 # Override with the real domain in production.
 BACKEND_BASE_URL = env("BACKEND_BASE_URL", "http://localhost:8000")
 
-# Where to send the browser after a successful email verification click.
-# In development this is the Flutter web dev-server URL (port changes per run —
-# update FLUTTER_VERIFY_SUCCESS_URL in .env to match the current port).
-FLUTTER_VERIFY_SUCCESS_URL = env(
-    "FLUTTER_VERIFY_SUCCESS_URL", "http://localhost:60860/#/verify-success"
-)
-
 # ---------------------------------------------------------------------------
 # CORS — browser origins allowed to call the API (auth is via Bearer tokens,
 # so credentials/cookies are not needed). Dev opens this up (see dev.py);

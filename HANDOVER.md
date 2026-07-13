@@ -1,120 +1,100 @@
-# Session Handover — 2026-07-10 | CLAUDE.md Refactor + Live Email Flow + LAN IP Fix
+# Session Handover — 2026-07-13 | Post-Interruption Verification
 
 ---
 
+## Context
+
+macOS Desktop folder access was interrupted and has been restored. This session
+verified project integrity: **no work lost, all tests green.**
+
 ## Completed This Session
 
-### LAN IP fix — verification links now work from phones on the same WiFi
-- Problem: emails contained `http://localhost:8000/...verify-email...` links, which
-  only resolve on the Mac itself. Additionally the post-verify 302 redirect pointed
-  to `http://localhost:58569/#/verify-success` — same class of bug, would have
-  failed on a phone even after fixing the first link.
-- **`backend/.env`**: `BACKEND_BASE_URL=http://192.168.100.4:8000`,
-  `FLUTTER_VERIFY_SUCCESS_URL=http://192.168.100.4:58569/#/verify-success`,
-  `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,192.168.100.4`. (Mac LAN IP from
-  `ipconfig getifaddr en0` = 192.168.100.4 — re-check if WiFi network changes.)
-- No code change needed: `_send_verification_email()` already builds the link from
-  `settings.BACKEND_BASE_URL`, and `VerifyEmailView` already redirects to
-  `settings.FLUTTER_VERIFY_SUCCESS_URL`.
-- **Django** now runs `runserver 0.0.0.0:8000` (all interfaces).
-- **Flutter** now runs with `--web-hostname=0.0.0.0 --web-port=58569
-  --dart-define=API_BASE_URL=http://192.168.100.4:8000/api/v1` so the phone can
-  load the verify-success page (dev has `CORS_ALLOW_ALL_ORIGINS=True`, so the
-  IP-based API origin is fine).
-- End-to-end test via LAN IP, all passing:
-  - Registered `petersonmwero+lantest@gmail.com` (plus-alias → same Gmail inbox)
-    → 201, email sent with the IP-based link.
-  - Verify link hit via `http://192.168.100.4:8000/...` (throwaway
-    `lanredirect@example.com` token) → 302 to
-    `http://192.168.100.4:58569/#/verify-success`, which serves 200.
-  - Login + dashboard via the IP-based API → 200; unverified account still
-    correctly blocked with `EMAIL_NOT_VERIFIED`.
-- Remaining manual step: click the `+lantest` email link **on the phone** (same
-  WiFi) → should land on the Flutter verify-success screen.
+### Verification after access interruption
+- Project directory accessible; full tree intact (backend, mobile, docs, all MD files).
+- **Backend: 172/172 tests passed** (`pytest`, `config.settings.test_sqlite`, 64s).
+- Git state reviewed — see "Uncommitted Changes" below.
 
-### CLAUDE.md refactor (context-size fix)
-- **`CLAUDE_RULES.md`** (NEW): Operating Rules (code quality, architecture, session
-  management) + full HANDOVER.md template extracted from CLAUDE.md.
-- **`CLAUDE.md`**: Shrunk from 40,819 → 33,758 chars (under the 35,000 limit).
-  Raw SQL CREATE TABLE statements replaced with equivalent Django model descriptions
-  (every field, choice set, FK on_delete, and constraint preserved). "What Good Looks
-  Like" code-examples section removed. Pointer line to CLAUDE_RULES.md added at top.
+## Uncommitted Changes (from the previous session, after commit c4acfe9)
 
-### Full test suites re-run — all green
-- **Backend: 172/172 passed** (`pytest`, `config.settings.test_sqlite`, 69s).
-- **Flutter: 31/31 passed** (`flutter test`).
+A completed-but-uncommitted improvement to the email verification flow:
+**verify-email now renders a Django-served branded HTML success page instead of
+redirecting to the Flutter web app.** This removes the fragile dependency on a
+running Flutter dev server with a pinned port.
 
-### Pending migration found and applied
-- **`apps/accounts/migrations/0004_alter_user_first_name.py`** (NEW): leftover
-  `first_name` field alteration from the first/last-name split had no migration.
-  Created and applied to the local SQLite DB. **Not yet committed.**
+Modified:
+- `backend/apps/accounts/views.py` — `VerifyEmailView` renders
+  `accounts/verify_success.html` (with user's first name) instead of
+  `HttpResponseRedirect(FLUTTER_VERIFY_SUCCESS_URL)`.
+- `backend/config/settings/base.py` — `FLUTTER_VERIFY_SUCCESS_URL` setting removed.
+- `backend/.env.example` — `FLUTTER_VERIFY_SUCCESS_URL` line removed.
+- `backend/apps/accounts/tests/test_email_verification.py` — tests updated for the
+  rendered-page behaviour (included in the 172 passing).
+- `mobile/lib/features/auth/screens/verify_success_screen.dart` — restyled
+  (~86 lines changed); screen retained for in-app navigation.
 
-### Live email flow — backend side verified end-to-end
-- Server runs on `config.settings.local_sqlite` — **MySQL is not installed on this
-  machine**, so `dev.py` settings fail with "Can't connect to MySQL server".
-- `POST /api/v1/auth/register/` with `petersonmwero@gmail.com` → 201, verification
-  email sent via Gmail SMTP.
-- SMTP send is `fail_silently=True`, so additionally verified real Gmail SMTP
-  auth explicitly: `mail.get_connection(fail_silently=False).open()` → **OK**.
-- Verify link tested with a throwaway account (`verifytest@example.com`, raw token
-  issued via shell since DB stores only hashes):
-  - `GET /auth/verify-email/?token=…` → **302 redirect to
-    `http://localhost:58569/#/verify-success`**, user flipped to `is_active=True`.
-  - Token reuse → **400** (single-use enforced).
-- Login gate confirmed: unverified account → `EMAIL_NOT_VERIFIED`; verified
-  account logs in and `GET /analytics/dashboard/` returns role-filtered stats.
-- Flutter relaunched with **`--web-port=58569`** to match `FLUTTER_VERIFY_SUCCESS_URL`
-  in `backend/.env` (a random Flutter port would make the email link's redirect land
-  on a dead page).
+Untracked (new):
+- `backend/apps/accounts/templates/accounts/verify_success.html` — the branded page.
+- `docs/screenshots/verify-success-django-desktop.png` and
+  `verify-success-django-mobile.png` — evidence screenshots.
 
-## Files Created / Modified
-- `CLAUDE_RULES.md` — NEW, operating rules + HANDOVER template
-- `CLAUDE.md` — shrunk to 33,758 chars
-- `apps/accounts/migrations/0004_alter_user_first_name.py` — NEW migration (uncommitted)
-- `HANDOVER.md` — this update
+## Current Project Status
 
-## In Progress (Partially Done)
-- **Manual half of the live email test** (only Peterson can do this):
-  1. Check Gmail inbox for "Verify your Smart NGO M&E Account" — **use the NEWEST
-     email**; an earlier registration's token was invalidated by re-registration.
-  2. Click the link → should land on the Flutter `/verify-success` screen (Flutter
-     must be running on port 58569).
-  3. Log in: `petersonmwero@gmail.com` / `LiveTest#2026!` (manager, Green Earth
-     Initiative — set by the API test; any password typed in the browser earlier
-     no longer applies because re-registration replaced that record).
-  4. Confirm the manager dashboard loads.
+**All 5 phases complete + email verification feature.** Assessment-ready.
+- Backend: 172 tests, 30+ endpoints, Swagger at /api/v1/docs/
+- Mobile: 31 tests, 17 screens, `flutter analyze` clean
+
+Remaining gaps vs CLAUDE.md spec (tracked in PROGRESS.md, accepted/deferred):
+- sqflite offline draft storage (Flutter)
+- Inline validation on field blur (Flutter — currently validates on submit)
+- Standalone milestone auto-overdue management command (logic exists in serializer
+  and in `notify_due_milestones`)
+- Older CRUD endpoints return raw DRF data, not the `{status, data, message}`
+  envelope (retrofitting would break the Flutter client — see PROGRESS.md note)
 
 ## Decisions Made (Deviations from SDD)
-- Dev server runs on `local_sqlite` settings because MySQL 8 is not installed
-  locally; MySQL remains the configured DB for real dev/prod.
-- Flutter web pinned to port 58569 via `--web-port` instead of editing `.env`.
+
+- Verify-email success page is served by Django (`verify_success.html`) rather
+  than redirecting to Flutter web — works on any device/browser without a running
+  Flutter dev server. (Carried from previous session; now documented.)
 
 ## Known Issues / Warnings
-1. Migration `0004_alter_user_first_name.py` needs to be committed.
-2. Throwaway user `verifytest@example.com` (active, officer) exists in the local
-   SQLite DB only — harmless; delete or ignore.
-3. `local_sqlite.py` remains gitignored/uncommitted by design.
-4. `flutter run` reports a newer Flutter version is available (non-blocking).
+
+1. **Uncommitted work** listed above needs a commit (tests already pass with it).
+2. Dev server still runs on `config.settings.local_sqlite` (gitignored) because
+   MySQL 8 is not installed locally; MySQL remains the target for real dev/prod.
+3. Throwaway users from earlier manual tests exist in the local SQLite DB only.
+4. `flutter run` reports a newer Flutter version available (non-blocking).
 
 ## Exact Next Steps (in order)
-1. Peterson: complete the manual email steps above (inbox → link → success screen →
-   login → dashboard).
-2. Commit: `CLAUDE.md`, `CLAUDE_RULES.md`, `0004_alter_user_first_name.py`, `HANDOVER.md`.
-3. If the manual flow passes, mark the email-verification feature done in PROGRESS.md.
+
+1. Review PROGRESS.md together and agree on next step (user requested this gate —
+   do NOT start new features before agreement).
+2. Commit the uncommitted email-verification changes (suggested message:
+   `feat: Django-rendered verify-success page, drop Flutter redirect dependency`).
+3. Optionally record the verify-success change in PROGRESS.md's email-verification
+   section once committed.
+4. If the manual phone-side email test (previous session) hasn't been done:
+   click the newest Gmail verification link on a phone on the same WiFi and
+   confirm the branded success page renders.
 
 ## Commands to Re-run on Resume
+
 ```bash
 # Backend tests (172 expected)
 cd /Users/admin/Desktop/SmartNGO/backend && source venv/bin/activate
 DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 
 # Dev server (SQLite — MySQL not installed locally)
-DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver
+DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 
-# Flutter — port must match FLUTTER_VERIFY_SUCCESS_URL in backend/.env
+# Flutter
 cd /Users/admin/Desktop/SmartNGO/mobile
-flutter run -d chrome --web-port=58569 --dart-define=API_BASE_URL=http://localhost:8000/api/v1
+flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
+
+# Flutter tests
+flutter test && flutter analyze
 ```
 
 ## Blockers
+
 None.
