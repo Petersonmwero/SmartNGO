@@ -56,6 +56,25 @@ class NgoRepository {
     });
   }
 
+  /// Admin: register a new NGO on the platform.
+  Future<void> create({
+    required String name,
+    required String registrationNo,
+    String description = '',
+    String address = '',
+    String contact = '',
+  }) {
+    return apiGuard(() async {
+      await _api.dio.post('/ngos/', data: {
+        'name': name,
+        'registration_no': registrationNo,
+        'description': description,
+        'address': address,
+        'contact': contact,
+      });
+    });
+  }
+
   /// Fetch the public NGO list used on the registration screen. No auth required.
   Future<List<NgoPublic>> listPublic() {
     return apiGuard(() async {

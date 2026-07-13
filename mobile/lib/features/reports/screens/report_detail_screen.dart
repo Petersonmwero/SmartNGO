@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme.dart';
+import '../../../shared/widgets/info_chip.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../../auth/auth_provider.dart';
 import '../models/report.dart';
 import '../report_repository.dart';
@@ -44,7 +47,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.muted),
+                  const Icon(Icons.error_outline,
+                      size: 48, color: AppColors.muted),
                   const SizedBox(height: 12),
                   Text('Failed to load report.',
                       style: Theme.of(context).textTheme.bodyMedium),
@@ -79,43 +83,23 @@ class _ReportBody extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Status + type row
-        Row(
+        Text(report.title, style: Theme.of(context).textTheme.headlineSmall),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _StatusChip(report.status),
-            const SizedBox(width: 8),
-            Chip(
-              label: Text(report.typeLabel),
-              visualDensity: VisualDensity.compact,
-              backgroundColor: AppColors.secondary.withValues(alpha: 0.12),
-              labelStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.secondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
+            StatusBadge(report.status),
+            InfoChip(Icons.assignment_outlined, report.typeLabel),
+            if (report.officerName != null && report.officerName!.isNotEmpty)
+              InfoChip(Icons.person_outline, report.officerName!),
+            if (report.dateSubmitted != null)
+              InfoChip(Icons.access_time,
+                  report.dateSubmitted!.substring(0, 10)),
           ],
         ),
-        const SizedBox(height: 12),
-        Text(report.title, style: Theme.of(context).textTheme.headlineSmall),
-        if (report.dateSubmitted != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            'Submitted: ${report.dateSubmitted!.substring(0, 10)}',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppColors.muted),
-          ),
-        ],
-        const SizedBox(height: 16),
-
-        // Description
-        if (report.description.isNotEmpty) ...[
-          Text('Description', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Text(report.description, style: Theme.of(context).textTheme.bodyMedium),
-          const SizedBox(height: 16),
-        ],
+        const SizedBox(height: 20),
 
         // GPS location
         if (report.gpsLatitude != null && report.gpsLongitude != null) ...[
@@ -123,24 +107,37 @@ class _ReportBody extends StatelessWidget {
           const SizedBox(height: 8),
           Card(
             child: Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on_outlined,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.location_on_outlined,
+                        color: AppColors.primary, size: 20),
+                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       '${report.gpsLatitude!.toStringAsFixed(6)}, '
                       '${report.gpsLongitude!.toStringAsFixed(6)}',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                  ),
+                  TextButton(
+                    onPressed: () => _openMaps(
+                        report.gpsLatitude!, report.gpsLongitude!),
+                    child: const Text('View on Maps'),
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
         ],
 
         // Photo gallery
@@ -154,28 +151,29 @@ class _ReportBody extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               itemCount: report.images.length,
               separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final img = report.images[i];
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    img.imageUrl,
-                    width: 140,
-                    height: 140,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      width: 140,
-                      height: 140,
-                      color: AppColors.border,
-                      child: const Icon(Icons.broken_image_outlined,
-                          color: AppColors.muted),
-                    ),
-                  ),
-                );
-              },
+              itemBuilder: (context, i) => _PhotoThumb(
+                image: report.images[i],
+                index: i,
+                total: report.images.length,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+        ],
+
+        // Description
+        if (report.description.isNotEmpty) ...[
+          Text('Activity Description',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(report.description,
+                  style: Theme.of(context).textTheme.bodyMedium),
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
 
         // Approve button — manager/admin only, when submitted
@@ -184,37 +182,82 @@ class _ReportBody extends StatelessWidget {
       ],
     );
   }
+
+  Future<void> _openMaps(double lat, double lng) async {
+    final uri = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 }
 
-class _StatusChip extends StatelessWidget {
-  final String status;
-  const _StatusChip(this.status);
+class _PhotoThumb extends StatelessWidget {
+  final ReportImage image;
+  final int index;
+  final int total;
+
+  const _PhotoThumb(
+      {required this.image, required this.index, required this.total});
+
+  void _openFullScreen(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          children: [
+            Center(
+              child: InteractiveViewer(
+                child: Image.network(
+                  image.imageUrl,
+                  errorBuilder: (_, _, _) => const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white54,
+                      size: 64),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            Positioned(
+              bottom: 24,
+              left: 0,
+              right: 0,
+              child: Text(
+                '${index + 1} of $total',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final color = switch (status) {
-      'approved' => AppColors.statusActive,
-      'submitted' => AppColors.statusCompleted,
-      _ => AppColors.muted,
-    };
-    final label = switch (status) {
-      'approved' => 'Approved',
-      'submitted' => 'Submitted',
-      _ => 'Draft',
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
+    return GestureDetector(
+      onTap: () => _openFullScreen(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.network(
+          image.imageUrl,
+          width: 140,
+          height: 140,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => Container(
+            width: 140,
+            height: 140,
+            color: AppColors.border,
+            child:
+                const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+          ),
+        ),
       ),
     );
   }
@@ -233,6 +276,26 @@ class _ApproveButtonState extends State<_ApproveButton> {
   bool _loading = false;
 
   Future<void> _approve() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Approve report'),
+        content: const Text(
+            'Approve this report? Approved reports become read-only and '
+            'are included in donor summaries.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     setState(() => _loading = true);
     try {
       await context.read<ReportRepository>().approve(widget.reportId);
@@ -259,13 +322,10 @@ class _ApproveButtonState extends State<_ApproveButton> {
           ? const SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: Colors.white))
+              child:
+                  CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
           : const Icon(Icons.check_circle_outline),
       label: const Text('Approve Report'),
-      style: FilledButton.styleFrom(
-        backgroundColor: AppColors.statusActive,
-      ),
     );
   }
 }

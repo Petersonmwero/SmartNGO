@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme.dart';
+
 class Project {
   final int id;
   final String projectName;
@@ -52,15 +54,27 @@ class Project {
   Color get statusColor {
     switch (status) {
       case 'active':
-        return Colors.green;
+        return AppColors.success;
       case 'completed':
-        return Colors.blue;
+        return AppColors.info;
       case 'on_hold':
-        return Colors.orange;
+        return AppColors.neutral;
       case 'cancelled':
-        return Colors.red;
+        return AppColors.danger;
       default:
-        return Colors.grey;
+        return AppColors.warning;
     }
+  }
+
+  /// Timeline progress: fraction of the project duration already elapsed
+  /// (0.0 before start, 1.0 after end). The schema stores no completion
+  /// percentage, so elapsed time is the honest proxy shown on cards.
+  double get timelineProgress {
+    final start = DateTime.tryParse(startDate ?? '');
+    final end = DateTime.tryParse(endDate ?? '');
+    if (start == null || end == null || !end.isAfter(start)) return 0;
+    final total = end.difference(start).inDays;
+    final elapsed = DateTime.now().difference(start).inDays;
+    return (elapsed / total).clamp(0.0, 1.0);
   }
 }

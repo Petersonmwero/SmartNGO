@@ -1,100 +1,90 @@
-# Session Handover — 2026-07-13 | Verification + Two Spec Gaps Closed
+# Session Handover — 2026-07-13 | Complete UI Overhaul
 
 ---
 
 ## Completed This Session
 
-### Post-interruption verification
-- macOS Desktop access restored; project tree intact, nothing lost.
-- Backend: **172/172 tests passed** (`pytest`, `config.settings.test_sqlite`).
+### Complete UI overhaul (single job, all screens)
+Every screen redesigned to the design-system spec. See PROGRESS.md
+"Complete UI Overhaul (2026-07-13)" for the full checklist. Highlights:
 
-### Commits made (4)
-1. **`242de44`** — Django-rendered verify-success page (carried over from the
-   interrupted session): `VerifyEmailView` renders branded
-   `accounts/verify_success.html` instead of redirecting to the Flutter web
-   dev server; dead `FLUTTER_VERIFY_SUCCESS_URL` setting removed; Flutter
-   `/verify-success` screen restyled; tests updated.
-2. **`342be3c`** — Desktop verify-success screenshot retaken (the old one had
-   captured a 400 token-reuse error page). Fresh token issued via
-   `manage.py shell` + `issue_email_verification_token`, captured in headless
-   Chrome at 1440×900. Both screenshots now correct in `docs/screenshots/`.
-3. **`e2d5299`** — **Inline validation on blur** (spec gap closed):
-   - New `mobile/lib/shared/widgets/blur_validated_text_field.dart` — wraps
-     TextFormField with a FocusNode; validates on focus loss, then
-     re-validates per keystroke so the error clears once fixed.
-   - Applied to all 12 validated text fields across the 6 form screens
-     (login, register, forgot password, create project, register
-     beneficiary, submit report). Test keys preserved.
-   - 3 widget tests added.
-4. **`3d66121`** — **sqflite offline report drafts** (spec gap closed):
-   - `features/reports/models/report_draft.dart` + `draft_store.dart`
-     (`DraftStore` interface; `SqfliteDraftStore` on mobile,
-     `InMemoryDraftStore` on web — sqflite has no web implementation).
-   - "Save draft" saves locally (offline-capable); drafts resumable from the
-     Reports list ("On this device" section, amber badge, delete icon);
-     successful submit deletes the originating local draft; drafts stay
-     visible when the server list fails.
-   - New deps: `sqflite`, `path`; dev `sqflite_common_ffi` (store tests run
-     against real SQLite in the VM).
-   - Decision recorded as **D-010** in DECISIONS.md (local-only drafts,
-     rationale: offline-first + server drafts from the app were stranded
-     with no edit screen).
+- **Shared widget library** (`mobile/lib/shared/widgets/`): StatusBadge
+  (status pills on tint backgrounds), ProjectProgressBar (animated
+  green→sage gradient), KpiCard, SectionHeader, EmptyState, ShimmerCard/
+  ShimmerList, InfoChip. All screens consume these — no per-screen badge or
+  shimmer implementations remain.
+- **Theme**: AppColors gained the tint palette (success #166534/#DCFCE7,
+  warning #92400E/#FEF3C7, danger #991B1B/#FEE2E2, info #1E40AF/#DBEAFE,
+  neutral); cards are 12px radius / elevation 2; FABs are primary green;
+  bottom nav is 64px.
+- **Biggest reworks**: Dashboard (role-aware KPIs + quick actions + recent
+  projects + activity feed), Submit Report (4-step wizard with project
+  selector — drafts resume into it), Create/Edit Project (Details →
+  Budget & Timeline → Team with officer multi-select; edit mode added),
+  Project Detail (header badges, info grid, tab-aware FAB, add-milestone/
+  indicator/assign-officer bottom sheets).
+- **New deps**: url_launcher (View-on-Maps in report detail).
 
-### Test status at session end — all green
-- Backend: **172/172** (`pytest`, 64s)
-- Flutter: **41/41** (`flutter test`), `flutter analyze` 0 issues,
-  `flutter build web` succeeds
+### Backend changes
+- `UserManagementViewSet`: list/retrieve now allow managers (own-NGO scoped,
+  read-only) so they can pick officers for teams; writes remain admin-only.
+  4 new tests cover the boundary (manager list OK / cross-NGO hidden /
+  officer+donor denied / manager create 403).
+- `seed_demo` rewritten to the demo spec: Green Earth Initiative,
+  HealthBridge Kenya, EduReach Africa; 3 Green Earth projects (Clean Water
+  Kisumu active 2.4M / Girls Education Baringo planning 1.1M / Food Security
+  Turkana on-hold 5.8M) with milestone mix (incl. one overdue), indicators,
+  12 Kenyan-named beneficiaries, draft/submitted/approved reports, and 5
+  manager notifications for the activity feed. Password for all demo
+  accounts: `DemoPass123!`.
 
-## Current Project Status
+### Verification — all green
+- **Backend: 176/176 tests** (`pytest`, test_sqlite settings).
+- **Flutter: 42/42 tests**, `flutter analyze` 0 issues,
+  `flutter build web` succeeds.
+- Dev DB flushed and re-seeded; verified live: manager login → role-filtered
+  dashboard stats match seed; manager `/users/` now 200; 3 projects listed
+  with correct statuses/budgets; built web app renders the new login screen
+  (headless Chrome screenshot).
 
-**All 5 phases complete. All spec gaps closed except accepted deviations.**
-- Backend: 172 tests, 30+ endpoints, Swagger at /api/v1/docs/
-- Mobile: 41 tests, 17 screens, offline drafts, blur validation
-- Remaining deviations are accepted and documented in DECISIONS.md
-  (flat Flutter architecture D-006, local-only drafts D-010, etc.)
-
-## Decisions Made (Deviations from SDD)
-- **D-010**: Report drafts are local-only (sqflite); "Save draft" no longer
-  creates a server-side draft record. Server draft workflow remains in the
-  API. Web falls back to in-memory drafts (session-only) since sqflite has
-  no web implementation — persistent on Android/iOS as specified.
+## Servers Left Running
+- Django API: `http://localhost:8000` (local_sqlite settings, background)
+- Flutter web (built): `http://localhost:58569` (python http.server)
+- Demo login: `manager@demo.ngo` / `DemoPass123!`
 
 ## Known Issues / Warnings
-1. Dev server runs on `config.settings.local_sqlite` (MySQL 8 not installed
-   locally); MySQL remains the target for real dev/prod.
-2. Web demo caveat: local drafts don't survive a browser reload (in-memory
-   fallback). Full persistence requires running on Android/iOS.
-3. Throwaway test users exist in the local SQLite DB only (harmless).
-4. `flutter run` reports a newer Flutter version available (non-blocking).
-5. Test gotcha: sqflite ffi factory returns a per-path DB singleton
-   (including `:memory:`) — draft-store tests use a unique temp-file path
-   per test for isolation.
+1. The dev DB was **flushed** — previous manual accounts
+   (petersonmwero@gmail.com etc.) are gone; use the seeded demo accounts or
+   re-register.
+2. Donor quick actions deviate slightly from the spec ("Download PDF"
+   replaced with View Analytics/Notifications — project PDFs are reachable
+   from a project's detail via API; no dedicated PDF button yet).
+3. Reports bar chart shows counts by status (draft/submitted/approved), not
+   a 6-month trend — the analytics endpoint doesn't expose monthly series.
+4. "Member since" row omitted from Profile (not in the /auth/me/ payload).
+5. Web drafts remain in-memory (sqflite has no web implementation, D-010).
 
 ## Exact Next Steps (in order)
-1. Nothing mandatory — the project is feature-complete and assessment-ready.
-   `main` is pushed to https://github.com/Petersonmwero/SmartNGO (in sync at 0039135).
-2. **Deferred (2026-07-13, user decision):** Android demo of offline drafts.
-   This Mac has no Android SDK, no Java, no Homebrew — the emulator path
-   needs a ~4 GB toolchain install (JDK 17 + cmdline-tools + SDK + system
-   image) and the 1.4 GHz i5 would run it slowly. Options when ready:
-   (a) machine with Android Studio already installed, or (b) real phone via
-   USB debugging (needs only JDK + SDK build tools, ~2 GB). Until then the
-   flow demos on Chrome with the in-memory caveat (drafts last the session).
-3. Optional: re-run the manual phone-side email verification click if not
-   yet done (newest Gmail link → branded Django success page).
+1. Peterson: click through the app at http://localhost:58569 with the demo
+   accounts (each role renders a different dashboard) and flag any visual
+   issues.
+2. Optional: retake docs/screenshots with the new UI for the report.
+3. Optional backlog: monthly report series endpoint for a real 6-month bar
+   chart; donor PDF download button; user detail/edit screen.
 
 ## Commands to Re-run on Resume
 ```bash
-# Backend tests (172 expected)
+# Backend tests (176 expected)
 cd /Users/admin/Desktop/SmartNGO/backend && source venv/bin/activate
 DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 
-# Dev server (SQLite — MySQL not installed locally)
+# Dev server + demo data
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
+DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (PATH: ~/development/flutter/bin)
+# Flutter (42 tests expected)
 cd /Users/admin/Desktop/SmartNGO/mobile
-flutter analyze && flutter test          # 41 expected
+flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
 ```
 

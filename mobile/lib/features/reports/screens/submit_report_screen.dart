@@ -4,14 +4,25 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
+import '../../projects/models/project.dart';
+import '../../projects/project_repository.dart';
 import '../draft_store.dart';
 import '../models/report_draft.dart';
 import '../report_repository.dart';
 
+/// Maximum photos per report (mirrors the backend's MAX_IMAGES_PER_REPORT).
+const int kMaxReportPhotos = 5;
+
+/// Four-step report wizard: Details → Location → Photos → Review.
+///
+/// Can be opened with a pre-selected project (from a project detail screen),
+/// with a local [draft] to resume, or bare (dashboard quick action) — in
+/// which case step 1 shows a project selector.
 class SubmitReportScreen extends StatefulWidget {
-  final int projectId;
-  final String projectName;
+  final int? projectId;
+  final String? projectName;
 
   /// When resuming a locally saved draft, its content pre-fills the form and
   /// the draft row is updated on save (and removed on successful submit).
@@ -19,8 +30,8 @@ class SubmitReportScreen extends StatefulWidget {
 
   const SubmitReportScreen({
     super.key,
-    required this.projectId,
-    required this.projectName,
+    this.projectId,
+    this.projectName,
     this.draft,
   });
 
@@ -29,18 +40,35 @@ class SubmitReportScreen extends StatefulWidget {
 }
 
 class _SubmitReportScreenState extends State<SubmitReportScreen> {
-  final _formKey = GlobalKey<FormState>();
+  static const _stepLabels = ['Details', 'Location', 'Photos', 'Review'];
+
+  int _step = 0;
+  final _detailsFormKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _description = TextEditingController();
   String _reportType = 'daily';
+  int? _projectId;
+  String _projectName = '';
   double? _lat;
   double? _lng;
+  double? _accuracy;
   final List<XFile> _photos = [];
   bool _busy = false;
+
+  // Project selector state (only used when no project was passed in).
+  List<Project>? _projects;
+  bool _projectsFailed = false;
+
+  /// A draft carries its own project, so resuming one never needs the
+  /// project selector either.
+  bool get _projectPreselected =>
+      widget.projectId != null || widget.draft != null;
 
   @override
   void initState() {
     super.initState();
+    _projectId = widget.projectId ?? widget.draft?.projectId;
+    _projectName = widget.projectName ?? widget.draft?.projectName ?? '';
     final draft = widget.draft;
     if (draft != null) {
       _title.text = draft.title;
@@ -52,6 +80,9 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       // draft was saved, in which case a thumbnail simply fails to load.
       _photos.addAll(draft.photoPaths.map(XFile.new));
     }
+    if (!_projectPreselected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadProjects());
+    }
   }
 
   @override
@@ -59,6 +90,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     _title.dispose();
     _description.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadProjects() async {
+    setState(() => _projectsFailed = false);
+    try {
+      final page = await context.read<ProjectRepository>().list();
+      if (!mounted) return;
+      setState(() => _projects = page.results);
+    } on ApiException {
+      if (mounted) setState(() => _projectsFailed = true);
+    }
   }
 
   Future<void> _captureGps() async {
@@ -79,6 +121,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       setState(() {
         _lat = pos.latitude;
         _lng = pos.longitude;
+        _accuracy = pos.accuracy;
       });
     } catch (e) {
       _toast('Could not get location: $e');
@@ -87,21 +130,30 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
   Future<void> _pickPhotos() async {
     final picked = await ImagePicker().pickMultiImage();
-    if (picked.isNotEmpty) {
-      setState(() => _photos.addAll(picked));
+    if (picked.isEmpty) return;
+    final room = kMaxReportPhotos - _photos.length;
+    setState(() => _photos.addAll(picked.take(room)));
+    if (picked.length > room) {
+      _toast('A report can have at most $kMaxReportPhotos photos.');
     }
+  }
+
+  void _next() {
+    if (_step == 0 && !(_detailsFormKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    if (_step < _stepLabels.length - 1) setState(() => _step++);
   }
 
   /// Save the form as a local draft — no network involved, so it works
   /// offline. Resumable from the Reports list under the Drafts filter.
   Future<void> _saveDraft() async {
-    if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
     final store = context.read<DraftStore>();
     await store.save(ReportDraft(
       id: widget.draft?.id,
-      projectId: widget.projectId,
-      projectName: widget.projectName,
+      projectId: _projectId!,
+      projectName: _projectName,
       title: _title.text.trim(),
       description: _description.text.trim(),
       reportType: _reportType,
@@ -118,13 +170,12 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   /// Send the report to the server; on success any local draft it came
   /// from is deleted.
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
     final repo = context.read<ReportRepository>();
     final store = context.read<DraftStore>();
     try {
       final reportId = await repo.createReport(
-        projectId: widget.projectId,
+        projectId: _projectId!,
         title: _title.text.trim(),
         reportType: _reportType,
         description: _description.text.trim(),
@@ -160,141 +211,442 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       appBar: AppBar(title: const Text('Submit Report')),
       body: AbsorbPointer(
         absorbing: _busy,
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            _StepIndicator(current: _step, labels: _stepLabels),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: switch (_step) {
+                  0 => _buildDetails(),
+                  1 => _buildLocation(),
+                  2 => _buildPhotos(),
+                  _ => _buildReview(),
+                },
+              ),
+            ),
+            _buildNavButtons(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Step 1: Details ──────────────────────────────────────────────────
+
+  Widget _buildDetails() {
+    return Form(
+      key: _detailsFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (_projectPreselected)
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Project',
+                prefixIcon: Icon(Icons.work_outline),
+              ),
+              child: Text(_projectName,
+                  style: Theme.of(context).textTheme.bodyLarge),
+            )
+          else if (_projectsFailed)
+            Row(
+              children: [
+                const Expanded(child: Text('Failed to load projects.')),
+                TextButton(
+                    onPressed: _loadProjects, child: const Text('Retry')),
+              ],
+            )
+          else
+            DropdownButtonFormField<int>(
+              key: const Key('project_selector'),
+              initialValue: _projectId,
+              decoration: const InputDecoration(
+                labelText: 'Project',
+                prefixIcon: Icon(Icons.work_outline),
+              ),
+              items: [
+                for (final p in _projects ?? const <Project>[])
+                  DropdownMenuItem(value: p.id, child: Text(p.projectName)),
+              ],
+              onChanged: (v) => setState(() {
+                _projectId = v;
+                _projectName = (_projects ?? [])
+                    .firstWhere((p) => p.id == v)
+                    .projectName;
+              }),
+              validator: (v) => v == null ? 'Select a project' : null,
+            ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            key: const Key('report_type'),
+            initialValue: _reportType,
+            decoration: const InputDecoration(
+              labelText: 'Report type',
+              prefixIcon: Icon(Icons.event_repeat_outlined),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'daily', child: Text('Daily')),
+              DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
+              DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+            ],
+            onChanged: (v) => setState(() => _reportType = v ?? 'daily'),
+          ),
+          const SizedBox(height: 16),
+          BlurValidatedTextField(
+            key: const Key('report_title'),
+            controller: _title,
+            decoration: const InputDecoration(labelText: 'Activity title'),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Required' : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _description,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              labelText: 'Description',
+              alignLabelWithHint: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Step 2: Location ─────────────────────────────────────────────────
+
+  Widget _buildLocation() {
+    final hasFix = _lat != null && _lng != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 200,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(widget.projectName,
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 16),
-              BlurValidatedTextField(
-                key: const Key('report_title'),
-                controller: _title,
-                decoration: const InputDecoration(labelText: 'Title'),
-                validator: (v) =>
-                    (v == null || v.trim().isEmpty) ? 'Required' : null,
+              Icon(
+                hasFix ? Icons.location_on : Icons.location_searching,
+                size: 48,
+                color: AppColors.primary,
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                key: const Key('report_type'),
-                initialValue: _reportType,
-                decoration: const InputDecoration(labelText: 'Type'),
-                items: const [
-                  DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                  DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                  DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                ],
-                onChanged: (v) => setState(() => _reportType = v ?? 'daily'),
+              const SizedBox(height: 12),
+              Text(
+                hasFix
+                    ? '📍 ${_lat!.toStringAsFixed(5)}°, ${_lng!.toStringAsFixed(5)}°'
+                    : 'No location captured yet',
+                style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _description,
-                maxLines: 4,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-              const SizedBox(height: 16),
-              // GPS capture
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.my_location),
-                  title: Text(_lat == null
-                      ? 'Capture GPS location'
-                      : 'Lat: ${_lat!.toStringAsFixed(5)}, '
-                          'Lng: ${_lng!.toStringAsFixed(5)}'),
-                  trailing: TextButton(
-                    onPressed: _captureGps,
-                    child: Text(_lat == null ? 'Capture' : 'Update'),
-                  ),
+              if (hasFix && _accuracy != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Accuracy: ±${_accuracy!.toStringAsFixed(0)} m',
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: AppColors.muted),
                 ),
-              ),
-              const SizedBox(height: 8),
-              // Photos
-              Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _pickPhotos,
-                    icon: const Icon(Icons.add_a_photo_outlined),
-                    label: const Text('Add photos'),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('${_photos.length} selected'),
-                ],
-              ),
-              if (_photos.isNotEmpty)
-                SizedBox(
-                  height: 88,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _photos.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 8),
-                    itemBuilder: (context, i) => _Thumb(
-                      file: _photos[i],
-                      onRemove: () => setState(() => _photos.removeAt(i)),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      key: const Key('save_draft_button'),
-                      onPressed: _busy ? null : _saveDraft,
-                      child: const Text('Save draft'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      key: const Key('submit_button'),
-                      onPressed: _busy ? null : _submit,
-                      child: _busy
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Submit'),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          onPressed: _captureGps,
+          icon: const Icon(Icons.my_location),
+          label: Text(hasFix ? 'Update Location' : 'Capture Location'),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'GPS coordinates prove the report was filed from the field. '
+          'This step is optional.',
+          textAlign: TextAlign.center,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppColors.muted),
+        ),
+      ],
+    );
+  }
+
+  // ── Step 3: Photos ───────────────────────────────────────────────────
+
+  Widget _buildPhotos() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_photos.length} of $kMaxReportPhotos photos added',
+          style: Theme.of(context)
+              .textTheme
+              .labelMedium
+              ?.copyWith(color: AppColors.muted),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
+          children: [
+            for (int i = 0; i < _photos.length; i++)
+              _PhotoSlot(
+                file: _photos[i],
+                onRemove: () => setState(() => _photos.removeAt(i)),
+              ),
+            if (_photos.length < kMaxReportPhotos)
+              InkWell(
+                onTap: _pickPhotos,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border, width: 1.5),
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add_a_photo_outlined,
+                          color: AppColors.muted),
+                      SizedBox(height: 6),
+                      Text('Add photos',
+                          style:
+                              TextStyle(fontSize: 11, color: AppColors.muted)),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // ── Step 4: Review ───────────────────────────────────────────────────
+
+  Widget _buildReview() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _reviewRow('Project', _projectName),
+                _reviewRow('Type',
+                    _reportType[0].toUpperCase() + _reportType.substring(1)),
+                _reviewRow('Title', _title.text.trim()),
+                _reviewRow(
+                    'Description',
+                    _description.text.trim().isEmpty
+                        ? '—'
+                        : _description.text.trim()),
+                _reviewRow(
+                    'Location',
+                    (_lat != null && _lng != null)
+                        ? '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}'
+                        : 'Not captured'),
+                _reviewRow('Photos', '${_photos.length}'),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                key: const Key('save_draft_button'),
+                onPressed: _busy ? null : _saveDraft,
+                child: const Text('Save as Draft'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton(
+                key: const Key('submit_button'),
+                onPressed: _busy ? null : _submit,
+                child: _busy
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('Submit Report'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _reviewRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelMedium
+                    ?.copyWith(color: AppColors.muted)),
+          ),
+          Expanded(
+            child: Text(value,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Wizard navigation ────────────────────────────────────────────────
+
+  Widget _buildNavButtons() {
+    if (_step == _stepLabels.length - 1) {
+      // Review step renders its own Save/Submit actions; only offer Back.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: OutlinedButton(
+          onPressed: _busy ? null : () => setState(() => _step--),
+          child: const Text('Back'),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Row(
+        children: [
+          if (_step > 0)
+            Expanded(
+              child: OutlinedButton(
+                onPressed: () => setState(() => _step--),
+                child: const Text('Back'),
+              ),
+            ),
+          if (_step > 0) const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              key: const Key('next_button'),
+              onPressed: _next,
+              child: const Text('Next'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _Thumb extends StatelessWidget {
+// ── Step indicator ────────────────────────────────────────────────────────
+
+class _StepIndicator extends StatelessWidget {
+  final int current;
+  final List<String> labels;
+  const _StepIndicator({required this.current, required this.labels});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      child: Row(
+        children: [
+          for (int i = 0; i < labels.length; i++) ...[
+            _dot(context, i),
+            if (i < labels.length - 1)
+              Expanded(
+                child: Container(
+                  height: 2,
+                  color: current > i ? AppColors.primary : AppColors.border,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(BuildContext context, int i) {
+    final done = current > i;
+    final active = current == i;
+    final color = (done || active) ? AppColors.primary : AppColors.border;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: Center(
+            child: done
+                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                : Text('${i + 1}',
+                    style: TextStyle(
+                        color: active ? Colors.white : AppColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600)),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(labels[i],
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: active ? AppColors.primary : AppColors.muted)),
+      ],
+    );
+  }
+}
+
+// ── Photo grid slot ───────────────────────────────────────────────────────
+
+class _PhotoSlot extends StatelessWidget {
   final XFile file;
   final VoidCallback onRemove;
-  const _Thumb({required this.file, required this.onRemove});
+  const _PhotoSlot({required this.file, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
+      fit: StackFit.expand,
       children: [
         FutureBuilder(
           future: file.readAsBytes(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return const SizedBox(
-                  width: 88, height: 88, child: ColoredBox(color: Colors.black12));
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              );
             }
             return ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.memory(snapshot.data!,
-                  width: 88, height: 88, fit: BoxFit.cover),
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(snapshot.data!, fit: BoxFit.cover),
             );
           },
         ),
         Positioned(
-          right: 0,
-          top: 0,
+          right: 4,
+          top: 4,
           child: GestureDetector(
             onTap: onRemove,
             child: const CircleAvatar(

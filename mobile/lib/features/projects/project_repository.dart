@@ -77,4 +77,72 @@ class ProjectRepository {
           .results;
     });
   }
+
+  Future<Project> update(
+    int id, {
+    required String name,
+    required String description,
+    required double budget,
+    required String startDate,
+    required String endDate,
+    required String status,
+  }) {
+    return apiGuard(() async {
+      final res = await _api.dio.put('/projects/$id/', data: {
+        'project_name': name,
+        'description': description,
+        'budget': budget,
+        'start_date': startDate,
+        'end_date': endDate,
+        'status': status,
+      });
+      return Project.fromJson(res.data as Map<String, dynamic>);
+    });
+  }
+
+  /// Assign a user to the project team (role: manager | officer).
+  Future<void> assign(int projectId, int userId, {String role = 'officer'}) {
+    return apiGuard(() async {
+      await _api.dio.post('/projects/$projectId/assignments/',
+          data: {'user': userId, 'role': role});
+    });
+  }
+
+  Future<void> removeAssignment(int projectId, int userId) {
+    return apiGuard(() async {
+      await _api.dio.delete('/projects/$projectId/assignments/$userId/');
+    });
+  }
+
+  Future<void> createMilestone(
+    int projectId, {
+    required String title,
+    required String dueDate,
+    String description = '',
+  }) {
+    return apiGuard(() async {
+      await _api.dio.post('/milestones/', data: {
+        'project': projectId,
+        'title': title,
+        'due_date': dueDate,
+        'description': description,
+      });
+    });
+  }
+
+  Future<void> createIndicator(
+    int projectId, {
+    required String name,
+    required double targetValue,
+    String unit = '',
+  }) {
+    return apiGuard(() async {
+      await _api.dio.post('/indicators/', data: {
+        'project': projectId,
+        'indicator_name': name,
+        'target_value': targetValue,
+        'unit': unit,
+      });
+    });
+  }
 }

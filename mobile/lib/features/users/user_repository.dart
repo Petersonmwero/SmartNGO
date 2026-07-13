@@ -63,4 +63,23 @@ class UserRepository {
       await _api.dio.patch('/users/$userId/toggle-active/');
     });
   }
+
+  /// Admin: create a user in the admin's NGO.
+  Future<void> create({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required String role,
+  }) {
+    return apiGuard(() async {
+      await _api.dio.post('/users/', data: {
+        'first_name': firstName,
+        'last_name': lastName,
+        'email': email,
+        'password': password,
+        'role': role,
+      });
+    });
+  }
 }

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:shimmer/shimmer.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/info_chip.dart';
+import '../../../shared/widgets/project_progress_bar.dart';
+import '../../../shared/widgets/shimmer_card.dart';
+import '../../../shared/widgets/status_badge.dart';
+import '../../auth/auth_provider.dart';
 import '../models/project.dart';
 import '../project_repository.dart';
 import 'project_detail_screen.dart';
@@ -19,6 +25,7 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
   late Future<List<Project>> _future;
   String? _status;
   String _search = '';
+  int? _count;
 
   static const _statuses = <String?, String>{
     null: 'All',
@@ -26,6 +33,7 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
     'active': 'Active',
     'on_hold': 'On Hold',
     'completed': 'Completed',
+    'cancelled': 'Cancelled',
   };
 
   @override
@@ -36,22 +44,51 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
 
   void _load() {
     final repo = context.read<ProjectRepository>();
-    _future = repo.list(status: _status).then((p) => p.results);
+    _future = repo.list(status: _status).then((p) {
+      if (mounted) setState(() => _count = p.count);
+      return p.results;
+    });
   }
 
   List<Project> _filtered(List<Project> all) {
     final q = _search.trim().toLowerCase();
     if (q.isEmpty) return all;
-    return all
-        .where((p) => p.projectName.toLowerCase().contains(q))
-        .toList();
+    return all.where((p) => p.projectName.toLowerCase().contains(q)).toList();
+  }
+
+  Future<void> _create() async {
+    final created = await context.push<bool>('/projects/new');
+    if (created == true && mounted) setState(_load);
   }
 
   @override
   Widget build(BuildContext context) {
+    final role = context.watch<AuthProvider>().user?.role;
+    final canCreate = role == 'manager' || role == 'admin';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Projects'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Projects'),
+            if (_count != null)
+              Text(
+                '$_count project${_count == 1 ? '' : 's'}',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+              ),
+          ],
+        ),
+        actions: [
+          if (canCreate)
+            IconButton(
+              tooltip: 'New project',
+              icon: const Icon(Icons.add),
+              onPressed: _create,
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
           child: Padding(
@@ -77,8 +114,7 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide:
-                      const BorderSide(color: Colors.white, width: 1.5),
+                  borderSide: const BorderSide(color: Colors.white, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
@@ -86,15 +122,20 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
           ),
         ),
       ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton(
+              tooltip: 'New project',
+              onPressed: _create,
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: Column(
         children: [
-          // Status filter chips
           SizedBox(
             height: 52,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               children: [
                 for (final entry in _statuses.entries)
                   Padding(
@@ -108,8 +149,7 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
                       }),
                       selectedColor: AppColors.primary,
                       labelStyle: TextStyle(
-                        color:
-                            _status == entry.key ? Colors.white : null,
+                        color: _status == entry.key ? Colors.white : null,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -124,21 +164,32 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
                 future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return _ShimmerList();
+                    return const ShimmerList(cardHeight: 132);
                   }
                   if (snapshot.hasError) {
                     final err = snapshot.error;
-                    final msg = err is ApiException
-                        ? err.message
-                        : 'Failed to load.';
-                    return _Empty(msg, onRetry: () => setState(_load));
+                    return EmptyState(
+                      Icons.cloud_off_outlined,
+                      'Something went wrong',
+                      err is ApiException ? err.message : 'Failed to load.',
+                      buttonLabel: 'Retry',
+                      onButton: () => setState(_load),
+                    );
                   }
                   final filtered = _filtered(snapshot.data ?? []);
                   if (filtered.isEmpty) {
-                    return const _Empty('No projects found.');
+                    return EmptyState(
+                      Icons.work_outline,
+                      'No projects',
+                      _search.isNotEmpty
+                          ? 'Nothing matches your search.'
+                          : 'Projects you can access will appear here.',
+                      buttonLabel: canCreate ? 'Create Project' : null,
+                      onButton: canCreate ? _create : null,
+                    );
                   }
                   return ListView.separated(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, i) =>
@@ -158,12 +209,27 @@ class _ProjectCard extends StatelessWidget {
   final Project project;
   const _ProjectCard({required this.project});
 
+  String get _dates {
+    final start = project.startDate ?? '—';
+    final end = project.endDate ?? '—';
+    return '$start → $end';
+  }
+
+  String get _budget {
+    final value = double.tryParse(project.budget);
+    if (value == null) return project.budget;
+    if (value >= 1000000) {
+      return 'KES ${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value >= 1000) return 'KES ${(value / 1000).toStringAsFixed(0)}K';
+    return 'KES ${value.toStringAsFixed(0)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => ProjectDetailScreen(
@@ -189,11 +255,11 @@ class _ProjectCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  _StatusBadge(project),
+                  StatusBadge(project.status),
                 ],
               ),
               if (project.description.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   project.description,
                   style: Theme.of(context)
@@ -205,120 +271,19 @@ class _ProjectCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              const Divider(height: 1),
+              ProjectProgressBar(project.timelineProgress, label: 'Timeline'),
               const SizedBox(height: 12),
               Wrap(
-                spacing: 16,
-                runSpacing: 4,
+                spacing: 8,
+                runSpacing: 6,
                 children: [
-                  _Meta(Icons.attach_money, project.budget),
-                  if (project.startDate != null)
-                    _Meta(Icons.calendar_today_outlined, project.startDate!),
-                  if (project.endDate != null)
-                    _Meta(Icons.event_outlined, project.endDate!),
+                  InfoChip(Icons.calendar_today_outlined, _dates),
+                  InfoChip(Icons.payments_outlined, _budget),
                 ],
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final Project project;
-  const _StatusBadge(this.project);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: project.statusColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: project.statusColor.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        project.statusLabel,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: project.statusColor,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
-    );
-  }
-}
-
-class _Meta extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  const _Meta(this.icon, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: AppColors.muted),
-        const SizedBox(width: 4),
-        Text(
-          value,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.muted),
-        ),
-      ],
-    );
-  }
-}
-
-class _ShimmerList extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: 5,
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (_, _) => Container(
-          height: 110,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Empty extends StatelessWidget {
-  final String message;
-  final VoidCallback? onRetry;
-  const _Empty(this.message, {this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.work_off_outlined,
-            size: 52,
-            color: Theme.of(context).colorScheme.outlineVariant,
-          ),
-          const SizedBox(height: 12),
-          Text(message, style: Theme.of(context).textTheme.bodyMedium),
-          if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ],
       ),
     );
   }

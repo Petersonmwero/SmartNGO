@@ -57,6 +57,8 @@ dependencies:
   sqflite: ^2.4.1
   # Path joining for the sqflite database file
   path: ^1.9.0
+  # Open GPS coordinates in the platform maps app / browser
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:

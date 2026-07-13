@@ -5,6 +5,7 @@ class User {
   final String lastName;
   final String email;
   final String role; // admin | manager | officer | donor
+  final String phone;
   final int? ngoId;
 
   const User({
@@ -13,6 +14,7 @@ class User {
     required this.lastName,
     required this.email,
     required this.role,
+    this.phone = '',
     this.ngoId,
   });
 
@@ -25,6 +27,7 @@ class User {
         lastName: (json['last_name'] ?? '') as String,
         email: (json['email'] ?? '') as String,
         role: (json['role'] ?? '') as String,
+        phone: (json['phone'] ?? '') as String,
         // Login response uses 'ngo_id'; /auth/me/ uses 'ngo' (FK integer).
         ngoId: (json['ngo_id'] ?? json['ngo']) as int?,
       );
@@ -35,6 +38,7 @@ class User {
         'last_name': lastName,
         'email': email,
         'role': role,
+        'phone': phone,
         'ngo_id': ngoId,
       };
 

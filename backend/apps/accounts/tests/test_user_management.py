@@ -26,8 +26,33 @@ class TestUserManagementList:
         emails = {u["email"] for u in resp.data["results"]}
         assert other.email not in emails
 
-    def test_non_admin_is_denied(self, auth_client, manager_user):
+    def test_manager_can_list_users_in_own_ngo(
+        self, auth_client, manager_user, officer_user
+    ):
+        """Managers need the officer roster to assign project teams."""
         resp = auth_client(manager_user).get(USERS)
+        assert resp.status_code == 200
+        emails = {u["email"] for u in resp.data["results"]}
+        assert officer_user.email in emails
+
+    def test_manager_cannot_see_other_ngo_users(
+        self, auth_client, manager_user, other_ngo
+    ):
+        from apps.accounts.models import User
+        other = User.objects.create_user(
+            email="hidden@elsewhere.org", password="Pw!12345",
+            first_name="Hidden", last_name="", role=Role.OFFICER, ngo=other_ngo,
+        )
+        resp = auth_client(manager_user).get(USERS)
+        emails = {u["email"] for u in resp.data["results"]}
+        assert other.email not in emails
+
+    def test_officer_is_denied(self, auth_client, officer_user):
+        resp = auth_client(officer_user).get(USERS)
+        assert resp.status_code == 403
+
+    def test_donor_is_denied(self, auth_client, donor_user):
+        resp = auth_client(donor_user).get(USERS)
         assert resp.status_code == 403
 
     def test_unauthenticated_returns_401(self, api_client):
@@ -60,6 +85,19 @@ class TestUserManagementCreate:
         }
         resp = auth_client(admin_user).post(USERS, payload, format="json")
         assert resp.status_code == 201
+
+    def test_manager_cannot_create_user(self, auth_client, manager_user, ngo):
+        """Manager read access must not extend to write actions."""
+        payload = {
+            "first_name": "Sneaky",
+            "last_name": "Manager",
+            "email": "sneaky@test.org",
+            "password": "Secure!99",
+            "role": "officer",
+            "ngo": ngo.id,
+        }
+        resp = auth_client(manager_user).post(USERS, payload, format="json")
+        assert resp.status_code == 403
 
 
 class TestUserManagementToggleActive:

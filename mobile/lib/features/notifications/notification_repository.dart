@@ -35,4 +35,11 @@ class NotificationRepository {
       await _api.dio.delete('/notifications/$id/');
     });
   }
+
+  /// Bulk-mark every unread notification as read.
+  Future<void> markAllRead() {
+    return apiGuard(() async {
+      await _api.dio.post('/notifications/mark-all-read/');
+    });
+  }
 }

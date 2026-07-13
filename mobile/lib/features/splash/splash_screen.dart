@@ -68,52 +68,56 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.primary,
-      body: Center(
-        child: FadeTransition(
-          opacity: _fade,
-          child: ScaleTransition(
-            scale: _scale,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.eco_rounded,
-                      size: 56, color: Colors.white),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Smart NGO',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+      body: Column(
+        children: [
+          Expanded(
+            child: Center(
+              child: FadeTransition(
+                opacity: _fade,
+                child: ScaleTransition(
+                  scale: _scale,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 96,
+                        height: 96,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.eco_rounded,
+                            size: 56, color: AppColors.primary),
                       ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Monitoring & Evaluation',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.75),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Smart NGO',
+                        style:
+                            Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
                       ),
-                ),
-                const SizedBox(height: 48),
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white.withValues(alpha: 0.6),
+                      const SizedBox(height: 8),
+                      Text(
+                        'M&E Platform',
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.7),
+                            ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+          // Amber loading strip anchored to the bottom of the screen.
+          const LinearProgressIndicator(
+            minHeight: 3,
+            color: AppColors.accent,
+            backgroundColor: Colors.transparent,
+          ),
+        ],
       ),
     );
   }

@@ -14,7 +14,7 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from apps.accounts.permissions import IsSystemAdmin
+from apps.accounts.permissions import IsProjectManager, IsSystemAdmin
 from core.responses import SuccessResponse
 
 from .serializers import (
@@ -324,15 +324,22 @@ class PasswordResetConfirmView(APIView):
 
 
 class UserManagementViewSet(viewsets.ModelViewSet):
-    """Admin-only user management: list, create, activate/deactivate.
+    """User management: list, create, activate/deactivate.
 
-    Scoped to the admin's own NGO so a compromised admin account cannot
-    reach users in other NGOs.
+    Write actions are admin-only. Read actions (list/retrieve) are also open
+    to managers, who need their NGO's officer roster to assign project teams.
+    Everything is scoped to the requester's own NGO so a compromised account
+    cannot reach users in other NGOs.
     """
 
     serializer_class = UserManagementSerializer
     permission_classes = [IsSystemAdmin]
     queryset = User.objects.none()  # overridden in get_queryset; needed for schema
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [(IsSystemAdmin | IsProjectManager)()]
+        return super().get_permissions()
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):

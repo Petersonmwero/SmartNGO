@@ -196,6 +196,51 @@ Mobile: 31 tests · 17 screens · flutter analyze clean · GoRouter + fl_chart +
 
 ---
 
+## Complete UI Overhaul (2026-07-13)
+
+All 17+ screens redesigned to the design-system spec (forest green / amber /
+warm cream, Space Grotesk + Inter, 12px cards at elevation 2, status pills on
+tint backgrounds).
+
+- [x] Shared widget library in `lib/shared/widgets/`: StatusBadge,
+  ProjectProgressBar (animated gradient), KpiCard, SectionHeader, EmptyState,
+  ShimmerCard/ShimmerList, InfoChip
+- [x] AppColors extended with the status tint palette (success/warning/
+  danger/info/neutral on soft tints); FABs now primary green; nav bar 64px
+- [x] Dashboard: green greeting header (role pill, amber avatar, bell badge),
+  role-aware KPI row from /analytics/dashboard/, 2×2 quick actions grid,
+  Recent Projects mini-cards with progress bars, Recent Activity feed with
+  colored dots
+- [x] Submit Report rebuilt as a 4-step wizard (Details → Location → Photos →
+  Review) with project selector, GPS accuracy display, 3×N photo grid capped
+  at 5, and a review summary; drafts resume into the wizard
+- [x] Create/Edit Project: steps now Details → Budget & Timeline → Team
+  (officer multi-select with removable chips); edit mode reuses the form
+- [x] Project detail: header badges (status/budget/% elapsed), 2×2 info grid
+  with beneficiary count, tab-aware FAB, Add Milestone / Add Indicator /
+  Assign Officer bottom sheets, remove-member with confirm
+- [x] Reports list: count subtitle, "On This Device" drafts section with
+  swipe-to-delete, officer name chips; Report detail: View on Maps
+  (url_launcher), full-screen photo viewer, approve confirmation dialog
+- [x] Beneficiaries: Total/Female/Male stats row, gender filter chips,
+  gender-colored avatars, active/inactive badges; register form with
+  segmented gender control, live computed age, project dropdown
+- [x] Notifications: Today/This Week/Earlier grouping, type-colored left
+  borders, amber-tinted unread cards, Mark-all-read
+- [x] Profile: green header (amber initials avatar, role pill, NGO name),
+  account info card, settings section; Analytics: 4 KPI tiles + third chart
+  (beneficiary demographics pie)
+- [x] Admin screens: user stats row + role filters + create-user sheet +
+  active switches; NGO count header + initials avatars + register-NGO sheet
+- [x] Backend: managers can now list users (read-only, own NGO) so they can
+  build project teams — 4 new permission tests
+- [x] seed_demo rewritten: 3 NGOs, Kenyan project/beneficiary data, milestone
+  mix incl. overdue, manager notifications for the activity feed
+- [x] **Backend: 176 tests pass. Flutter: 42 tests pass, analyze clean,
+  web build OK, API verified end-to-end against seeded data.**
+
+---
+
 ## sqflite Offline Report Drafts (2026-07-13)
 
 - [x] `lib/features/reports/models/report_draft.dart` — ReportDraft (form fields,

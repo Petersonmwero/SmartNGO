@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/empty_state.dart';
+import '../../../shared/widgets/shimmer_card.dart';
+import '../../../shared/widgets/status_badge.dart';
 import '../user_repository.dart';
 
-/// Admin-only screen: list all users in the NGO with activate/deactivate actions.
+/// Admin-only screen: list, filter, create, and activate/deactivate users.
 class UserManagementScreen extends StatefulWidget {
   const UserManagementScreen({super.key});
 
@@ -15,6 +18,15 @@ class UserManagementScreen extends StatefulWidget {
 
 class _UserManagementScreenState extends State<UserManagementScreen> {
   late Future<List<ManagedUser>> _future;
+  String? _roleFilter;
+
+  static const _roles = <String?, String>{
+    null: 'All',
+    'admin': 'Admin',
+    'manager': 'Manager',
+    'officer': 'Officer',
+    'donor': 'Donor',
+  };
 
   @override
   void initState() {
@@ -23,53 +35,143 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   void _load() {
-    _future = context
-        .read<UserRepository>()
-        .list()
-        .then((p) => p.results);
+    _future = context.read<UserRepository>().list().then((p) => p.results);
+  }
+
+  Future<void> _createUser() async {
+    final created = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const _CreateUserSheet(),
+    );
+    if (created == true && mounted) setState(_load);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('User Management')),
+      appBar: AppBar(
+        title: const Text('User Management'),
+        actions: [
+          IconButton(
+            tooltip: 'Add user',
+            icon: const Icon(Icons.add),
+            onPressed: _createUser,
+          ),
+        ],
+      ),
       body: FutureBuilder<List<ManagedUser>>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return _ShimmerList();
+            return const ShimmerList(cardHeight: 84);
           }
           if (snap.hasError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: AppColors.muted),
-                  const SizedBox(height: 12),
-                  const Text('Failed to load users.'),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                      onPressed: () => setState(_load),
-                      child: const Text('Retry')),
-                ],
-              ),
+            return EmptyState(
+              Icons.cloud_off_outlined,
+              'Something went wrong',
+              'Failed to load users.',
+              buttonLabel: 'Retry',
+              onButton: () => setState(_load),
             );
           }
-          final users = snap.data ?? [];
-          if (users.isEmpty) {
-            return const Center(child: Text('No users found.'));
-          }
-          return RefreshIndicator(
-            onRefresh: () async => setState(_load),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: users.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, i) =>
-                  _UserCard(user: users[i], onToggled: () => setState(_load)),
-            ),
+          final all = snap.data ?? [];
+          final active = all.where((u) => u.isActive).length;
+          final users = _roleFilter == null
+              ? all
+              : all.where((u) => u.role == _roleFilter).toList();
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Row(
+                  children: [
+                    _StatTile('Total Users', all.length),
+                    const SizedBox(width: 12),
+                    _StatTile('Active', active),
+                    const SizedBox(width: 12),
+                    _StatTile('Inactive', all.length - active),
+                  ],
+                ),
+              ),
+              SizedBox(
+                height: 52,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  children: [
+                    for (final entry in _roles.entries)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(entry.value),
+                          selected: _roleFilter == entry.key,
+                          onSelected: (_) =>
+                              setState(() => _roleFilter = entry.key),
+                          selectedColor: AppColors.primary,
+                          labelStyle: TextStyle(
+                            color:
+                                _roleFilter == entry.key ? Colors.white : null,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: users.isEmpty
+                    ? const EmptyState(Icons.person_search_outlined,
+                        'No users', 'No users match this filter.')
+                    : RefreshIndicator(
+                        onRefresh: () async => setState(_load),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          itemCount: users.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (context, i) => _UserCard(
+                              user: users[i],
+                              onToggled: () => setState(_load)),
+                        ),
+                      ),
+              ),
+            ],
           );
         },
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String label;
+  final int value;
+  const _StatTile(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              Text('$value',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w700,
+                      )),
+              Text(label,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(color: AppColors.muted)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -131,48 +233,26 @@ class _UserCardState extends State<_UserCard> {
                           .textTheme
                           .bodySmall
                           ?.copyWith(color: AppColors.muted)),
-                  const SizedBox(height: 4),
-                  Row(
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
                     children: [
-                      _RoleBadge(u.roleLabel),
-                      const SizedBox(width: 6),
-                      if (!u.isActive)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.statusCancelled
-                                .withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text('Inactive',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                      color: AppColors.statusCancelled)),
-                        ),
+                      StatusBadge('completed', label: u.roleLabel),
+                      if (!u.isActive) const StatusBadge('inactive'),
                     ],
                   ),
                 ],
               ),
             ),
-            IconButton(
-              tooltip: u.isActive ? 'Deactivate' : 'Activate',
-              icon: _toggling
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : Icon(
-                      u.isActive
-                          ? Icons.toggle_on_outlined
-                          : Icons.toggle_off_outlined,
-                      color: u.isActive ? AppColors.statusActive : AppColors.muted,
-                      size: 28,
-                    ),
-              onPressed: _toggling ? null : _toggle,
-            ),
+            _toggling
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : Switch(
+                    value: u.isActive,
+                    onChanged: (_) => _toggle(),
+                  ),
           ],
         ),
       ),
@@ -180,43 +260,146 @@ class _UserCardState extends State<_UserCard> {
   }
 }
 
-class _RoleBadge extends StatelessWidget {
-  final String label;
-  const _RoleBadge(this.label);
+/// Bottom sheet form for creating a new user in the admin's NGO.
+class _CreateUserSheet extends StatefulWidget {
+  const _CreateUserSheet();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-    );
-  }
+  State<_CreateUserSheet> createState() => _CreateUserSheetState();
 }
 
-class _ShimmerList extends StatelessWidget {
+class _CreateUserSheetState extends State<_CreateUserSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  String _role = 'officer';
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _firstName.dispose();
+    _lastName.dispose();
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _busy = true);
+    try {
+      await context.read<UserRepository>().create(
+            firstName: _firstName.text.trim(),
+            lastName: _lastName.text.trim(),
+            email: _email.text.trim(),
+            password: _password.text,
+            role: _role,
+          );
+      if (mounted) Navigator.pop(context, true);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+        setState(() => _busy = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: 6,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (_, _) => Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-          ),
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Add User', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _firstName,
+                    decoration:
+                        const InputDecoration(labelText: 'First name'),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'Required' : null,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: _lastName,
+                    decoration: const InputDecoration(labelText: 'Last name'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(labelText: 'Email'),
+              validator: (v) => (v == null || !v.contains('@'))
+                  ? 'Enter a valid email'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _password,
+              obscureText: true,
+              decoration:
+                  const InputDecoration(labelText: 'Temporary password'),
+              validator: (v) => (v == null || v.length < 8)
+                  ? 'At least 8 characters'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _role,
+              decoration: const InputDecoration(labelText: 'Role'),
+              items: const [
+                DropdownMenuItem(value: 'manager', child: Text('Manager')),
+                DropdownMenuItem(value: 'officer', child: Text('Officer')),
+                DropdownMenuItem(value: 'donor', child: Text('Donor')),
+              ],
+              onChanged: (v) => setState(() => _role = v ?? 'officer'),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed:
+                        _busy ? null : () => Navigator.pop(context, false),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _busy ? null : _save,
+                    child: _busy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Create'),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

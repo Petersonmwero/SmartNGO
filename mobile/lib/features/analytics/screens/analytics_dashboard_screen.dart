@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme.dart';
+import '../../beneficiaries/beneficiary_repository.dart';
 import '../analytics_repository.dart';
 
 /// Analytics dashboard with charts for projects, reports, and beneficiaries.
@@ -16,6 +17,8 @@ class AnalyticsDashboardScreen extends StatefulWidget {
 
 class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   late Future<DashboardStats> _future;
+  int? _femaleCount;
+  int? _maleCount;
 
   @override
   void initState() {
@@ -25,6 +28,20 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
   void _load() {
     _future = context.read<AnalyticsRepository>().dashboard();
+    _loadDemographics();
+  }
+
+  Future<void> _loadDemographics() async {
+    try {
+      final repo = context.read<BeneficiaryRepository>();
+      final female = await repo.count(gender: 'female');
+      final male = await repo.count(gender: 'male');
+      if (!mounted) return;
+      setState(() {
+        _femaleCount = female;
+        _maleCount = male;
+      });
+    } catch (_) {}
   }
 
   @override
@@ -54,7 +71,12 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
               ),
             );
           }
-          return _Dashboard(stats: snap.data!);
+          return _Dashboard(
+            stats: snap.data!,
+            femaleCount: _femaleCount,
+            maleCount: _maleCount,
+            onRefresh: () async => setState(_load),
+          );
         },
       ),
     );
@@ -63,26 +85,47 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
 class _Dashboard extends StatelessWidget {
   final DashboardStats stats;
-  const _Dashboard({required this.stats});
+  final int? femaleCount;
+  final int? maleCount;
+  final Future<void> Function() onRefresh;
+
+  const _Dashboard({
+    required this.stats,
+    required this.femaleCount,
+    required this.maleCount,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final totalReports =
+        stats.reports.draft + stats.reports.submitted + stats.reports.approved;
     return RefreshIndicator(
-      onRefresh: () async {},
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // KPI summary row
+          // KPI summary rows (2×2)
           Row(
             children: [
-              _KpiTile('Projects', '${stats.projects.total}',
+              _KpiTile('Total Projects', '${stats.projects.total}',
                   Icons.work_outline, AppColors.primary),
               const SizedBox(width: 12),
+              _KpiTile(
+                  'Active Projects',
+                  '${stats.projects.byStatus['active'] ?? 0}',
+                  Icons.play_circle_outline,
+                  AppColors.success),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
               _KpiTile('Beneficiaries', '${stats.beneficiaries}',
                   Icons.people_outline, AppColors.secondary),
               const SizedBox(width: 12),
-              _KpiTile('Unread Alerts', '${stats.unreadNotifications}',
-                  Icons.notifications_outlined, AppColors.accent),
+              _KpiTile('Total Reports', '$totalReports',
+                  Icons.description_outlined, AppColors.accent),
             ],
           ),
           const SizedBox(height: 24),
@@ -94,11 +137,107 @@ class _Dashboard extends StatelessWidget {
           const SizedBox(height: 24),
 
           // Reports — bar chart
-          _SectionHeader('Reports'),
+          _SectionHeader('Reports Overview'),
           const SizedBox(height: 12),
           _ReportsBarChart(reports: stats.reports),
+          const SizedBox(height: 24),
+
+          // Beneficiary demographics — pie chart
+          _SectionHeader('Beneficiary Demographics'),
+          const SizedBox(height: 12),
+          _DemographicsPieChart(female: femaleCount, male: maleCount),
         ],
       ),
+    );
+  }
+}
+
+/// Male/female beneficiary split with percentage labels.
+class _DemographicsPieChart extends StatelessWidget {
+  final int? female;
+  final int? male;
+  const _DemographicsPieChart({required this.female, required this.male});
+
+  @override
+  Widget build(BuildContext context) {
+    final f = female ?? 0;
+    final m = male ?? 0;
+    final total = f + m;
+    if (total == 0) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Center(child: Text('No beneficiary data yet.')),
+        ),
+      );
+    }
+
+    String pct(int v) => '${(v * 100 / total).round()}%';
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 180,
+              child: PieChart(
+                PieChartData(
+                  sections: [
+                    if (f > 0)
+                      PieChartSectionData(
+                        value: f.toDouble(),
+                        color: AppColors.success,
+                        radius: 56,
+                        title: pct(f),
+                        titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    if (m > 0)
+                      PieChartSectionData(
+                        value: m.toDouble(),
+                        color: AppColors.info,
+                        radius: 56,
+                        title: pct(m),
+                        titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 40,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 16,
+              children: [
+                _legendDot(context, AppColors.success, 'Female ($f)'),
+                _legendDot(context, AppColors.info, 'Male ($m)'),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendDot(BuildContext context, Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
     );
   }
 }

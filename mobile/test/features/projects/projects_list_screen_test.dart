@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:smartngo/core/api_client.dart';
 import 'package:smartngo/core/token_storage.dart';
+import 'package:smartngo/features/auth/auth_provider.dart';
+import 'package:smartngo/features/auth/auth_repository.dart';
 import 'package:smartngo/features/projects/project_repository.dart';
 import 'package:smartngo/features/projects/screens/projects_list_screen.dart';
 
@@ -14,11 +16,17 @@ void main() {
       (tester) async {
     final dio = Dio(BaseOptions(baseUrl: 'http://test/api/v1'));
     dio.httpClientAdapter = StubAdapter();
-    final repo = ProjectRepository(ApiClient(InMemoryTokenStore(), dio: dio));
+    final store = InMemoryTokenStore();
+    final api = ApiClient(store, dio: dio);
+    final repo = ProjectRepository(api);
+    final auth = AuthProvider(AuthRepository(api, store));
 
     await tester.pumpWidget(
-      Provider<ProjectRepository>.value(
-        value: repo,
+      MultiProvider(
+        providers: [
+          Provider<ProjectRepository>.value(value: repo),
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+        ],
         child: const MaterialApp(home: ProjectsListScreen()),
       ),
     );
@@ -26,6 +34,7 @@ void main() {
 
     expect(find.text('Water'), findsOneWidget);
     expect(find.text('Health'), findsOneWidget);
-    expect(find.text('Active'), findsWidgets);
+    // StatusBadge renders statuses uppercased.
+    expect(find.text('ACTIVE'), findsWidgets);
   });
 }

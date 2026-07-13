@@ -16,8 +16,19 @@ abstract final class AppColors {
   static const muted = Color(0xFF73796E);
   static const border = Color(0xFFE3E6E0);
   static const charcoal = Color(0xFF1C1C1E);
-  static const success = Color(0xFF166534);
   static const error = Color(0xFFDC2626);
+
+  // Status pill palette: foreground on soft tint background.
+  static const success = Color(0xFF166534);
+  static const successTint = Color(0xFFDCFCE7);
+  static const warning = Color(0xFF92400E);
+  static const warningTint = Color(0xFFFEF3C7);
+  static const danger = Color(0xFF991B1B);
+  static const dangerTint = Color(0xFFFEE2E2);
+  static const info = Color(0xFF1E40AF);
+  static const infoTint = Color(0xFFDBEAFE);
+  static const neutral = Color(0xFF4B5563);
+  static const neutralTint = Color(0xFFE5E7EB);
 }
 
 ThemeData buildAppTheme() {
@@ -92,10 +103,10 @@ ThemeData buildAppTheme() {
     ),
     cardTheme: CardThemeData(
       color: Colors.white,
-      elevation: 0,
+      elevation: 2,
+      shadowColor: Colors.black.withValues(alpha: 0.28),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: AppColors.border),
+        borderRadius: BorderRadius.circular(12),
       ),
       margin: EdgeInsets.zero,
     ),
@@ -140,7 +151,7 @@ ThemeData buildAppTheme() {
       labelStyle: bodyFont(fontSize: 13, fontWeight: FontWeight.w500),
     ),
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
-      backgroundColor: AppColors.accent,
+      backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
       elevation: 4,
     ),
@@ -160,7 +171,7 @@ ThemeData buildAppTheme() {
         return bodyFont(fontSize: 12, color: AppColors.muted);
       }),
       elevation: 8,
-      height: 68,
+      height: 64,
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: primary,

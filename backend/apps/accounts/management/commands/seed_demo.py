@@ -1,5 +1,5 @@
 """
-Populate the database with realistic demo data for development / demos.
+Populate the database with rich, realistic demo data for development / demos.
 
 Idempotent — safe to run multiple times (keyed on natural fields, so it won't
 create duplicates). Run with:
@@ -16,6 +16,7 @@ from apps.accounts.models import Role, User
 from apps.beneficiaries.models import Beneficiary
 from apps.indicators.models import Indicator
 from apps.ngos.models import NGO
+from apps.notifications.models import Notification
 from apps.projects.models import Milestone, Project, ProjectAssignment
 from apps.reports.models import Report
 
@@ -30,68 +31,117 @@ class Command(BaseCommand):
         today = timezone.now().date()
 
         # ── NGOs ─────────────────────────────────────────────────────────
-        ngo1 = self._ngo("Green Earth Initiative", "NGO-GEI-001", "Eldoret, Kenya")
-        ngo2 = self._ngo("HealthBridge Africa", "NGO-HBA-002", "Kisumu, Kenya")
+        green = self._ngo("Green Earth Initiative", "NGO-GEI-001", "Kisumu, Kenya")
+        health = self._ngo("HealthBridge Kenya", "NGO-HBK-002", "Nairobi, Kenya")
+        edu = self._ngo("EduReach Africa", "NGO-ERA-003", "Eldoret, Kenya")
 
-        # ── Users (one per role + extras to show NGO scoping) ────────────
-        admin = self._user("admin@demo.ngo", "Ada", "Admin", Role.ADMIN, ngo1,
-                            is_staff=True, is_superuser=True)
-        manager = self._user("manager@demo.ngo", "Moses", "Manager", Role.MANAGER, ngo1)
-        officer1 = self._user("officer1@demo.ngo", "Faith", "Officer", Role.OFFICER, ngo1)
-        officer2 = self._user("officer2@demo.ngo", "Brian", "Officer", Role.OFFICER, ngo1)
-        donor = self._user("donor@demo.ngo", "Dana", "Donor", Role.DONOR, ngo1)
-        # A second NGO's staff — used to demonstrate that data is NGO-scoped.
-        manager2 = self._user("manager2@demo.ngo", "Mary", "Manager", Role.MANAGER, ngo2)
-        officer3 = self._user("officer3@demo.ngo", "Otis", "Officer", Role.OFFICER, ngo2)
+        # ── Users (one per role + second-NGO staff for scoping demos) ────
+        self._user("admin@demo.ngo", "Ada", "Admin", Role.ADMIN, green,
+                   is_staff=True, is_superuser=True)
+        manager = self._user(
+            "manager@demo.ngo", "Moses", "Kiprop", Role.MANAGER, green)
+        officer1 = self._user(
+            "officer1@demo.ngo", "Jane", "Achieng", Role.OFFICER, green)
+        officer2 = self._user(
+            "officer2@demo.ngo", "Samuel", "Koech", Role.OFFICER, green)
+        self._user("donor@demo.ngo", "Dana", "Donor", Role.DONOR, green)
+        manager2 = self._user(
+            "manager2@demo.ngo", "Mary", "Wambui", Role.MANAGER, health)
+        self._user("manager3@demo.ngo", "Elly", "Otieno", Role.MANAGER, edu)
 
-        # ── Projects ─────────────────────────────────────────────────────
-        wells = self._project(
-            "Clean Water Wells", ngo1, "active", "1500000.00",
-            today - timedelta(days=90), today + timedelta(days=275))
-        maternal = self._project(
-            "Maternal Health Outreach", ngo1, "active", "900000.00",
-            today - timedelta(days=60), today + timedelta(days=300))
-        feeding = self._project(
-            "School Feeding Program", ngo1, "planning", "450000.00",
-            today + timedelta(days=30), today + timedelta(days=395))
+        # ── Green Earth projects (timeline dates approximate the target
+        #    "% elapsed" shown on cards: 72% / 18% / 34%) ─────────────────
+        water = self._project(
+            "Clean Water Initiative — Kisumu", green, "active", "2400000.00",
+            today - timedelta(days=263), today + timedelta(days=102))
+        bursary = self._project(
+            "Girls Education Bursary — Baringo", green, "planning", "1100000.00",
+            today - timedelta(days=36), today + timedelta(days=164))
+        food = self._project(
+            "Food Security Programme — Turkana", green, "on_hold", "5800000.00",
+            today - timedelta(days=136), today + timedelta(days=264))
         clinic = self._project(
-            "Community Clinic", ngo2, "active", "2000000.00",
+            "Community Clinic Outreach", health, "active", "2000000.00",
             today - timedelta(days=120), today + timedelta(days=240))
 
         # ── Assignments (signals create "added to project" notifications) ─
-        for project in (wells, maternal, feeding):
+        for project in (water, bursary, food):
             self._assign(project, manager, "manager")
-        self._assign(wells, officer1, "officer")
-        self._assign(maternal, officer1, "officer")
-        self._assign(feeding, officer2, "officer")
+        self._assign(water, officer1, "officer")
+        self._assign(bursary, officer1, "officer")
+        self._assign(food, officer2, "officer")
         self._assign(clinic, manager2, "manager")
-        self._assign(clinic, officer3, "officer")
 
-        # ── Beneficiaries ────────────────────────────────────────────────
-        self._beneficiary("Amani Wanjiku", "female", date(2018, 4, 12), wells, "Turbo")
-        self._beneficiary("Baraka Otieno", "male", date(2015, 9, 3), wells, "Turbo")
-        self._beneficiary("Zawadi Cherono", "female", date(1992, 1, 20), maternal, "Kapsabet")
-        self._beneficiary("Neema Akinyi", "female", date(1996, 7, 8), maternal, "Kapsabet")
-        self._beneficiary("Juma Hassan", "male", date(2012, 11, 30), feeding, "Eldoret")
+        # ── Milestones ───────────────────────────────────────────────────
+        # Clean Water: 2 done, 1 pending.
+        self._milestone(water, "Site survey completed",
+                        today - timedelta(days=200), "completed")
+        self._milestone(water, "Phase 1 Drilling",
+                        today - timedelta(days=60), "completed")
+        self._milestone(water, "Community handover ceremony",
+                        today + timedelta(days=80), "pending")
+        # Girls Education: 2 pending.
+        self._milestone(bursary, "Bursary application window opens",
+                        today + timedelta(days=20), "pending")
+        self._milestone(bursary, "First disbursement",
+                        today + timedelta(days=90), "pending")
+        # Food Security: 1 done, 2 pending, 1 overdue.
+        self._milestone(food, "Baseline nutrition survey",
+                        today - timedelta(days=100), "completed")
+        self._milestone(food, "Seed distribution — Phase 1",
+                        today - timedelta(days=10), "overdue")
+        self._milestone(food, "Irrigation training",
+                        today + timedelta(days=45), "pending")
+        self._milestone(food, "Harvest assessment",
+                        today + timedelta(days=180), "pending")
 
         # ── Indicators (KPIs) ────────────────────────────────────────────
-        self._indicator(wells, "Boreholes drilled", "50", "18", "wells")
-        self._indicator(wells, "People with water access", "10000", "4200", "people")
-        self._indicator(maternal, "Mothers reached", "500", "215", "mothers")
-        self._indicator(feeding, "Meals served", "200000", "0", "meals")
+        self._indicator(water, "Boreholes drilled", "50", "36", "wells")
+        self._indicator(water, "Hygiene training sessions", "40", "29", "sessions")
+        self._indicator(bursary, "Bursaries awarded", "120", "0", "girls")
+        self._indicator(food, "Households reached", "800", "270", "households")
 
-        # ── Milestones (pending / completed / overdue) ───────────────────
-        self._milestone(wells, "Site survey completed", today - timedelta(days=70), "completed")
-        self._milestone(wells, "First 10 wells drilled", today - timedelta(days=5), "overdue")
-        self._milestone(wells, "Community handover", today + timedelta(days=120), "pending")
-        self._milestone(maternal, "Baseline survey", today + timedelta(days=10), "pending")
+        # ── Beneficiaries ────────────────────────────────────────────────
+        for name, gender, dob, project, location in [
+            ("Amani Wanjiku", "female", date(2018, 4, 12), water, "Kisumu West"),
+            ("Baraka Otieno", "male", date(2015, 9, 3), water, "Kisumu West"),
+            ("Zawadi Cherono", "female", date(1992, 1, 20), water, "Nyalenda"),
+            ("Neema Akinyi", "female", date(1996, 7, 8), water, "Nyalenda"),
+            ("Chebet Kimutai", "female", date(2010, 3, 15), bursary, "Kabarnet"),
+            ("Jepkorir Ruto", "female", date(2009, 11, 2), bursary, "Marigat"),
+            ("Chepkemoi Langat", "female", date(2011, 6, 25), bursary, "Kabartonjo"),
+            ("Juma Hassan", "male", date(2012, 11, 30), food, "Lodwar"),
+            ("Ekai Lokol", "male", date(1988, 2, 14), food, "Kakuma"),
+            ("Akiru Napeyok", "female", date(1995, 8, 21), food, "Lokichar"),
+            ("Lokwawi Emuria", "male", date(2005, 5, 9), food, "Lodwar"),
+            ("Asekon Ewoi", "female", date(2001, 12, 3), food, "Kalokol"),
+        ]:
+            self._beneficiary(name, gender, dob, project, location)
 
         # ── Reports (draft / submitted / approved) ───────────────────────
-        self._report(wells, officer1, "Week 1 drilling update", "weekly", "approved")
-        self._report(wells, officer1, "Equipment delay note", "daily", "submitted")
-        self._report(maternal, officer1, "Outreach day 1", "daily", "draft")
+        self._report(water, officer1, "Borehole 12 drilling progress",
+                     "weekly", "approved")
+        self._report(water, officer1, "Community Survey — Nyalenda ward",
+                     "monthly", "submitted")
+        self._report(water, officer1, "Pump maintenance notes", "daily", "draft")
 
-        self._summary(ngo1, ngo2)
+        # ── Notifications for the manager (demo activity feed) ───────────
+        for title, message in [
+            ("New report submitted by Jane Achieng",
+             "Community Survey — Nyalenda ward is awaiting your approval."),
+            ("Milestone due in 3 days: Phase 1 Drilling",
+             "Clean Water Initiative — Kisumu has an upcoming milestone."),
+            ("Report approved: Community Survey",
+             "Your report was approved and is included in donor summaries."),
+            ("New officer assigned: Samuel Koech",
+             "Samuel Koech joined Food Security Programme — Turkana."),
+            ("Budget utilization at 86%",
+             "Clean Water Initiative — Kisumu is approaching its budget cap."),
+        ]:
+            Notification.objects.get_or_create(
+                user=manager, title=title, defaults={"message": message})
+
+        self._summary()
 
     # ── helpers ──────────────────────────────────────────────────────────
     def _ngo(self, name, reg_no, address):
@@ -138,12 +188,14 @@ class Command(BaseCommand):
     def _beneficiary(self, name, gender, dob, project, location):
         Beneficiary.objects.get_or_create(
             name=name, project=project,
-            defaults={"gender": gender, "date_of_birth": dob, "location": location})
+            defaults={"gender": gender, "date_of_birth": dob,
+                      "location": location})
 
     def _indicator(self, project, name, target, current, unit):
         Indicator.objects.get_or_create(
             indicator_name=name, project=project,
-            defaults={"target_value": target, "current_value": current, "unit": unit})
+            defaults={"target_value": target, "current_value": current,
+                      "unit": unit})
 
     def _milestone(self, project, title, due, status):
         Milestone.objects.get_or_create(
@@ -155,29 +207,32 @@ class Command(BaseCommand):
             title=title, project=project, officer=officer,
             defaults={"report_type": report_type,
                       "description": f"{title} — demo report.",
-                      "gps_latitude": "0.5142700", "gps_longitude": "35.2697800",
+                      "gps_latitude": "-0.1022000",
+                      "gps_longitude": "34.7617000",
                       "status": "submitted" if status != "draft" else "draft",
-                      "date_submitted": (timezone.now() if status != "draft" else None)},
+                      "date_submitted": (timezone.now()
+                                         if status != "draft" else None)},
         )
         # Transition into "approved" via save so the approval signal fires.
         if created and status == "approved":
             report.status = Report.Status.APPROVED
             report.save(update_fields=["status"])
 
-    def _summary(self, ngo1, ngo2):
+    def _summary(self):
         out = self.stdout
         out.write(self.style.SUCCESS("\nDemo data seeded successfully."))
         out.write(f"  NGOs: {NGO.objects.count()} | Users: {User.objects.count()} | "
                   f"Projects: {Project.objects.count()} | "
                   f"Beneficiaries: {Beneficiary.objects.count()} | "
-                  f"Reports: {Report.objects.count()}")
+                  f"Reports: {Report.objects.count()} | "
+                  f"Notifications: {Notification.objects.count()}")
         out.write("\n  Demo logins (password for all: " +
                   self.style.WARNING(DEMO_PASSWORD) + "):")
         for email, role in [
             ("admin@demo.ngo", "admin"),
-            ("manager@demo.ngo", "manager (NGO: Green Earth)"),
-            ("officer1@demo.ngo", "officer (NGO: Green Earth)"),
-            ("donor@demo.ngo", "donor (NGO: Green Earth)"),
-            ("manager2@demo.ngo", "manager (NGO: HealthBridge)"),
+            ("manager@demo.ngo", "manager (Green Earth Initiative)"),
+            ("officer1@demo.ngo", "officer (Green Earth Initiative)"),
+            ("donor@demo.ngo", "donor (Green Earth Initiative)"),
+            ("manager2@demo.ngo", "manager (HealthBridge Kenya)"),
         ]:
             out.write(f"    {email:22} {role}")

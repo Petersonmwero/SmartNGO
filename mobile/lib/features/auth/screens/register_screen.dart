@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
@@ -389,19 +390,17 @@ class _NgoLoadingPlaceholder extends StatelessWidget {
         labelText: 'Organisation (NGO)',
         prefixIcon: Icon(Icons.domain_outlined),
       ),
-      child: Row(
-        children: [
-          const SizedBox(
-              height: 16,
-              width: 16,
-              child: CircularProgressIndicator(strokeWidth: 2)),
-          const SizedBox(width: 12),
-          Text('Loading organisations…',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.muted)),
-        ],
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Container(
+          height: 14,
+          width: 160,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
       ),
     );
   }

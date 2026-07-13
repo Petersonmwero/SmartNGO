@@ -161,12 +161,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Sign in',
+                          'Welcome back',
                           style: Theme.of(context).textTheme.headlineSmall,
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Welcome back. Enter your credentials to continue.',
+                          'Sign in to continue.',
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -236,19 +236,65 @@ class _LoginScreenState extends State<LoginScreen> {
                                 )
                               : const Text('Sign in'),
                         ),
-                        // Shown only after EMAIL_NOT_VERIFIED error.
+                        // Amber info box shown after an EMAIL_NOT_VERIFIED error.
                         if (_showResend) ...[
-                          const SizedBox(height: 4),
-                          TextButton.icon(
-                            onPressed: _resendBusy ? null : _resendVerification,
-                            icon: _resendBusy
-                                ? const SizedBox(
-                                    height: 14,
-                                    width: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2))
-                                : const Icon(Icons.email_outlined, size: 16),
-                            label: const Text('Resend verification email'),
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningTint,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: AppColors.accent
+                                      .withValues(alpha: 0.5)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.mark_email_unread_outlined,
+                                    size: 20, color: AppColors.warning),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Please verify your email before signing in.',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                                color: AppColors.warning),
+                                      ),
+                                      GestureDetector(
+                                        onTap: _resendBusy
+                                            ? null
+                                            : _resendVerification,
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 4),
+                                          child: Text(
+                                            _resendBusy
+                                                ? 'Sending…'
+                                                : 'Resend verification email',
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .bodySmall
+                                                ?.copyWith(
+                                                  color: AppColors.warning,
+                                                  fontWeight: FontWeight.w700,
+                                                  decoration: TextDecoration
+                                                      .underline,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                         const SizedBox(height: 10),

@@ -46,4 +46,11 @@ class NotificationsProvider extends ChangeNotifier {
     if (wasUnread) unread = (unread - 1).clamp(0, 1 << 30);
     notifyListeners();
   }
+
+  Future<void> markAllRead() async {
+    await _repo.markAllRead();
+    items = [for (final n in items) n.copyWith(status: 'read')];
+    unread = 0;
+    notifyListeners();
+  }
 }

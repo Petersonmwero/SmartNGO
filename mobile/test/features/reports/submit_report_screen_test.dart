@@ -64,9 +64,19 @@ Widget _harness(ReportRepository repo, DraftStore store,
         Provider<DraftStore>.value(value: store),
       ],
       child: MaterialApp(
-        home: SubmitReportScreen(projectId: 3, projectName: 'WASH', draft: draft),
+        home: draft == null
+            ? SubmitReportScreen(projectId: 3, projectName: 'WASH')
+            : SubmitReportScreen(draft: draft),
       ),
     );
+
+/// Advance the wizard: Details → Location → Photos → Review.
+Future<void> _goToReview(WidgetTester tester) async {
+  for (var i = 0; i < 3; i++) {
+    await tester.tap(find.byKey(const Key('next_button')));
+    await tester.pumpAndSettle();
+  }
+}
 
 void main() {
   late FakeReportRepository fake;
@@ -77,22 +87,44 @@ void main() {
     store = InMemoryDraftStore();
   });
 
-  testWidgets('renders the report form fields', (tester) async {
+  testWidgets('step 1 renders the report details fields', (tester) async {
     await tester.pumpWidget(_harness(fake, store));
     expect(find.byKey(const Key('report_title')), findsOneWidget);
     expect(find.byKey(const Key('report_type')), findsOneWidget);
-    expect(find.text('Add photos'), findsOneWidget);
-    expect(find.text('Capture'), findsOneWidget);
+    expect(find.text('WASH'), findsOneWidget);
   });
 
-  testWidgets('blocks submit when title is empty', (tester) async {
+  testWidgets('blocks progression past step 1 when title is empty',
+      (tester) async {
     await tester.pumpWidget(_harness(fake, store));
 
-    await tester.tap(find.byKey(const Key('submit_button')));
+    await tester.tap(find.byKey(const Key('next_button')));
     await tester.pump();
 
     expect(find.text('Required'), findsOneWidget);
-    expect(fake.createCalled, isFalse);
+    // Still on step 1: the title field is visible, the GPS step is not.
+    expect(find.byKey(const Key('report_title')), findsOneWidget);
+    expect(find.text('Capture Location'), findsNothing);
+  });
+
+  testWidgets('wizard walks Details → Location → Photos → Review',
+      (tester) async {
+    await tester.pumpWidget(_harness(fake, store));
+    await tester.enterText(
+        find.byKey(const Key('report_title')), 'Site visit notes');
+
+    await tester.tap(find.byKey(const Key('next_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Capture Location'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('next_button')));
+    await tester.pumpAndSettle();
+    expect(find.text('Add photos'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('next_button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('submit_button')), findsOneWidget);
+    expect(find.byKey(const Key('save_draft_button')), findsOneWidget);
   });
 
   testWidgets('Save draft stores the form locally without calling the API',
@@ -101,6 +133,7 @@ void main() {
 
     await tester.enterText(
         find.byKey(const Key('report_title')), 'Site visit notes');
+    await _goToReview(tester);
     await tester.tap(find.byKey(const Key('save_draft_button')));
     await tester.pumpAndSettle();
 
@@ -138,6 +171,7 @@ void main() {
     ));
 
     await tester.pumpWidget(_harness(fake, store, draft: draft));
+    await _goToReview(tester);
     await tester.tap(find.byKey(const Key('submit_button')));
     await tester.pumpAndSettle();
 

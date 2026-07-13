@@ -8,18 +8,20 @@ class BeneficiaryRepository {
 
   BeneficiaryRepository(this._api);
 
-  Future<Paginated<Beneficiary>> list({int? projectId, int page = 1}) {
+  Future<Paginated<Beneficiary>> list(
+      {int? projectId, String? gender, int page = 1}) {
     return apiGuard(() async {
       final query = <String, dynamic>{'page': page};
       if (projectId != null) query['project_id'] = projectId;
+      if (gender != null) query['gender'] = gender;
       final res = await _api.dio.get('/beneficiaries/', queryParameters: query);
       return Paginated.fromJson(
           res.data as Map<String, dynamic>, Beneficiary.fromJson);
     });
   }
 
-  Future<int> count({int? projectId}) async {
-    final page = await list(projectId: projectId);
+  Future<int> count({int? projectId, String? gender}) async {
+    final page = await list(projectId: projectId, gender: gender);
     return page.count;
   }
 
