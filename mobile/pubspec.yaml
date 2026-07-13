@@ -53,12 +53,18 @@ dependencies:
   fl_chart: ^0.69.0
   # Skeleton loading placeholders (replaces spinner during data fetch)
   shimmer: ^3.0.0
+  # Local DB for offline report drafts (mobile; web falls back to in-memory)
+  sqflite: ^2.4.1
+  # Path joining for the sqflite database file
+  path: ^1.9.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   # Mock HTTP adapter for testing the Dio client
   http_mock_adapter: ^0.6.1
+  # Runs sqflite against SQLite FFI in the Dart VM so draft-store tests hit a real DB
+  sqflite_common_ffi: ^2.3.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +14,7 @@ import 'features/ngos/ngo_repository.dart';
 import 'features/notifications/notification_repository.dart';
 import 'features/notifications/notifications_provider.dart';
 import 'features/projects/project_repository.dart';
+import 'features/reports/draft_store.dart';
 import 'features/reports/report_repository.dart';
 import 'features/users/user_repository.dart';
 
@@ -53,6 +55,11 @@ class _SmartNgoAppState extends State<SmartNgoApp> {
         ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
         Provider<ProjectRepository>(create: (_) => ProjectRepository(_apiClient)),
         Provider<ReportRepository>(create: (_) => ReportRepository(_apiClient)),
+        // sqflite has no web implementation; web (dev/demo target) keeps
+        // drafts in memory for the browser session only.
+        Provider<DraftStore>(
+          create: (_) => kIsWeb ? InMemoryDraftStore() : SqfliteDraftStore(),
+        ),
         Provider<BeneficiaryRepository>(create: (_) => BeneficiaryRepository(_apiClient)),
         Provider<AnalyticsRepository>(create: (_) => AnalyticsRepository(_apiClient)),
         Provider<UserRepository>(create: (_) => UserRepository(_apiClient)),

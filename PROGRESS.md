@@ -134,7 +134,9 @@ All 17 screens implemented. Architecture lighter than CLAUDE.md spec (flat repos
 - [x] 31 widget and unit tests; `flutter analyze` — 0 issues
 
 ### Remaining gaps vs CLAUDE.md spec
-- [ ] **sqflite** offline draft storage not implemented
+- [x] **sqflite** offline draft storage — done 2026-07-13: local-only report drafts
+  (save/resume/submit-deletes, Reports list "Local draft" section, in-memory
+  fallback on web); see DECISIONS.md D-010; 8 new tests
 - [x] **Inline validation on blur** — done 2026-07-13: shared `BlurValidatedTextField`
   widget (validates on focus loss, then re-validates per keystroke so errors clear);
   applied to all 12 validated fields across the 6 form screens; 3 widget tests added
@@ -191,3 +193,21 @@ Mobile: 31 tests · 17 screens · flutter analyze clean · GoRouter + fl_chart +
   (name, budget), register beneficiary (name, project ID), submit report (title)
 - [x] 3 widget tests in `test/shared/blur_validated_text_field_test.dart`
 - [x] **Flutter: 34 tests pass, `flutter analyze` 0 issues.**
+
+---
+
+## sqflite Offline Report Drafts (2026-07-13)
+
+- [x] `lib/features/reports/models/report_draft.dart` — ReportDraft (form fields,
+  GPS, photo paths as JSON, updated_at) with sqflite row mapping
+- [x] `lib/features/reports/draft_store.dart` — `DraftStore` interface;
+  `SqfliteDraftStore` (lazy-opened `smartngo_drafts.db`, schema v1);
+  `InMemoryDraftStore` for web + widget tests
+- [x] Submit Report: "Save draft" now saves locally (works offline); resuming a
+  draft pre-fills the form; successful submit deletes the originating draft
+- [x] Reports list: "On this device" section under All/Drafts filters with amber
+  "Local draft" badge, tap-to-resume, delete icon; local drafts stay visible
+  even when the server list fails (offline)
+- [x] Design decision D-010 in DECISIONS.md (local-only drafts; web in-memory fallback)
+- [x] 4 store tests against real SQLite (`sqflite_common_ffi`) + 3 new widget tests
+- [x] **Flutter: 41 tests pass, `flutter analyze` 0 issues, `flutter build web` OK.**

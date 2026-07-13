@@ -5,16 +5,23 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
+import '../draft_store.dart';
+import '../models/report_draft.dart';
 import '../report_repository.dart';
 
 class SubmitReportScreen extends StatefulWidget {
   final int projectId;
   final String projectName;
 
+  /// When resuming a locally saved draft, its content pre-fills the form and
+  /// the draft row is updated on save (and removed on successful submit).
+  final ReportDraft? draft;
+
   const SubmitReportScreen({
     super.key,
     required this.projectId,
     required this.projectName,
+    this.draft,
   });
 
   @override
@@ -30,6 +37,22 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   double? _lng;
   final List<XFile> _photos = [];
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.draft;
+    if (draft != null) {
+      _title.text = draft.title;
+      _description.text = draft.description;
+      _reportType = draft.reportType;
+      _lat = draft.latitude;
+      _lng = draft.longitude;
+      // Best-effort: the OS may have cleared the picker cache since the
+      // draft was saved, in which case a thumbnail simply fails to load.
+      _photos.addAll(draft.photoPaths.map(XFile.new));
+    }
+  }
 
   @override
   void dispose() {
@@ -69,10 +92,36 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     }
   }
 
-  Future<void> _save({required bool submit}) async {
+  /// Save the form as a local draft — no network involved, so it works
+  /// offline. Resumable from the Reports list under the Drafts filter.
+  Future<void> _saveDraft() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _busy = true);
+    final store = context.read<DraftStore>();
+    await store.save(ReportDraft(
+      id: widget.draft?.id,
+      projectId: widget.projectId,
+      projectName: widget.projectName,
+      title: _title.text.trim(),
+      description: _description.text.trim(),
+      reportType: _reportType,
+      latitude: _lat,
+      longitude: _lng,
+      photoPaths: _photos.map((p) => p.path).toList(),
+      updatedAt: DateTime.now(),
+    ));
+    if (!mounted) return;
+    _toast('Draft saved on this device.');
+    Navigator.of(context).pop(true);
+  }
+
+  /// Send the report to the server; on success any local draft it came
+  /// from is deleted.
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
     final repo = context.read<ReportRepository>();
+    final store = context.read<DraftStore>();
     try {
       final reportId = await repo.createReport(
         projectId: widget.projectId,
@@ -86,11 +135,11 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         final bytes = await photo.readAsBytes();
         await repo.uploadImage(reportId, bytes: bytes, filename: photo.name);
       }
-      if (submit) {
-        await repo.submit(reportId);
-      }
+      await repo.submit(reportId);
+      final draftId = widget.draft?.id;
+      if (draftId != null) await store.delete(draftId);
       if (!mounted) return;
-      _toast(submit ? 'Report submitted.' : 'Draft saved.');
+      _toast('Report submitted.');
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       _toast(e.message);
@@ -190,7 +239,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _busy ? null : () => _save(submit: false),
+                      key: const Key('save_draft_button'),
+                      onPressed: _busy ? null : _saveDraft,
                       child: const Text('Save draft'),
                     ),
                   ),
@@ -198,7 +248,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                   Expanded(
                     child: FilledButton(
                       key: const Key('submit_button'),
-                      onPressed: _busy ? null : () => _save(submit: true),
+                      onPressed: _busy ? null : _submit,
                       child: _busy
                           ? const SizedBox(
                               height: 20,

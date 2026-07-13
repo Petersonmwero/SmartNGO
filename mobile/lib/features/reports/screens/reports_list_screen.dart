@@ -5,8 +5,11 @@ import 'package:shimmer/shimmer.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
+import '../draft_store.dart';
 import '../models/report.dart';
+import '../models/report_draft.dart';
 import '../report_repository.dart';
+import 'submit_report_screen.dart';
 
 class ReportsListScreen extends StatefulWidget {
   const ReportsListScreen({super.key});
@@ -17,6 +20,7 @@ class ReportsListScreen extends StatefulWidget {
 
 class _ReportsListScreenState extends State<ReportsListScreen> {
   late Future<List<Report>> _future;
+  late Future<List<ReportDraft>> _draftsFuture;
   String? _status;
 
   static const _statuses = <String?, String>{
@@ -25,6 +29,9 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
     'submitted': 'Submitted',
     'approved': 'Approved',
   };
+
+  /// Local device drafts are shown under the All and Drafts filters.
+  bool get _showDrafts => _status == null || _status == 'draft';
 
   @override
   void initState() {
@@ -35,6 +42,25 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   void _load() {
     final repo = context.read<ReportRepository>();
     _future = repo.list(status: _status).then((p) => p.results);
+    _draftsFuture = context.read<DraftStore>().list();
+  }
+
+  Future<void> _openDraft(ReportDraft draft) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => SubmitReportScreen(
+          projectId: draft.projectId,
+          projectName: draft.projectName,
+          draft: draft,
+        ),
+      ),
+    );
+    if (changed == true && mounted) setState(_load);
+  }
+
+  Future<void> _deleteDraft(ReportDraft draft) async {
+    await context.read<DraftStore>().delete(draft.id!);
+    if (mounted) setState(_load);
   }
 
   @override
@@ -60,22 +86,56 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return _ShimmerList();
                   }
-                  if (snapshot.hasError) {
-                    final err = snapshot.error;
-                    final msg =
-                        err is ApiException ? err.message : 'Failed to load.';
-                    return _Empty(msg, onRetry: () => setState(_load));
-                  }
+                  final err = snapshot.error;
+                  final errorMsg = snapshot.hasError
+                      ? (err is ApiException ? err.message : 'Failed to load.')
+                      : null;
                   final items = snapshot.data ?? [];
-                  if (items.isEmpty) {
-                    return const _Empty('No reports found.');
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) =>
-                        _ReportCard(report: items[i]),
+                  return FutureBuilder<List<ReportDraft>>(
+                    future: _draftsFuture,
+                    builder: (context, draftSnapshot) {
+                      final drafts = _showDrafts
+                          ? (draftSnapshot.data ?? const <ReportDraft>[])
+                          : const <ReportDraft>[];
+                      // Local drafts stay visible even when the server list
+                      // fails — the officer may simply be offline.
+                      if (errorMsg != null && drafts.isEmpty) {
+                        return _Empty(errorMsg,
+                            onRetry: () => setState(_load));
+                      }
+                      if (items.isEmpty && drafts.isEmpty && errorMsg == null) {
+                        return const _Empty('No reports found.');
+                      }
+                      return ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          if (drafts.isNotEmpty) ...[
+                            const _SectionHeader('On this device'),
+                            for (final draft in drafts)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _DraftCard(
+                                  draft: draft,
+                                  onOpen: () => _openDraft(draft),
+                                  onDelete: () => _deleteDraft(draft),
+                                ),
+                              ),
+                          ],
+                          if (errorMsg != null)
+                            _InlineError(errorMsg,
+                                onRetry: () => setState(_load))
+                          else ...[
+                            if (drafts.isNotEmpty && items.isNotEmpty)
+                              const _SectionHeader('On the server'),
+                            for (final report in items)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _ReportCard(report: report),
+                              ),
+                          ],
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -121,6 +181,114 @@ class _FilterBar extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  const _SectionHeader(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        label.toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.muted,
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+}
+
+/// Card for a report draft saved locally with sqflite; tap to resume it in
+/// the Submit Report form.
+class _DraftCard extends StatelessWidget {
+  final ReportDraft draft;
+  final VoidCallback onOpen;
+  final VoidCallback onDelete;
+
+  const _DraftCard({
+    required this.draft,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onOpen,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            draft.title,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const _Badge(
+                            label: 'Local draft', color: AppColors.accent),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${draft.projectName} · edited '
+                      '${draft.updatedAt.toString().substring(0, 10)}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelSmall
+                          ?.copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, size: 20),
+                color: AppColors.muted,
+                tooltip: 'Delete draft',
+                onPressed: onDelete,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact error row shown below local drafts when the server list fails,
+/// so being offline never hides the device's own drafts.
+class _InlineError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _InlineError(this.message, {required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.cloud_off_outlined, color: AppColors.muted),
+        title: Text(message, style: Theme.of(context).textTheme.bodyMedium),
+        trailing: TextButton(onPressed: onRetry, child: const Text('Retry')),
       ),
     );
   }

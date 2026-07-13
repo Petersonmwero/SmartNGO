@@ -149,3 +149,29 @@ Milestones are registered on the router as a top-level resource
 to a project, share the ProjectScopedViewSetMixin, and are never referenced
 outside the project context). A separate app would only add indirection.  
 **Impact:** Low. API behaviour is identical to spec. No test coverage lost.
+
+---
+
+## D-010 — Report drafts are local-only (sqflite); web falls back to in-memory
+
+**Spec says:** sqflite for "Local DB (drafts)"; the API also has a server-side
+draft status (reports created as status=draft, then submitted).
+**Actual:** The mobile "Save draft" button saves to a local sqflite database
+(`report_drafts` table via `DraftStore` in `features/reports/draft_store.dart`)
+instead of creating a server draft. "Submit" creates the report on the server
+and transitions it to submitted in one flow, deleting the local draft it came
+from. Local drafts appear in the Reports list under the All/Drafts filters
+with a "Local draft" badge and are resumable (pre-filled Submit form). The
+server draft workflow (draft → submitted → approved) remains fully supported
+by the API for other clients.
+**Reason:** (1) Offline-first — field officers can capture work with no
+connectivity, which server drafts cannot do. (2) Server drafts created from
+the app were stranded: the app has no edit-report screen, so they could never
+be resumed. Local drafts are resumable by design.
+**Web caveat:** sqflite has no web implementation, so on web (the dev/demo
+target) `InMemoryDraftStore` is provided instead — drafts last only for the
+browser session. On Android/iOS drafts persist in SQLite as specified.
+Draft-store tests run against real SQLite via `sqflite_common_ffi`.
+**Impact:** Low. Backend contract unchanged; 172 backend tests unaffected.
+**Action to reverse:** Reinstate the server `createReport` call in
+`_saveDraft()` and drop the DraftStore wiring.
