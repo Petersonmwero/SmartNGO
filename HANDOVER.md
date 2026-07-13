@@ -72,12 +72,16 @@
 
 ## Exact Next Steps (in order)
 1. Nothing mandatory — the project is feature-complete and assessment-ready.
-2. Optional polish candidates:
-   - Demo the offline-draft flow on an Android emulator/device to show real
-     sqflite persistence to the supervisor.
-   - Re-run the manual phone-side email verification click if not yet done
-     (newest Gmail link → branded Django success page).
-3. Consider a final `git push` / backup of `main` if a remote exists.
+   `main` is pushed to https://github.com/Petersonmwero/SmartNGO (in sync at 0039135).
+2. **Deferred (2026-07-13, user decision):** Android demo of offline drafts.
+   This Mac has no Android SDK, no Java, no Homebrew — the emulator path
+   needs a ~4 GB toolchain install (JDK 17 + cmdline-tools + SDK + system
+   image) and the 1.4 GHz i5 would run it slowly. Options when ready:
+   (a) machine with Android Studio already installed, or (b) real phone via
+   USB debugging (needs only JDK + SDK build tools, ~2 GB). Until then the
+   flow demos on Chrome with the in-memory caveat (drafts last the session).
+3. Optional: re-run the manual phone-side email verification click if not
+   yet done (newest Gmail link → branded Django success page).
 
 ## Commands to Re-run on Resume
 ```bash
