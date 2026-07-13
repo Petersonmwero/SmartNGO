@@ -1,3 +1,5 @@
+See CLAUDE_RULES.md for session management rules and HANDOVER.md template
+
 # SMART NGO M&E MOBILE APPLICATION
 ## Claude Code Master Build Prompt
 ### Author: Peterson Ruwa | University of Eastern Africa, Baraton
@@ -42,38 +44,7 @@ must demonstrate mastery of software engineering principles.
 - Before any phase transition: stop and confirm with the user
 - If you encounter a blocker, document it in HANDOVER.md under "Blockers"
   and propose 2-3 solutions before picking one
-
-### HANDOVER.md Template (write this at end of every session)
-```
-# Session Handover — [Date] [Session Number]
-
-## Completed This Session
-- [Specific file/feature, not vague: "Created accounts/models.py with CustomUser model
-  including ngo_id FK and role enum field" not "worked on models"]
-
-## Files Created/Modified
-- [List every file touched with a one-line description]
-
-## In Progress (Partially Done)
-- [What was started but not finished — exact stopping point]
-
-## Decisions Made (Deviations from SDD)
-- [Any deviation from spec with reason — if none, write "None"]
-
-## Known Issues / Warnings
-- [Any errors, deprecation warnings, or lint issues not yet resolved]
-
-## Exact Next Steps (in order)
-1. [First thing to do next session]
-2. [Second thing]
-3. ...
-
-## Commands to Re-run on Resume
-- [e.g., "Run python manage.py makemigrations accounts after pulling"]
-
-## Blockers
-- [Anything blocking progress — or "None"]
-```
+- Full HANDOVER.md template: see CLAUDE_RULES.md
 
 ---
 
@@ -206,186 +177,103 @@ SmartNGO/
 
 ## DATABASE SCHEMA (Implement exactly — no deviations without asking)
 
-### Table 1: ngos
-```sql
-CREATE TABLE ngos (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    registration_no VARCHAR(100) UNIQUE NOT NULL,
-    description TEXT,
-    address VARCHAR(500),
-    contact VARCHAR(100),
-    logo VARCHAR(500),
-    created_at DATETIME DEFAULT NOW()
-);
-```
+Eleven models, described as Django models. All FK columns must be indexed
+(most are covered by Django's automatic FK indexes; add explicit indexes on
+`users.email`, `projects.status`, `reports.status`, `notifications.status`).
 
-### Table 2: users (Custom Django User Model)
-```sql
-CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    full_name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,   -- login credential, NOT username
-    password VARCHAR(255) NOT NULL,        -- bcrypt hashed, NEVER plaintext
-    role ENUM('admin','manager','officer','donor') NOT NULL,
-    phone VARCHAR(20),
-    ngo_id INT NOT NULL,                   -- FK → ngos.id, multi-tenant isolation
-    is_active BOOLEAN DEFAULT TRUE,        -- soft delete
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (ngo_id) REFERENCES ngos(id) ON DELETE RESTRICT
-);
-```
+### 1. NGO (`ngos` table)
+- `name` CharField(255), required
+- `registration_no` CharField(100), unique, required
+- `description` TextField, optional
+- `address` CharField(500), optional
+- `contact` CharField(100), optional
+- `logo` CharField(500), optional
+- `created_at` DateTimeField(auto_now_add)
 
-### Table 3: projects
-```sql
-CREATE TABLE projects (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    project_name VARCHAR(255) NOT NULL,
-    description TEXT,
-    budget DECIMAL(15,2) NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    status ENUM('planning','active','on_hold','completed','cancelled') NOT NULL DEFAULT 'planning',
-    ngo_id INT NOT NULL,                   -- NOT NULL: orphan projects not permitted
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (ngo_id) REFERENCES ngos(id) ON DELETE RESTRICT
-);
-```
+### 2. User (`users` table — Custom Django User Model)
+- `full_name` CharField(255), required
+- `email` EmailField(255), unique, required — the login credential, NOT username
+- `password` — bcrypt hashed via BCryptSHA256PasswordHasher, NEVER plaintext
+- `role` CharField choices: admin / manager / officer / donor, required
+- `phone` CharField(20), optional
+- `ngo` FK → NGO, on_delete=RESTRICT, NOT NULL — multi-tenant isolation
+- `is_active` BooleanField default True — soft delete
+- `created_at` DateTimeField(auto_now_add)
 
-### Table 4: project_assignments
-```sql
-CREATE TABLE project_assignments (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    project_id INT NOT NULL,
-    user_id INT NOT NULL,
-    role ENUM('manager','officer') NOT NULL,
-    assigned_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    UNIQUE KEY unique_assignment (project_id, user_id)  -- no duplicate assignments
-);
-```
+### 3. Project (`projects` table)
+- `project_name` CharField(255), required
+- `description` TextField, optional
+- `budget` DecimalField(15,2), required
+- `start_date` DateField, required
+- `end_date` DateField, required (must be after start_date — validate in clean())
+- `status` CharField choices: planning / active / on_hold / completed / cancelled, default planning
+- `ngo` FK → NGO, on_delete=RESTRICT, NOT NULL — orphan projects not permitted
+- `created_at` DateTimeField(auto_now_add)
 
-### Table 5: beneficiaries
-```sql
-CREATE TABLE beneficiaries (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    gender ENUM('male','female','other') NOT NULL,
-    date_of_birth DATE NOT NULL,           -- NEVER a static age INT
-    phone VARCHAR(20),
-    location VARCHAR(255),
-    project_id INT NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,        -- soft delete
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT
-);
-```
+### 4. ProjectAssignment (`project_assignments` table)
+- `project` FK → Project, on_delete=CASCADE
+- `user` FK → User, on_delete=RESTRICT
+- `role` CharField choices: manager / officer
+- `assigned_at` DateTimeField(auto_now_add)
+- Meta: unique_together (project, user) — no duplicate assignments
 
-### Table 6: reports
-```sql
-CREATE TABLE reports (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    project_id INT NOT NULL,
-    officer_id INT NOT NULL,               -- preserved on officer removal from project
-    title VARCHAR(255) NOT NULL,
-    description TEXT NOT NULL,
-    gps_latitude DECIMAL(10,7),
-    gps_longitude DECIMAL(10,7),
-    report_type ENUM('daily','weekly','monthly') NOT NULL,
-    status ENUM('draft','submitted','approved') NOT NULL DEFAULT 'draft',
-    date_submitted DATETIME DEFAULT NOW(),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
-    FOREIGN KEY (officer_id) REFERENCES users(id) ON DELETE RESTRICT
-    -- ON DELETE RESTRICT on officer_id: reports must survive officer removal
-);
-```
+### 5. Beneficiary (`beneficiaries` table)
+- `name` CharField(255), required
+- `gender` CharField choices: male / female / other, required
+- `date_of_birth` DateField, required — NEVER a static age INT
+- `phone` CharField(20), optional
+- `location` CharField(255), optional
+- `project` FK → Project, on_delete=RESTRICT, NOT NULL
+- `is_active` BooleanField default True — soft delete
+- `created_at` DateTimeField(auto_now_add)
 
-### Table 7: report_images
-```sql
-CREATE TABLE report_images (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    report_id INT NOT NULL,
-    image_url VARCHAR(500) NOT NULL,
-    caption VARCHAR(255),
-    uploaded_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
-);
-```
+### 6. Report (`reports` table)
+- `project` FK → Project, on_delete=RESTRICT, NOT NULL
+- `officer` FK → User, on_delete=RESTRICT — reports must survive officer
+  removal from a project; officer_id is never nullified or deleted
+- `title` CharField(255), required
+- `description` TextField, required
+- `gps_latitude` DecimalField(10,7), optional
+- `gps_longitude` DecimalField(10,7), optional
+- `report_type` CharField choices: daily / weekly / monthly, required
+- `status` CharField choices: draft / submitted / approved, default draft
+- `date_submitted` DateTimeField(auto_now_add)
 
-### Table 8: indicators
-```sql
-CREATE TABLE indicators (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    project_id INT NOT NULL,
-    indicator_name VARCHAR(255) NOT NULL,
-    target_value DECIMAL(15,2) NOT NULL,
-    current_value DECIMAL(15,2) DEFAULT 0.00,
-    unit VARCHAR(50),
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
-```
+### 7. ReportImage (`report_images` table)
+- `report` FK → Report, on_delete=CASCADE
+- `image_url` CharField(500), required
+- `caption` CharField(255), optional
+- `uploaded_at` DateTimeField(auto_now_add)
 
-### Table 9: milestones
-```sql
-CREATE TABLE milestones (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    project_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    due_date DATE NOT NULL,
-    status ENUM('pending','completed','overdue') NOT NULL DEFAULT 'pending',
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
-```
+### 8. Indicator (`indicators` table)
+- `project` FK → Project, on_delete=CASCADE
+- `indicator_name` CharField(255), required
+- `target_value` DecimalField(15,2), required
+- `current_value` DecimalField(15,2), default 0.00
+- `unit` CharField(50), optional
+- `created_at` DateTimeField(auto_now_add)
 
-### Table 10: notifications
-```sql
-CREATE TABLE notifications (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    title VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    status ENUM('unread','read') NOT NULL DEFAULT 'unread',
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-```
+### 9. Milestone (`milestones` table)
+- `project` FK → Project, on_delete=CASCADE
+- `title` CharField(255), required
+- `description` TextField, optional
+- `due_date` DateField, required
+- `status` CharField choices: pending / completed / overdue, default pending
+- `created_at` DateTimeField(auto_now_add)
 
-### Table 11: password_reset_tokens
-```sql
-CREATE TABLE password_reset_tokens (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
-    token VARCHAR(255) UNIQUE NOT NULL,    -- SHA-256 hashed token
-    expires_at DATETIME NOT NULL,          -- 1 hour from creation
-    used BOOLEAN DEFAULT FALSE,            -- single-use: set TRUE on first use
-    created_at DATETIME DEFAULT NOW(),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-```
+### 10. Notification (`notifications` table)
+- `user` FK → User, on_delete=CASCADE
+- `title` CharField(255), required
+- `message` TextField, required
+- `status` CharField choices: unread / read, default unread
+- `created_at` DateTimeField(auto_now_add)
 
-### Database Indexes (add these after creating tables)
-```sql
--- All FK columns must be indexed for JOIN performance
-CREATE INDEX idx_users_ngo_id ON users(ngo_id);
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_projects_ngo_id ON projects(ngo_id);
-CREATE INDEX idx_projects_status ON projects(status);
-CREATE INDEX idx_assignments_project ON project_assignments(project_id);
-CREATE INDEX idx_assignments_user ON project_assignments(user_id);
-CREATE INDEX idx_beneficiaries_project ON beneficiaries(project_id);
-CREATE INDEX idx_reports_project ON reports(project_id);
-CREATE INDEX idx_reports_officer ON reports(officer_id);
-CREATE INDEX idx_reports_status ON reports(status);
-CREATE INDEX idx_report_images_report ON report_images(report_id);
-CREATE INDEX idx_indicators_project ON indicators(project_id);
-CREATE INDEX idx_milestones_project ON milestones(project_id);
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_status ON notifications(status);
-```
+### 11. PasswordResetToken (`password_reset_tokens` table)
+- `user` FK → User, on_delete=CASCADE
+- `token` CharField(255), unique, required — SHA-256 hashed token
+- `expires_at` DateTimeField, required — 1 hour from creation
+- `used` BooleanField default False — single-use: set True on first use
+- `created_at` DateTimeField(auto_now_add)
 
 ---
 
@@ -548,7 +436,7 @@ REST_FRAMEWORK = {
 }
 ```
 
-### Custom Permission Classes (implement all 5)
+### Custom Permission Classes (implement all)
 ```python
 # apps/accounts/permissions.py
 
@@ -929,131 +817,11 @@ code is demo-ready for supervisor
 
 ---
 
-## WHAT GOOD LOOKS LIKE — EXAMPLES
-
-### Good Model (follow this pattern)
-```python
-class Project(models.Model):
-    """
-    Represents an NGO project with lifecycle management.
-    
-    A project must always belong to an NGO (ngo_id is NOT NULL).
-    Status transitions: planning → active → on_hold ↔ active → completed/cancelled.
-    """
-    
-    class Status(models.TextChoices):
-        PLANNING   = 'planning',   'Planning'
-        ACTIVE     = 'active',     'Active'
-        ON_HOLD    = 'on_hold',    'On Hold'
-        COMPLETED  = 'completed',  'Completed'
-        CANCELLED  = 'cancelled',  'Cancelled'
-    
-    project_name = models.CharField(max_length=255)
-    description  = models.TextField(blank=True, null=True)
-    budget       = models.DecimalField(max_digits=15, decimal_places=2)
-    start_date   = models.DateField()
-    end_date     = models.DateField()
-    status       = models.CharField(max_length=20, choices=Status.choices, 
-                                    default=Status.PLANNING)
-    ngo          = models.ForeignKey('ngos.NGO', on_delete=models.RESTRICT, 
-                                     related_name='projects')
-    created_at   = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        db_table = 'projects'
-        indexes = [
-            models.Index(fields=['ngo', 'status']),
-        ]
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.project_name} ({self.ngo.name})"
-    
-    def clean(self):
-        """Validate that end_date is after start_date."""
-        if self.end_date and self.start_date:
-            if self.end_date <= self.start_date:
-                raise ValidationError("end_date must be after start_date.")
-```
-
-### Good ViewSet (follow this pattern)
-```python
-class ProjectViewSet(viewsets.ModelViewSet):
-    """
-    CRUD endpoints for NGO projects.
-    
-    List is filtered by the requesting user's NGO.
-    Create/Update restricted to managers and admins.
-    Delete restricted to admins only.
-    """
-    serializer_class = ProjectSerializer
-    pagination_class = StandardPagination
-    filterset_fields = ['status', 'ngo']
-    search_fields = ['project_name', 'description']
-    ordering_fields = ['created_at', 'start_date', 'budget']
-    
-    def get_queryset(self):
-        """Return only projects belonging to the requesting user's NGO."""
-        return Project.objects.filter(
-            ngo=self.request.user.ngo
-        ).select_related('ngo').prefetch_related('assignments')
-    
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update']:
-            return [IsManagerOrAdmin()]
-        if self.action == 'destroy':
-            return [IsNGOAdmin()]
-        return [IsAuthenticated()]
-    
-    def perform_create(self, serializer):
-        """Automatically set ngo from the requesting user."""
-        serializer.save(ngo=self.request.user.ngo)
-```
-
-### Good Test (follow this pattern)
-```python
-@pytest.mark.api
-class TestProjectEndpoints:
-    """Tests for /api/v1/projects/ endpoints."""
-    
-    def test_list_projects_returns_only_own_ngo_projects(
-        self, auth_client, sample_project, other_ngo_project
-    ):
-        """Manager should only see projects from their own NGO."""
-        response = auth_client.get('/api/v1/projects/')
-        assert response.status_code == 200
-        project_ids = [p['id'] for p in response.data['results']]
-        assert sample_project.id in project_ids
-        assert other_ngo_project.id not in project_ids  # Multi-tenant isolation
-    
-    def test_create_project_requires_manager_role(self, api_client, officer_user):
-        """Officers cannot create projects."""
-        api_client.force_authenticate(user=officer_user)
-        response = api_client.post('/api/v1/projects/', {...})
-        assert response.status_code == 403
-        assert response.data['code'] == 'PERMISSION_DENIED'
-    
-    def test_create_project_validates_end_date_after_start_date(
-        self, auth_client
-    ):
-        """end_date must be after start_date."""
-        response = auth_client.post('/api/v1/projects/', {
-            'project_name': 'Test',
-            'start_date': '2026-12-01',
-            'end_date': '2026-01-01',  # Before start — should fail
-            ...
-        })
-        assert response.status_code == 400
-        assert 'end_date' in response.data
-```
-
----
-
 ## START INSTRUCTIONS
 
 When you begin your first session with this prompt:
 
-1. Read this entire file completely
+1. Read this entire file completely (and CLAUDE_RULES.md)
 2. Check if HANDOVER.md exists — if yes, read it and resume from where it says
 3. If starting fresh: confirm the folder structure, then begin Phase 1 Step 1
 4. After every step, briefly confirm what was done before moving to the next

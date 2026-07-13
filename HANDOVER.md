@@ -1,212 +1,120 @@
-# Session Handover — 2026-07-09 | Gmail SMTP + Verify Success Screen
+# Session Handover — 2026-07-10 | CLAUDE.md Refactor + Live Email Flow + LAN IP Fix
 
 ---
 
 ## Completed This Session
 
-### Gmail SMTP + Professional Verification Email + Verify-Success Screen
+### LAN IP fix — verification links now work from phones on the same WiFi
+- Problem: emails contained `http://localhost:8000/...verify-email...` links, which
+  only resolve on the Mac itself. Additionally the post-verify 302 redirect pointed
+  to `http://localhost:58569/#/verify-success` — same class of bug, would have
+  failed on a phone even after fixing the first link.
+- **`backend/.env`**: `BACKEND_BASE_URL=http://192.168.100.4:8000`,
+  `FLUTTER_VERIFY_SUCCESS_URL=http://192.168.100.4:58569/#/verify-success`,
+  `DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,192.168.100.4`. (Mac LAN IP from
+  `ipconfig getifaddr en0` = 192.168.100.4 — re-check if WiFi network changes.)
+- No code change needed: `_send_verification_email()` already builds the link from
+  `settings.BACKEND_BASE_URL`, and `VerifyEmailView` already redirects to
+  `settings.FLUTTER_VERIFY_SUCCESS_URL`.
+- **Django** now runs `runserver 0.0.0.0:8000` (all interfaces).
+- **Flutter** now runs with `--web-hostname=0.0.0.0 --web-port=58569
+  --dart-define=API_BASE_URL=http://192.168.100.4:8000/api/v1` so the phone can
+  load the verify-success page (dev has `CORS_ALLOW_ALL_ORIGINS=True`, so the
+  IP-based API origin is fine).
+- End-to-end test via LAN IP, all passing:
+  - Registered `petersonmwero+lantest@gmail.com` (plus-alias → same Gmail inbox)
+    → 201, email sent with the IP-based link.
+  - Verify link hit via `http://192.168.100.4:8000/...` (throwaway
+    `lanredirect@example.com` token) → 302 to
+    `http://192.168.100.4:58569/#/verify-success`, which serves 200.
+  - Login + dashboard via the IP-based API → 200; unverified account still
+    correctly blocked with `EMAIL_NOT_VERIFIED`.
+- Remaining manual step: click the `+lantest` email link **on the phone** (same
+  WiFi) → should land on the Flutter verify-success screen.
 
-- **`config/settings/base.py`**: Replaced console backend with Gmail SMTP
-  (`EMAIL_BACKEND = smtp.EmailBackend`, host/port/TLS). Added
-  `FLUTTER_VERIFY_SUCCESS_URL` setting (default `http://localhost:60860/#/verify-success`).
-  Email credentials read from `.env` via the existing `env()` helper.
+### CLAUDE.md refactor (context-size fix)
+- **`CLAUDE_RULES.md`** (NEW): Operating Rules (code quality, architecture, session
+  management) + full HANDOVER.md template extracted from CLAUDE.md.
+- **`CLAUDE.md`**: Shrunk from 40,819 → 33,758 chars (under the 35,000 limit).
+  Raw SQL CREATE TABLE statements replaced with equivalent Django model descriptions
+  (every field, choice set, FK on_delete, and constraint preserved). "What Good Looks
+  Like" code-examples section removed. Pointer line to CLAUDE_RULES.md added at top.
 
-- **`config/settings/dev.py`**: Removed the `EMAIL_BACKEND = console` override so
-  real SMTP is used in development. Console backend now only lives in `test_sqlite.py`.
+### Full test suites re-run — all green
+- **Backend: 172/172 passed** (`pytest`, `config.settings.test_sqlite`, 69s).
+- **Flutter: 31/31 passed** (`flutter test`).
 
-- **`apps/accounts/views.py`**:
-  - `_send_verification_email()` rebuilt with `EmailMultiAlternatives` — sends both
-    plain text and an HTML version with the green globe branding, centred layout, and
-    a "Verify My Email" button. Subject: "Verify your Smart NGO M&E Account".
-    Greets by `user.first_name` (correct capitalisation from the model).
-  - `VerifyEmailView.get()` now returns `HttpResponseRedirect(FLUTTER_VERIFY_SUCCESS_URL)`
-    on success instead of JSON, so the browser lands on the Flutter confirm screen.
-  - Re-added `send_mail` to imports (used by the password-reset view).
+### Pending migration found and applied
+- **`apps/accounts/migrations/0004_alter_user_first_name.py`** (NEW): leftover
+  `first_name` field alteration from the first/last-name split had no migration.
+  Created and applied to the local SQLite DB. **Not yet committed.**
 
-- **`backend/.env`**: Created (gitignored) with `petersonruwa@gmail.com` pre-filled.
-  `EMAIL_HOST_PASSWORD` set to placeholder — Peterson fills in his App Password.
-
-- **`backend/.env.example`**: Added `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`,
-  `DEFAULT_FROM_EMAIL`, `BACKEND_BASE_URL`, and `FLUTTER_VERIFY_SUCCESS_URL` entries
-  with instructions for obtaining a Gmail App Password.
-
-- **Flutter `verify_success_screen.dart`** (NEW): Green checkmark + "Email Verified!"
-  title + "Your account is now active. You can log in." + "Go to Login" FilledButton
-  that routes to `/login`.
-
-- **`mobile/lib/core/router.dart`**: Added `/verify-success` GoRoute; added it to the
-  `isPublic` list so the redirect guard does not bounce unauthenticated visitors to login.
-
-- **`mobile/lib/features/auth/screens/register_screen.dart`**: Capitalised `firstName`
-  on the post-registration success screen using `[0].toUpperCase() + substring(1).toLowerCase()`.
-
-- **`apps/accounts/tests/test_email_verification.py`**: Updated
-  `test_valid_token_activates_user` to expect `302` (redirect) instead of `200`.
-
-### Issue 1 — Re-registration allowed over unverified accounts
-
-- **`apps/accounts/views.py` `RegisterView.create()`**: Before calling `serializer.is_valid()`,
-  normalizes the email to lowercase and deletes any existing `is_active=False` user with an
-  unused verification token. This lets a user re-register if their link expired.
-
-### Issue 2 — first_name + last_name (replacing full_name)
-
-- **`apps/accounts/models.py`**: Removed `full_name` CharField. Added `first_name`
-  (max 150) and `last_name` (max 150, blank/optional). Added `@property def full_name`
-  returning `f"{first_name} {last_name}".strip()` for backwards-compatible display.
-  Updated `REQUIRED_FIELDS = ["first_name", "last_name"]`.
-
-- **`apps/accounts/migrations/0003_user_first_last_name.py`**: New migration —
-  RemoveField full_name, AddField first_name (preserve_default=False), AddField last_name.
-
-- **`apps/accounts/serializers.py`**:
-  - `RegisterSerializer`: explicit `first_name`/`last_name` fields (first_name required,
-    last_name optional); Meta.fields updated.
-  - `UserProfileSerializer` + `UserManagementSerializer`: fields updated.
-  - `SmartTokenObtainPairSerializer.validate()`: login user dict now includes
-    `first_name`, `last_name`, and `full_name` (property).
-
-- **`apps/accounts/views.py`**: `UserManagementViewSet.get_queryset()` ordering
-  changed from `full_name` to `("first_name", "last_name")`.
-
-- **`apps/accounts/admin.py`**: `search_fields` changed from `("full_name", "email")`
-  to `("first_name", "last_name", "email")`.
-
-- **`apps/accounts/management/commands/seed_demo.py`**: `_user()` signature changed to
-  accept `first_name, last_name` parameters; all 7 `_user()` call sites updated; seeds
-  set `is_active=True` (demo users should be able to log in directly).
-
-- **`backend/conftest.py`**: `_make_user()` uses `first_name=role, last_name="user"`.
-
-- **Test files updated** (full_name → first_name/last_name in all payloads and
-  `create_user()` calls):
-  - `apps/accounts/tests/test_auth.py`
-  - `apps/accounts/tests/test_email_verification.py` (12 register payloads)
-  - `apps/accounts/tests/test_me.py` (field list)
-  - `apps/accounts/tests/test_user_management.py` (3 places)
-  - `apps/projects/tests/test_assignment_api.py`
-  - `apps/reports/tests/test_report_api.py`
-  - `apps/reports/tests/test_report_image_api.py`
-
-- **Flutter `mobile/lib/features/auth/models/user.dart`**: Replaced `fullName` field
-  with `firstName` + `lastName` fields; added `String get fullName` computed getter.
-  `fromJson` reads `first_name`/`last_name`; `toJson` writes them.
-
-- **Flutter `mobile/lib/features/users/user_repository.dart`** (`ManagedUser`):
-  `fromJson` now builds `fullName` from `first_name` + `last_name` (with fallback to
-  `full_name` for cached data).
-
-- **Flutter `mobile/lib/features/auth/auth_repository.dart`**: `register()` signature
-  changed to `firstName`/`lastName`; sends `first_name`/`last_name` to API; return type
-  changed from `Future<User>` to `Future<void>` (register endpoint returns a success
-  envelope, not user data).
-
-- **Flutter `register_screen.dart`**: Single "Full name" field replaced by two
-  side-by-side "First name" (required) + "Last name" (optional) fields. `_submit()`
-  passes `firstName`/`lastName`. Success screen shows "Welcome, [firstName]!".
-
-### Issue 3 — Password eye icon inverted
-
-- **`register_screen.dart`**: Both password and confirm-password icon conditions
-  corrected: `_obscureX ? Icons.visibility_off_outlined : Icons.visibility_outlined`
-  (was inverted — eye-slash icon should show when password is hidden, not visible).
-- **`login_screen.dart`**: Same fix for the single password field's `_obscure` condition.
-
----
+### Live email flow — backend side verified end-to-end
+- Server runs on `config.settings.local_sqlite` — **MySQL is not installed on this
+  machine**, so `dev.py` settings fail with "Can't connect to MySQL server".
+- `POST /api/v1/auth/register/` with `petersonmwero@gmail.com` → 201, verification
+  email sent via Gmail SMTP.
+- SMTP send is `fail_silently=True`, so additionally verified real Gmail SMTP
+  auth explicitly: `mail.get_connection(fail_silently=False).open()` → **OK**.
+- Verify link tested with a throwaway account (`verifytest@example.com`, raw token
+  issued via shell since DB stores only hashes):
+  - `GET /auth/verify-email/?token=…` → **302 redirect to
+    `http://localhost:58569/#/verify-success`**, user flipped to `is_active=True`.
+  - Token reuse → **400** (single-use enforced).
+- Login gate confirmed: unverified account → `EMAIL_NOT_VERIFIED`; verified
+  account logs in and `GET /analytics/dashboard/` returns role-filtered stats.
+- Flutter relaunched with **`--web-port=58569`** to match `FLUTTER_VERIFY_SUCCESS_URL`
+  in `backend/.env` (a random Flutter port would make the email link's redirect land
+  on a dead page).
 
 ## Files Created / Modified
+- `CLAUDE_RULES.md` — NEW, operating rules + HANDOVER template
+- `CLAUDE.md` — shrunk to 33,758 chars
+- `apps/accounts/migrations/0004_alter_user_first_name.py` — NEW migration (uncommitted)
+- `HANDOVER.md` — this update
 
-### Backend
-- `apps/accounts/models.py` — full_name → first_name + last_name + property
-- `apps/accounts/migrations/0003_user_first_last_name.py` — NEW migration
-- `apps/accounts/serializers.py` — field lists + login user dict
-- `apps/accounts/views.py` — re-registration cleanup + new ordering
-- `apps/accounts/admin.py` — search_fields
-- `apps/accounts/management/commands/seed_demo.py` — _user() signature
-- `backend/conftest.py` — _make_user()
-- `apps/accounts/tests/test_auth.py`
-- `apps/accounts/tests/test_email_verification.py`
-- `apps/accounts/tests/test_me.py`
-- `apps/accounts/tests/test_user_management.py`
-- `apps/projects/tests/test_assignment_api.py`
-- `apps/reports/tests/test_report_api.py`
-- `apps/reports/tests/test_report_image_api.py`
+## In Progress (Partially Done)
+- **Manual half of the live email test** (only Peterson can do this):
+  1. Check Gmail inbox for "Verify your Smart NGO M&E Account" — **use the NEWEST
+     email**; an earlier registration's token was invalidated by re-registration.
+  2. Click the link → should land on the Flutter `/verify-success` screen (Flutter
+     must be running on port 58569).
+  3. Log in: `petersonmwero@gmail.com` / `LiveTest#2026!` (manager, Green Earth
+     Initiative — set by the API test; any password typed in the browser earlier
+     no longer applies because re-registration replaced that record).
+  4. Confirm the manager dashboard loads.
 
-### Flutter
-- `mobile/lib/features/auth/models/user.dart` — firstName/lastName fields
-- `mobile/lib/features/auth/auth_repository.dart` — register() signature
-- `mobile/lib/features/auth/screens/register_screen.dart` — two name fields + icon fix
-- `mobile/lib/features/auth/screens/login_screen.dart` — icon fix
-- `mobile/lib/features/users/user_repository.dart` — ManagedUser.fromJson
-
----
-
-## In Progress
-
-Nothing in progress.
-
----
-
-## Decisions Made
-
-- `full_name` kept as a `@property` on the User model (not a DB column) for
-  backwards-compatible display in serializers, admin, PDF reports, and signals —
-  no other files needed updating.
-- Login response now includes `first_name`, `last_name`, AND `full_name` (property)
-  so Flutter can display the first name on the success screen without a second API call.
-- `register()` in Flutter now returns `Future<void>` since the backend returns a
-  success envelope `{"status": "success", "message": "..."}` after email verification
-  was introduced — not user data.
-- Demo seed users are created with `is_active=True` (override) so they can log in
-  directly without email verification — appropriate for a demo environment.
-
----
+## Decisions Made (Deviations from SDD)
+- Dev server runs on `local_sqlite` settings because MySQL 8 is not installed
+  locally; MySQL remains the configured DB for real dev/prod.
+- Flutter web pinned to port 58569 via `--web-port` instead of editing `.env`.
 
 ## Known Issues / Warnings
+1. Migration `0004_alter_user_first_name.py` needs to be committed.
+2. Throwaway user `verifytest@example.com` (active, officer) exists in the local
+   SQLite DB only — harmless; delete or ignore.
+3. `local_sqlite.py` remains gitignored/uncommitted by design.
+4. `flutter run` reports a newer Flutter version is available (non-blocking).
 
-1. **JWT key length warning** — test key < 32 bytes. Non-blocking (only in tests).
-2. **`local_sqlite.py`** — not committed (gitignored). Regenerate with
-   `cp backend/config/settings/test_sqlite.py backend/config/settings/local_sqlite.py`
-   and set the right DB path.
-3. **Verification email in dev** — printed to console (EMAIL_BACKEND = console).
-   The link is `http://localhost:8000/api/v1/auth/verify-email/?token=<raw>`.
-
----
-
-## Exact Next Steps
-
-1. Run dev server + Flutter:
-   ```bash
-   # Backend
-   cd backend && source venv/bin/activate
-   DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver
-   # Flutter
-   cd mobile && flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
-   ```
-2. Test full registration flow:
-   - Register a new user → see console email → open link → log in
-   - Try re-registering with the same email → should succeed (old unverified record deleted)
-   - Verify success screen shows "Welcome, [first name]!"
-   - Verify password eye icons: hidden = eye-slash icon, visible = eye icon
+## Exact Next Steps (in order)
+1. Peterson: complete the manual email steps above (inbox → link → success screen →
+   login → dashboard).
+2. Commit: `CLAUDE.md`, `CLAUDE_RULES.md`, `0004_alter_user_first_name.py`, `HANDOVER.md`.
+3. If the manual flow passes, mark the email-verification feature done in PROGRESS.md.
 
 ## Commands to Re-run on Resume
-
 ```bash
 # Backend tests (172 expected)
-cd /Users/admin/Desktop/SmartNGO/backend
-source venv/bin/activate
-python -m pytest --ds=config.settings.test_sqlite -q
+cd /Users/admin/Desktop/SmartNGO/backend && source venv/bin/activate
+DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 
-# Flutter
-cd /Users/admin/Desktop/SmartNGO/mobile
-flutter test && flutter analyze
-
-# Dev server (SQLite)
-cd /Users/admin/Desktop/SmartNGO/backend
-source venv/bin/activate
+# Dev server (SQLite — MySQL not installed locally)
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver
+
+# Flutter — port must match FLUTTER_VERIFY_SUCCESS_URL in backend/.env
+cd /Users/admin/Desktop/SmartNGO/mobile
+flutter run -d chrome --web-port=58569 --dart-define=API_BASE_URL=http://localhost:8000/api/v1
 ```
 
 ## Blockers
-
 None.
