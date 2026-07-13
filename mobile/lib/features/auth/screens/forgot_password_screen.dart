@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../auth_repository.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -97,7 +98,7 @@ class _Form extends StatelessWidget {
                 ?.copyWith(color: AppColors.muted),
           ),
           const SizedBox(height: 32),
-          TextFormField(
+          BlurValidatedTextField(
             controller: email,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,

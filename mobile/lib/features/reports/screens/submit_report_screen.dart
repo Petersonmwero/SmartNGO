@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../report_repository.dart';
 
 class SubmitReportScreen extends StatefulWidget {
@@ -118,7 +119,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
               Text(widget.projectName,
                   style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 16),
-              TextFormField(
+              BlurValidatedTextField(
                 key: const Key('report_title'),
                 controller: _title,
                 decoration: const InputDecoration(labelText: 'Title'),

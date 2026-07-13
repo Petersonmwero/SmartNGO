@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/theme.dart';
+import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../project_repository.dart';
 
 /// Multi-step form to create a new project.
@@ -242,7 +243,7 @@ class _Step1 extends StatelessWidget {
         children: [
           Text('Project Details', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
-          TextFormField(
+          BlurValidatedTextField(
             controller: nameCtrl,
             decoration: const InputDecoration(labelText: 'Project Name *'),
             validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -273,7 +274,7 @@ class _Step2 extends StatelessWidget {
         children: [
           Text('Budget', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 20),
-          TextFormField(
+          BlurValidatedTextField(
             controller: budgetCtrl,
             decoration: const InputDecoration(
               labelText: 'Total Budget (KES) *',

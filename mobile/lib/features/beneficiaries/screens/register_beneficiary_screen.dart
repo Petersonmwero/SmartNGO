@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../beneficiary_repository.dart';
 
 class RegisterBeneficiaryScreen extends StatefulWidget {
@@ -91,7 +92,7 @@ class _RegisterBeneficiaryScreenState extends State<RegisterBeneficiaryScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            TextFormField(
+            BlurValidatedTextField(
               key: const Key('beneficiary_name'),
               controller: _name,
               decoration: const InputDecoration(labelText: 'Full name'),
@@ -134,7 +135,7 @@ class _RegisterBeneficiaryScreenState extends State<RegisterBeneficiaryScreen> {
               decoration: const InputDecoration(labelText: 'Location'),
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            BlurValidatedTextField(
               controller: _projectId,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Project ID'),

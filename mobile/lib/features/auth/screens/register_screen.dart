@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../../ngos/ngo_repository.dart';
 import '../auth_repository.dart';
 
@@ -202,7 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: TextFormField(
+                              child: BlurValidatedTextField(
                                 controller: _firstName,
                                 textInputAction: TextInputAction.next,
                                 decoration: const InputDecoration(
@@ -229,7 +230,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 16),
 
                         // Email
-                        TextFormField(
+                        BlurValidatedTextField(
                           controller: _email,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.next,
@@ -244,7 +245,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 16),
 
                         // Password
-                        TextFormField(
+                        BlurValidatedTextField(
                           controller: _password,
                           obscureText: _obscurePassword,
                           textInputAction: TextInputAction.next,
@@ -266,7 +267,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         const SizedBox(height: 16),
 
                         // Confirm password
-                        TextFormField(
+                        BlurValidatedTextField(
                           controller: _confirmPassword,
                           obscureText: _obscureConfirm,
                           textInputAction: TextInputAction.next,

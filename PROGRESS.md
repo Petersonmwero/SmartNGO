@@ -1,5 +1,5 @@
 # PROGRESS.md — Smart NGO M&E Application
-### Last updated: 2026-07-08
+### Last updated: 2026-07-13
 
 ---
 
@@ -135,7 +135,9 @@ All 17 screens implemented. Architecture lighter than CLAUDE.md spec (flat repos
 
 ### Remaining gaps vs CLAUDE.md spec
 - [ ] **sqflite** offline draft storage not implemented
-- [ ] **Inline validation on blur** — triggers on submit only
+- [x] **Inline validation on blur** — done 2026-07-13: shared `BlurValidatedTextField`
+  widget (validates on focus loss, then re-validates per keystroke so errors clear);
+  applied to all 12 validated fields across the 6 form screens; 3 widget tests added
 - [ ] **Clean Architecture layers** — flat repo pattern (see DECISIONS.md D-006)
 
 ---
@@ -176,3 +178,16 @@ Mobile: 31 tests · 17 screens · flutter analyze clean · GoRouter + fl_chart +
 - [x] Flutter register screen: confirm password, eye toggles, NGO dropdown, role helpers, success screen
 - [x] Flutter login screen: resend button appears on EMAIL_NOT_VERIFIED error
 - [x] **Backend: 172 tests pass. Flutter: 31 tests, 0 analyze issues.**
+
+---
+
+## Inline Validation on Blur (2026-07-13)
+
+- [x] `lib/shared/widgets/blur_validated_text_field.dart` — TextFormField wrapper
+  with internal FocusNode: validates on focus loss, then `onUserInteraction`
+  re-validation so the error clears as the user types a fix
+- [x] Applied to all validated text fields: login (email, password), register
+  (first name, email, password, confirm), forgot password (email), create project
+  (name, budget), register beneficiary (name, project ID), submit report (title)
+- [x] 3 widget tests in `test/shared/blur_validated_text_field_test.dart`
+- [x] **Flutter: 34 tests pass, `flutter analyze` 0 issues.**

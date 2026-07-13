@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../auth_provider.dart';
 import '../auth_repository.dart';
 import 'forgot_password_screen.dart';
@@ -172,7 +173,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ?.copyWith(color: AppColors.muted),
                         ),
                         const SizedBox(height: 28),
-                        TextFormField(
+                        BlurValidatedTextField(
                           key: const Key('email_field'),
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -186,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               : null,
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        BlurValidatedTextField(
                           key: const Key('password_field'),
                           controller: _passwordController,
                           obscureText: _obscure,
