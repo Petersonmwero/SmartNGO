@@ -1,4 +1,44 @@
-# Session Handover — 2026-07-14 | Premium Dashboard + Bug Fixes
+# Session Handover — 2026-07-14 | App-Wide UI Consistency Pass
+
+---
+
+## App-wide UI consistency pass (2026-07-14, final pre-demo polish)
+
+Full-app pass so every screen shares one visual system. Work spanned two
+sessions (the first was interrupted before verification/commit; this one
+completed, verified, and committed it).
+
+- **Design tokens** (`mobile/lib/core/constants/`): new `AppThemeData`
+  (header gradient, card/header shadows, card + overlap-sheet decorations,
+  uniform `inputDecoration(label, icon)`) and `AppTextStyles` (screenTitle,
+  greeting, sectionTitle, cardTitle, body, caption, label, capsLabel,
+  kpiNumber, buttonText — built with google_fonts, not fontFamily strings).
+- **Theme** (`core/theme.dart`): filled/outlined buttons unified at 50px
+  height, 12px radius, Space Grotesk labels; snackbars use primary green.
+- **Feedback** (`core/feedback.dart`): `showSuccessSnackBar` (green, amber
+  check) and `showErrorSnackBar` (red, alert icon). **Every** failure/
+  validation snackbar across login, register, forgot-password, NGO/user
+  management, project detail/create, submit report, report detail, and
+  register beneficiary now routes through these — errors no longer render
+  on the success-green theme background.
+- **Router** (`core/router.dart`): 150ms fade for bottom-nav tab switches,
+  200ms slide-in for pushed routes (analytics, users, ngos, project new,
+  report detail).
+- **Screens**: splash (gradient + fade/scale), login/register (green top +
+  white 28px-radius overlap card), forgot password (icon circle, green
+  success card), notifications (time buckets TODAY/THIS WEEK/EARLIER, tinted
+  unread, shimmer loading), beneficiaries (header stats strip, gender
+  avatars amber=female/green=male), reports list (local-drafts section,
+  status accent bars), report detail (status banner), user management
+  (role-colored avatars: admin=red, manager=green, officer=amber,
+  donor=blue), NGO cards (chevron affordance), analytics (KPI tiles with
+  icon circles + amber Space Grotesk numbers, demographics donut recolored
+  amber=female/green=male to match beneficiary avatars, shimmer loading).
+- Verified: **flutter analyze 0 issues, 44/44 tests, release web build
+  compiles**. Live 4-role click-through was NOT re-run this session (the
+  backend was down); the same screens were driven live last session and
+  today's deltas are visual-only — worth a quick 4-role smoke before the
+  supervisor demo.
 
 ---
 

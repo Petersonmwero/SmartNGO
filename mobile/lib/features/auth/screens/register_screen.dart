@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/constants/app_theme_data.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../../ngos/ngo_repository.dart';
@@ -97,9 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedNgoId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your NGO')),
-      );
+      showErrorSnackBar(context, 'Please select your NGO');
       return;
     }
     setState(() => _busy = true);
@@ -120,8 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      showErrorSnackBar(context, e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -132,8 +131,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_showSuccess) return _SuccessScreen(email: _registeredEmail, firstName: _registeredFirstName);
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppThemeData.headerGradient),
+        child: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -156,7 +156,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Smart NGO M&E Platform',
+                      'Join Smart NGO M&E',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         color: Colors.white.withValues(alpha: 0.72),
@@ -169,12 +169,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
             // Form card
             Expanded(
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.background,
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(28),
                     topRight: Radius.circular(28),
                   ),
+                  boxShadow: AppThemeData.headerShadow,
                 ),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
@@ -311,9 +312,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               setState(() => _role = v ?? 'officer'),
                           validator: (v) => v == null ? 'Select a role' : null,
                         ),
-                        // Role helper text
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, top: 6),
+                        // Role helper text — amber left border, italic.
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          padding: const EdgeInsets.fromLTRB(10, 4, 4, 4),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                  color: AppColors.accent, width: 3),
+                            ),
+                          ),
                           child: Text(
                             _roles
                                 .firstWhere((r) => r.value == _role)
@@ -321,7 +329,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
-                                ?.copyWith(color: AppColors.muted),
+                                ?.copyWith(
+                                  color: AppColors.muted,
+                                  fontStyle: FontStyle.italic,
+                                ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -370,6 +381,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

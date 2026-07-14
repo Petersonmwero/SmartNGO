@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/info_chip.dart';
@@ -155,6 +156,7 @@ class _NgoCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                const Icon(Icons.chevron_right, color: AppColors.muted),
               ],
             ),
             if (ngo.description.isNotEmpty) ...[
@@ -225,8 +227,7 @@ class _CreateNgoSheetState extends State<_CreateNgoSheet> {
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showErrorSnackBar(context, e.message);
         setState(() => _busy = false);
       }
     }

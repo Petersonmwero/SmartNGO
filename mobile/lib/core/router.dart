@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/analytics/screens/analytics_dashboard_screen.dart';
@@ -17,6 +18,33 @@ import '../features/reports/screens/reports_list_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/users/screens/user_management_screen.dart';
 import '../shared/widgets/app_shell.dart';
+
+/// Quick cross-fade used when switching bottom-nav tabs.
+CustomTransitionPage<void> _fadePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    transitionDuration: const Duration(milliseconds: 150),
+    transitionsBuilder: (_, animation, _, child) =>
+        FadeTransition(opacity: animation, child: child),
+    child: child,
+  );
+}
+
+/// Slide-in-from-the-right used for pushed full-screen routes.
+CustomTransitionPage<void> _slidePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage(
+    key: state.pageKey,
+    transitionDuration: const Duration(milliseconds: 200),
+    transitionsBuilder: (_, animation, _, child) => SlideTransition(
+      position: animation.drive(
+        Tween(begin: const Offset(1, 0), end: Offset.zero)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+      ),
+      child: child,
+    ),
+    child: child,
+  );
+}
 
 GoRouter buildRouter(AuthProvider auth) => GoRouter(
       refreshListenable: auth,
@@ -76,24 +104,31 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
         // ── Feature screens pushed on top of the shell (no nav bar) ──────
         GoRoute(
           path: '/analytics',
-          builder: (_, _) => const AnalyticsDashboardScreen(),
+          pageBuilder: (_, state) =>
+              _slidePage(state, const AnalyticsDashboardScreen()),
         ),
         GoRoute(
           path: '/users',
-          builder: (_, _) => const UserManagementScreen(),
+          pageBuilder: (_, state) =>
+              _slidePage(state, const UserManagementScreen()),
         ),
         GoRoute(
           path: '/ngos',
-          builder: (_, _) => const NgoManagementScreen(),
+          pageBuilder: (_, state) =>
+              _slidePage(state, const NgoManagementScreen()),
         ),
         GoRoute(
           path: '/projects/new',
-          builder: (_, _) => const CreateProjectScreen(),
+          pageBuilder: (_, state) =>
+              _slidePage(state, const CreateProjectScreen()),
         ),
         GoRoute(
           path: '/reports/:id',
-          builder: (_, state) => ReportDetailScreen(
-            reportId: int.parse(state.pathParameters['id']!),
+          pageBuilder: (_, state) => _slidePage(
+            state,
+            ReportDetailScreen(
+              reportId: int.parse(state.pathParameters['id']!),
+            ),
           ),
         ),
 
@@ -102,11 +137,26 @@ GoRouter buildRouter(AuthProvider auth) => GoRouter(
           builder: (context, state, child) =>
               AppShell(location: state.matchedLocation, child: child),
           routes: [
-            GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
-            GoRoute(path: '/projects', builder: (_, _) => const ProjectsListScreen()),
-            GoRoute(path: '/reports', builder: (_, _) => const ReportsListScreen()),
-            GoRoute(path: '/people', builder: (_, _) => const BeneficiaryListScreen()),
-            GoRoute(path: '/profile', builder: (_, _) => const ProfileScreen()),
+            GoRoute(
+                path: '/',
+                pageBuilder: (_, state) =>
+                    _fadePage(state, const DashboardScreen())),
+            GoRoute(
+                path: '/projects',
+                pageBuilder: (_, state) =>
+                    _fadePage(state, const ProjectsListScreen())),
+            GoRoute(
+                path: '/reports',
+                pageBuilder: (_, state) =>
+                    _fadePage(state, const ReportsListScreen())),
+            GoRoute(
+                path: '/people',
+                pageBuilder: (_, state) =>
+                    _fadePage(state, const BeneficiaryListScreen())),
+            GoRoute(
+                path: '/profile',
+                pageBuilder: (_, state) =>
+                    _fadePage(state, const ProfileScreen())),
           ],
         ),
       ],

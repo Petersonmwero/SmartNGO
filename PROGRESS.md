@@ -1,5 +1,19 @@
 # PROGRESS.md — Smart NGO M&E Application
-### Last updated: 2026-07-13
+### Last updated: 2026-07-14
+
+---
+
+## UI Consistency Pass (2026-07-14) ✅
+
+Final pre-demo polish — one visual system across all 17 screens:
+
+- [x] Design tokens: `AppThemeData` (gradient, shadows, decorations, input decoration) + `AppTextStyles` (typography roles)
+- [x] Buttons unified via theme: 50px / 12px radius / Space Grotesk labels (filled, outlined, text)
+- [x] Success + error snackbar helpers (`core/feedback.dart`) used at every call site
+- [x] Page transitions: fade (tabs) + slide (pushed routes) in GoRouter
+- [x] Shimmer loading on all list screens (incl. notifications, analytics)
+- [x] Analytics: KPI icon circles + amber numbers; demographics amber=female / green=male
+- [x] Verified: analyze 0 issues, 44/44 tests, release web build OK
 
 ---
 

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../../users/user_repository.dart';
@@ -139,19 +140,16 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
         }
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(_isEdit
-                ? 'Project updated successfully.'
-                : 'Project created successfully.')),
-      );
+      showSuccessSnackBar(
+          context,
+          _isEdit
+              ? 'Project updated successfully!'
+              : 'Project created successfully!');
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       final msg = e is ApiException ? e.message : '$e';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save project: $msg')),
-      );
+      showErrorSnackBar(context, 'Failed to save project: $msg');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

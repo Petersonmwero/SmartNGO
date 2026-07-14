@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../../projects/models/project.dart';
@@ -165,7 +166,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       updatedAt: DateTime.now(),
     ));
     if (!mounted) return;
-    _toast('Draft saved on this device.');
+    showSuccessSnackBar(context, 'Draft saved on this device.');
     Navigator.of(context).pop(true);
   }
 
@@ -192,7 +193,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       final draftId = widget.draft?.id;
       if (draftId != null) await store.delete(draftId);
       if (!mounted) return;
-      _toast('Report submitted.');
+      showSuccessSnackBar(context, 'Report submitted successfully!');
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       _toast(e.message);
@@ -201,16 +202,29 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     }
   }
 
+  /// All `_toast` call sites report failures, so use the error style.
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    showErrorSnackBar(context, message);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Submit Report')),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Submit Report'),
+            Text(
+              'Step ${_step + 1} of ${_stepLabels.length}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+            ),
+          ],
+        ),
+      ),
       body: AbsorbPointer(
         absorbing: _busy,
         child: Column(
@@ -280,19 +294,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
               validator: (v) => v == null ? 'Select a project' : null,
             ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
+          Text('Report type', style: Theme.of(context).textTheme.labelMedium),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
             key: const Key('report_type'),
-            initialValue: _reportType,
-            decoration: const InputDecoration(
-              labelText: 'Report type',
-              prefixIcon: Icon(Icons.event_repeat_outlined),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'daily', child: Text('Daily')),
-              DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-              DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
+            segments: const [
+              ButtonSegment(value: 'daily', label: Text('Daily')),
+              ButtonSegment(value: 'weekly', label: Text('Weekly')),
+              ButtonSegment(value: 'monthly', label: Text('Monthly')),
             ],
-            onChanged: (v) => setState(() => _reportType = v ?? 'daily'),
+            selected: {_reportType},
+            onSelectionChanged: (s) => setState(() => _reportType = s.first),
           ),
           const SizedBox(height: 16),
           BlurValidatedTextField(

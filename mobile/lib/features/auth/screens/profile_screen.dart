@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/constants/app_text_styles.dart';
+import '../../../core/constants/app_theme_data.dart';
 import '../../../core/theme.dart';
-import '../../../shared/widgets/section_header.dart';
 import '../../ngos/ngo_repository.dart';
 import '../auth_provider.dart';
 import '../models/user.dart';
@@ -59,7 +60,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SectionHeader('Account Information'),
+                      Padding(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        child: Text('ACCOUNT INFORMATION',
+                            style: AppTextStyles.capsLabel),
+                      ),
                       Card(
                         child: Column(
                           children: [
@@ -84,7 +90,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
-                      const SectionHeader('Settings'),
+                      Padding(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        child: Text('SETTINGS',
+                            style: AppTextStyles.capsLabel),
+                      ),
                       Card(
                         child: Column(
                           children: [
@@ -121,7 +132,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       if (user.role == 'admin') ...[
-                        const SectionHeader('Administration'),
+                        Padding(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        child: Text('ADMINISTRATION',
+                            style: AppTextStyles.capsLabel),
+                      ),
                         Card(
                           child: Column(
                             children: [
@@ -206,7 +222,7 @@ class _Header extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: AppColors.primary,
+        gradient: AppThemeData.headerGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -217,7 +233,7 @@ class _Header extends StatelessWidget {
       child: Column(
         children: [
           CircleAvatar(
-            radius: 32,
+            radius: 36,
             backgroundColor: AppColors.accent,
             child: Text(
               initials.isEmpty ? '?' : initials,
@@ -229,7 +245,7 @@ class _Header extends StatelessWidget {
           Text(
             user.fullName,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 20, color: Colors.white, fontWeight: FontWeight.w700),
+                fontSize: 22, color: Colors.white, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Container(
@@ -253,6 +269,14 @@ class _Header extends StatelessWidget {
                   ),
             ),
           ],
+          const SizedBox(height: 4),
+          Text(
+            user.email,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  color: Colors.white.withValues(alpha: 0.6),
+                ),
+          ),
         ],
       ),
     );

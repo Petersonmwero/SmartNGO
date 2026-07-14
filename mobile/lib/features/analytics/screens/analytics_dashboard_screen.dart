@@ -2,7 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_text_styles.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/shimmer_card.dart';
 import '../../beneficiaries/beneficiary_repository.dart';
 import '../analytics_repository.dart';
 
@@ -52,7 +54,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const ShimmerList(cardHeight: 120);
           }
           if (snap.hasError) {
             return Center(
@@ -183,22 +185,24 @@ class _DemographicsPieChart extends StatelessWidget {
               height: 180,
               child: PieChart(
                 PieChartData(
+                  // Amber = female, green = male — same coding as the
+                  // beneficiary list avatars.
                   sections: [
                     if (f > 0)
                       PieChartSectionData(
                         value: f.toDouble(),
-                        color: AppColors.success,
+                        color: AppColors.accent,
                         radius: 56,
                         title: pct(f),
                         titleStyle: const TextStyle(
-                            color: Colors.white,
+                            color: AppColors.charcoal,
                             fontSize: 12,
                             fontWeight: FontWeight.w600),
                       ),
                     if (m > 0)
                       PieChartSectionData(
                         value: m.toDouble(),
-                        color: AppColors.info,
+                        color: AppColors.primaryMid,
                         radius: 56,
                         title: pct(m),
                         titleStyle: const TextStyle(
@@ -216,8 +220,8 @@ class _DemographicsPieChart extends StatelessWidget {
             Wrap(
               spacing: 16,
               children: [
-                _legendDot(context, AppColors.success, 'Female ($f)'),
-                _legendDot(context, AppColors.info, 'Male ($m)'),
+                _legendDot(context, AppColors.accent, 'Female ($f)'),
+                _legendDot(context, AppColors.primaryMid, 'Male ($m)'),
               ],
             ),
           ],
@@ -268,18 +272,18 @@ class _KpiTile extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(height: 8),
-              Text(value,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                      )),
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.muted)),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(height: 10),
+              Text(value, style: AppTextStyles.kpiNumber),
+              Text(label, style: AppTextStyles.caption),
             ],
           ),
         ),

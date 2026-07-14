@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_text_styles.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/empty_state.dart';
-import '../../../shared/widgets/section_header.dart';
+import '../../../shared/widgets/shimmer_card.dart';
 import '../models/notification.dart';
 import '../notifications_provider.dart';
 
@@ -57,7 +58,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   context.read<NotificationsProvider>().markAllRead(),
               child: const Text(
                 'Mark all read',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: AppColors.accentLight),
               ),
             ),
         ],
@@ -65,11 +66,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       body: RefreshIndicator(
         onRefresh: () => context.read<NotificationsProvider>().load(),
         child: provider.loading && items.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? const ShimmerList(cardHeight: 88)
             : items.isEmpty
                 ? const EmptyState(
                     Icons.notifications_none_outlined,
-                    "You're all caught up!",
+                    "You're all caught up! 🎉",
                     'New notifications will appear here.',
                   )
                 : ListView(
@@ -77,7 +78,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     children: [
                       for (final bucket in const [0, 1, 2])
                         if (buckets.containsKey(bucket)) ...[
-                          SectionHeader(bucketLabels[bucket]!),
+                          Padding(
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              bucketLabels[bucket]!.toUpperCase(),
+                              style: AppTextStyles.capsLabel,
+                            ),
+                          ),
                           for (final n in buckets[bucket]!)
                             Padding(
                               padding: const EdgeInsets.only(bottom: 10),
@@ -95,22 +103,25 @@ class _NotificationCard extends StatelessWidget {
   final AppNotification notification;
   const _NotificationCard({required this.notification});
 
-  /// Left border color inferred from the notification's subject: green for
-  /// team assignments, amber for deadlines, blue for approvals.
-  Color get _borderColor {
+  /// Icon and color inferred from the notification's subject: green person
+  /// for team assignments, amber clock for deadlines, blue check for
+  /// approvals, grey bell otherwise.
+  (IconData, Color) get _typeSpec {
     final text =
         '${notification.title} ${notification.message}'.toLowerCase();
-    if (text.contains('approv')) return AppColors.info;
+    if (text.contains('approv')) {
+      return (Icons.check_circle_outline, AppColors.info);
+    }
     if (text.contains('due') ||
         text.contains('deadline') ||
         text.contains('overdue') ||
         text.contains('budget')) {
-      return AppColors.accent;
+      return (Icons.schedule, AppColors.accent);
     }
     if (text.contains('assign') || text.contains('added')) {
-      return AppColors.success;
+      return (Icons.person_outline, AppColors.success);
     }
-    return AppColors.muted;
+    return (Icons.notifications_outlined, AppColors.muted);
   }
 
   String _formatDate(String iso) {
@@ -129,6 +140,7 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final n = notification;
+    final (icon, color) = _typeSpec;
     return Dismissible(
       key: ValueKey(n.id),
       direction: DismissDirection.endToStart,
@@ -155,45 +167,67 @@ class _NotificationCard extends StatelessWidget {
               : null,
           child: Container(
             decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: _borderColor, width: 4)),
+              border: Border(left: BorderSide(color: color, width: 3)),
             ),
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-            child: Column(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        n.title,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight:
-                                  n.isUnread ? FontWeight.w700 : FontWeight.w400,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, size: 20, color: color),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              n.title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(
+                                    fontWeight: n.isUnread
+                                        ? FontWeight.w700
+                                        : FontWeight.w400,
+                                  ),
                             ),
+                          ),
+                          if (n.createdAt != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              _formatDate(n.createdAt!),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(
+                                      fontSize: 11, color: AppColors.muted),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                    if (n.createdAt != null) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 4),
                       Text(
-                        _formatDate(n.createdAt!),
+                        n.message,
                         style: Theme.of(context)
                             .textTheme
-                            .labelSmall
-                            ?.copyWith(color: AppColors.muted),
+                            .bodySmall
+                            ?.copyWith(fontSize: 13, color: AppColors.muted),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  n.message,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.muted),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),

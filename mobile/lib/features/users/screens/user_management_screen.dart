@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/shimmer_card.dart';
@@ -196,13 +197,21 @@ class _UserCardState extends State<_UserCard> {
       widget.onToggled();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed: $e')),
-      );
+      showErrorSnackBar(context, 'Failed: $e');
     } finally {
       if (mounted) setState(() => _toggling = false);
     }
   }
+
+  /// Avatar tint by role: admin=red, manager=green, officer=amber,
+  /// donor=blue.
+  Color get _roleColor => switch (widget.user.role) {
+        'admin' => AppColors.danger,
+        'manager' => AppColors.success,
+        'officer' => AppColors.accent,
+        'donor' => AppColors.info,
+        _ => AppColors.neutral,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -214,11 +223,11 @@ class _UserCardState extends State<_UserCard> {
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              backgroundColor: _roleColor.withValues(alpha: 0.14),
               child: Text(
                 u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
-                style: const TextStyle(
-                    color: AppColors.primary, fontWeight: FontWeight.w700),
+                style:
+                    TextStyle(color: _roleColor, fontWeight: FontWeight.w700),
               ),
             ),
             const SizedBox(width: 12),
@@ -300,8 +309,7 @@ class _CreateUserSheetState extends State<_CreateUserSheet> {
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showErrorSnackBar(context, e.message);
         setState(() => _busy = false);
       }
     }

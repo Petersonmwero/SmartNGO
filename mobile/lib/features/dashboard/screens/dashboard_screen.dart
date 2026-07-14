@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_theme_data.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/project_progress_bar.dart';
 import '../../../shared/widgets/section_header.dart';
@@ -244,13 +245,8 @@ class _Header extends StatelessWidget {
         .join();
 
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.primary, AppColors.primaryMid],
-        ),
-      ),
+      decoration:
+          const BoxDecoration(gradient: AppThemeData.headerGradient),
       // Extra bottom padding hides under the overlapping cream sheet.
       padding: EdgeInsets.fromLTRB(
           20, MediaQuery.paddingOf(context).top + 16, 20, 24 + 20),
@@ -330,8 +326,8 @@ class _Header extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
@@ -340,7 +336,7 @@ class _Header extends StatelessWidget {
                     Container(
                       width: 1,
                       height: 32,
-                      color: Colors.white.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.3),
                     ),
                   Expanded(
                     child: Column(

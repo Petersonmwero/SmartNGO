@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/constants/app_theme_data.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/shimmer_card.dart';
@@ -85,7 +86,6 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
         role == 'officer' || role == 'manager' || role == 'admin';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Beneficiaries')),
       floatingActionButton: canRegister
           ? FloatingActionButton(
               tooltip: 'Register beneficiary',
@@ -95,37 +95,77 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
           : null,
       body: Column(
         children: [
-          // Stats row.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Row(
+          // Green gradient header holding the title and the stats strip.
+          Container(
+            width: double.infinity,
+            decoration:
+                const BoxDecoration(gradient: AppThemeData.headerGradient),
+            padding: EdgeInsets.fromLTRB(
+                16, MediaQuery.paddingOf(context).top + 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatTile('Total', _total),
-                const SizedBox(width: 12),
-                _StatTile('Female', _female),
-                const SizedBox(width: 12),
-                _StatTile('Male', _male),
+                Text('Beneficiaries',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 20,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      vertical: 12, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      _HeaderStat('Total', _total),
+                      Container(
+                          width: 1,
+                          height: 32,
+                          color: Colors.white.withValues(alpha: 0.3)),
+                      _HeaderStat('Female', _female),
+                      Container(
+                          width: 1,
+                          height: 32,
+                          color: Colors.white.withValues(alpha: 0.3)),
+                      _HeaderStat('Male', _male),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          // Search bar.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: TextField(
-              onChanged: (v) => setState(() => _search = v),
-              decoration: const InputDecoration(
-                hintText: 'Search by name…',
-                prefixIcon: Icon(Icons.search),
-                isDense: true,
+          // Search bar overlapping the green header.
+          Transform.translate(
+            offset: const Offset(0, -14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                decoration: AppThemeData.cardDecoration,
+                child: TextField(
+                  onChanged: (v) => setState(() => _search = v),
+                  decoration: InputDecoration(
+                    hintText: 'Search by name…',
+                    prefixIcon:
+                        const Icon(Icons.search, color: AppColors.primary),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
           // Gender filter chips.
           SizedBox(
-            height: 52,
+            height: 44,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               children: [
                 for (final entry in const {
                   null: 'All',
@@ -158,7 +198,7 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
                 future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const ShimmerList(cardHeight: 80);
+                    return const ShimmerList(itemCount: 5, cardHeight: 80);
                   }
                   if (snapshot.hasError) {
                     final err = snapshot.error;
@@ -199,34 +239,31 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
   }
 }
 
-class _StatTile extends StatelessWidget {
+class _HeaderStat extends StatelessWidget {
   final String label;
   final int? value;
-  const _StatTile(this.label, this.value);
+  const _HeaderStat(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Column(
-            children: [
-              Text(
-                value?.toString() ?? '—',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: AppColors.accent,
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.muted)),
-            ],
+      child: Column(
+        children: [
+          Text(
+            value?.toString() ?? '—',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 20,
+                  color: AppColors.accentLight,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
-        ),
+          const SizedBox(height: 2),
+          Text(label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  )),
+        ],
       ),
     );
   }
@@ -236,18 +273,20 @@ class _BeneficiaryCard extends StatelessWidget {
   final Beneficiary b;
   const _BeneficiaryCard(this.b);
 
-  Color get _avatarColor => switch (b.gender) {
-        'female' => AppColors.success,
-        'male' => AppColors.info,
-        _ => AppColors.neutral,
+  /// Spec avatar palette: female = amber bg with dark initials, male =
+  /// green bg with white initials, other = neutral.
+  (Color, Color) get _avatarColors => switch (b.gender) {
+        'female' => (AppColors.accent, Colors.white),
+        'male' => (AppColors.primary, Colors.white),
+        _ => (AppColors.neutralTint, AppColors.neutral),
       };
 
   @override
   Widget build(BuildContext context) {
     final initial =
         b.name.trim().isNotEmpty ? b.name.trim()[0].toUpperCase() : '?';
+    final (avatarBg, avatarFg) = _avatarColors;
     final meta = [
-      if (b.age != null) 'Age ${b.age}',
       if (b.location.isNotEmpty) b.location,
     ].join(' · ');
 
@@ -256,10 +295,11 @@ class _BeneficiaryCard extends StatelessWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: CircleAvatar(
-          backgroundColor: _avatarColor.withValues(alpha: 0.15),
+          radius: 24,
+          backgroundColor: avatarBg,
           child: Text(
             initial,
-            style: TextStyle(color: _avatarColor, fontWeight: FontWeight.w700),
+            style: TextStyle(color: avatarFg, fontWeight: FontWeight.w700),
           ),
         ),
         title: Text(b.name, style: Theme.of(context).textTheme.titleSmall),
@@ -270,7 +310,28 @@ class _BeneficiaryCard extends StatelessWidget {
                     .bodySmall
                     ?.copyWith(color: AppColors.muted))
             : null,
-        trailing: StatusBadge(b.isActive ? 'active' : 'inactive'),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            if (b.age != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.neutralTint.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text('Age ${b.age}',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(fontSize: 11, color: AppColors.muted)),
+              ),
+            const SizedBox(height: 4),
+            StatusBadge(b.isActive ? 'active' : 'inactive'),
+          ],
+        ),
       ),
     );
   }

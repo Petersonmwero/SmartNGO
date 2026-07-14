@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/constants/app_theme_data.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../auth_provider.dart';
@@ -43,15 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!ok && mounted) {
       if (auth.errorCode == 'EMAIL_NOT_VERIFIED') {
         setState(() => _showResend = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please verify your email first. Check your inbox.'),
-          ),
-        );
+        showErrorSnackBar(
+            context, 'Please verify your email first. Check your inbox.');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.error ?? 'Login failed')),
-        );
+        showErrorSnackBar(context, auth.error ?? 'Login failed');
       }
     }
   }
@@ -59,24 +56,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _resendVerification() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your email above first')),
-      );
+      showErrorSnackBar(context, 'Enter your email above first');
       return;
     }
     setState(() => _resendBusy = true);
     try {
       await context.read<AuthRepository>().resendVerification(email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification email resent. Check your inbox.'),
-        ),
-      );
+      showSuccessSnackBar(context, 'Verification email resent. Check your inbox.');
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      showErrorSnackBar(context, e.message);
     } finally {
       if (mounted) setState(() => _resendBusy = false);
     }
@@ -88,8 +78,9 @@ class _LoginScreenState extends State<LoginScreen> {
     final screenHeight = MediaQuery.sizeOf(context).height;
 
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: SafeArea(
+      body: Container(
+        decoration: const BoxDecoration(gradient: AppThemeData.headerGradient),
+        child: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -146,12 +137,13 @@ class _LoginScreenState extends State<LoginScreen> {
             // Form card
             Expanded(
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.background,
-                  borderRadius: BorderRadius.only(
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(28),
                     topRight: Radius.circular(28),
                   ),
+                  boxShadow: AppThemeData.headerShadow,
                 ),
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
@@ -166,7 +158,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Sign in to continue.',
+                          'Sign in to your account',
                           style: Theme.of(context)
                               .textTheme
                               .bodyMedium
@@ -213,6 +205,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
+                            style: TextButton.styleFrom(
+                                foregroundColor: AppColors.accent),
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const ForgotPasswordScreen(),
@@ -306,7 +300,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                       builder: (_) => const RegisterScreen(),
                                     ),
                                   ),
-                          child: const Text("Don't have an account? Register"),
+                          child: Text.rich(
+                            TextSpan(
+                              text: "Don't have an account? ",
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: AppColors.muted),
+                              children: const [
+                                TextSpan(
+                                  text: 'Register',
+                                  style: TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -315,6 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

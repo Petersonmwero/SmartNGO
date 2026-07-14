@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/info_chip.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -74,12 +75,62 @@ class _ReportBody extends StatelessWidget {
   final VoidCallback onApproved;
   const _ReportBody({required this.report, required this.onApproved});
 
+  /// Full-width banner reflecting the workflow state.
+  Widget _statusBanner(BuildContext context) {
+    final (label, icon, fg, bg) = switch (report.status) {
+      'approved' => (
+          'Approved',
+          Icons.check_circle_outline,
+          AppColors.success,
+          AppColors.successTint
+        ),
+      'submitted' => (
+          'Awaiting Approval',
+          Icons.hourglass_top_outlined,
+          AppColors.warning,
+          AppColors.warningTint
+        ),
+      _ => ('Draft', Icons.edit_note_outlined, AppColors.neutral,
+          AppColors.neutralTint),
+    };
+    return Container(
+      width: double.infinity,
+      color: bg,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: fg),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: fg,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final role = context.read<AuthProvider>().user?.role ?? '';
     final canApprove =
         (role == 'admin' || role == 'manager') && report.status == 'submitted';
 
+    return Column(
+      children: [
+        _statusBanner(context),
+        Expanded(
+          child: _buildContent(context, canApprove),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent(BuildContext context, bool canApprove) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -300,15 +351,11 @@ class _ApproveButtonState extends State<_ApproveButton> {
     try {
       await context.read<ReportRepository>().approve(widget.reportId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report approved successfully.')),
-      );
+      showSuccessSnackBar(context, 'Report approved successfully!');
       widget.onApproved();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to approve: $e')),
-      );
+      showErrorSnackBar(context, 'Failed to approve: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

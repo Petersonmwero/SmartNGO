@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/project_progress_bar.dart';
 import '../../../shared/widgets/status_badge.dart';
@@ -546,8 +547,7 @@ class _TeamCard extends StatelessWidget {
       onRemoved();
     } on ApiException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showErrorSnackBar(context, e.message);
       }
     }
   }
@@ -563,7 +563,19 @@ class _TeamCard extends StatelessWidget {
               style: const TextStyle(
                   color: AppColors.primary, fontWeight: FontWeight.w700)),
         ),
-        title: Text(a.userName, style: Theme.of(context).textTheme.titleSmall),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(a.userName,
+                  style: Theme.of(context).textTheme.titleSmall,
+                  overflow: TextOverflow.ellipsis),
+            ),
+            if (a.role == 'manager') ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.star, size: 14, color: AppColors.accent),
+            ],
+          ],
+        ),
         subtitle: StatusBadge(
           a.role == 'manager' ? 'active' : 'completed',
           label: a.role == 'manager' ? 'Manager' : 'Officer',
@@ -664,8 +676,7 @@ class _AddMilestoneSheetState extends State<_AddMilestoneSheet> {
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showErrorSnackBar(context, e.message);
         setState(() => _busy = false);
       }
     }
@@ -763,8 +774,7 @@ class _AddIndicatorSheetState extends State<_AddIndicatorSheet> {
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showErrorSnackBar(context, e.message);
         setState(() => _busy = false);
       }
     }
@@ -863,8 +873,7 @@ class _AssignOfficerSheetState extends State<_AssignOfficerSheet> {
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.message)));
+        showErrorSnackBar(context, e.message);
         setState(() => _busy = false);
       }
     }

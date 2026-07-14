@@ -132,18 +132,18 @@ ThemeData buildAppTheme() {
         backgroundColor: primary,
         foregroundColor: Colors.white,
         minimumSize: const Size.fromHeight(50),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: bodyFont(fontSize: 15, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: headingFont(fontSize: 15, fontWeight: FontWeight.w600),
         elevation: 0,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: primary,
-        minimumSize: const Size.fromHeight(46),
+        minimumSize: const Size.fromHeight(50),
         side: const BorderSide(color: primary, width: 1.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        textStyle: bodyFont(fontSize: 15, fontWeight: FontWeight.w600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: headingFont(fontSize: 15, fontWeight: FontWeight.w600),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
@@ -196,7 +196,7 @@ ThemeData buildAppTheme() {
       dividerColor: Colors.transparent,
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: const Color(0xFF1A1C18),
+      backgroundColor: primary,
       contentTextStyle: bodyFont(fontSize: 14, color: Colors.white),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       behavior: SnackBarBehavior.floating,

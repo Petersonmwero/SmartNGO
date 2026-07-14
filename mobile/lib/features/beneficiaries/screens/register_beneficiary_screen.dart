@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
+import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
 import '../../projects/models/project.dart';
@@ -100,14 +101,11 @@ class _RegisterBeneficiaryScreenState
         location: _location.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Beneficiary registered.')),
-      );
+      showSuccessSnackBar(context, 'Beneficiary registered successfully!');
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      showErrorSnackBar(context, e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }

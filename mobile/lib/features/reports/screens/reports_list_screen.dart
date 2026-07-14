@@ -254,34 +254,48 @@ class _DraftCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      draft.title.isEmpty ? '(Untitled draft)' : draft.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              // Amber accent bar marks device-local drafts.
+              Container(width: 4, color: AppColors.accent),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              draft.title.isEmpty
+                                  ? '(Untitled draft)'
+                                  : draft.title,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const StatusBadge('submitted', label: 'Local Draft'),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          InfoChip(Icons.work_outline, draft.projectName),
+                          InfoChip(
+                              Icons.edit_outlined,
+                              'edited ${draft.updatedAt.toString().substring(0, 10)}'),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  const StatusBadge('submitted', label: 'Local Draft'),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  InfoChip(Icons.work_outline, draft.projectName),
-                  InfoChip(Icons.edit_outlined,
-                      'edited ${draft.updatedAt.toString().substring(0, 10)}'),
-                ],
+                ),
               ),
             ],
           ),
@@ -316,58 +330,71 @@ class _ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final (accent, _) = StatusBadge.colorsFor(report.status);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => context.push('/reports/${report.id}'),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      report.title,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              Container(width: 4, color: accent),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              report.title,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          StatusBadge(report.status),
+                        ],
+                      ),
+                      if (report.description.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          report.description,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.muted),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          InfoChip(
+                              Icons.assignment_outlined, report.typeLabel),
+                          if (report.officerName != null &&
+                              report.officerName!.isNotEmpty)
+                            InfoChip(
+                                Icons.person_outline, report.officerName!),
+                          if (report.dateSubmitted != null)
+                            InfoChip(
+                              Icons.access_time,
+                              report.dateSubmitted!.length >= 10
+                                  ? report.dateSubmitted!.substring(0, 10)
+                                  : report.dateSubmitted!,
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  StatusBadge(report.status),
-                ],
-              ),
-              if (report.description.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  report.description,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.muted),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  InfoChip(Icons.assignment_outlined, report.typeLabel),
-                  if (report.officerName != null &&
-                      report.officerName!.isNotEmpty)
-                    InfoChip(Icons.person_outline, report.officerName!),
-                  if (report.dateSubmitted != null)
-                    InfoChip(
-                      Icons.access_time,
-                      report.dateSubmitted!.length >= 10
-                          ? report.dateSubmitted!.substring(0, 10)
-                          : report.dateSubmitted!,
-                    ),
-                ],
               ),
             ],
           ),
