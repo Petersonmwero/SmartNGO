@@ -44,9 +44,17 @@ completed, verified, and committed it).
   users/ngos (admin), profile, project detail, report detail, login,
   register, forgot password. Donor correctly gets the 3-tab nav.
   Smoke scripts + 33 screenshots in the session scratchpad (not committed).
-- Only cosmetic observation: the seeded report photo renders the grey
-  fallback placeholder (media file missing locally) — the fallback itself
-  is the designed behavior; reseed images if photos should show in the demo.
+- ~~Only cosmetic observation: the seeded report photo renders the grey
+  fallback placeholder~~ **Fixed (same day):** the placeholder was not a
+  missing file — `ReportImage.fromJson` read `json['image_url']` but the DRF
+  serializer emits the ImageField as `image` (absolute URL), so the URL was
+  always empty and every photo fell back. Model now reads `image` with an
+  `image_url` fallback. `seed_demo` also gained `_report_photo()`: attaches
+  Pillow-generated, clearly-labelled "DEMO PHOTO" JPEGs (800×600 gradient +
+  caption strip; em-dash swapped for hyphen when drawing — Pillow's default
+  font lacks the glyph) to the three demo reports (2/2/1), idempotent on
+  caption. Verified in-browser: both photo-bearing reports render their
+  thumbnails. Backend 180 tests, Flutter 44 tests, analyze 0.
 
 ---
 

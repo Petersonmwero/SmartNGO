@@ -6,11 +6,14 @@ create duplicates). Run with:
 
     python manage.py seed_demo
 """
+import io
 from datetime import date, timedelta
 
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
+from PIL import Image, ImageDraw, ImageFont
 
 from apps.accounts.models import Role, User
 from apps.beneficiaries.models import Beneficiary
@@ -18,9 +21,43 @@ from apps.indicators.models import Indicator
 from apps.ngos.models import NGO
 from apps.notifications.models import Notification
 from apps.projects.models import Milestone, Project, ProjectAssignment
-from apps.reports.models import Report
+from apps.reports.models import Report, ReportImage
 
 DEMO_PASSWORD = "DemoPass123!"
+
+# Generated demo-photo dimensions (JPEG keeps seeded media small).
+PHOTO_WIDTH = 800
+PHOTO_HEIGHT = 600
+PHOTO_JPEG_QUALITY = 85
+
+
+def _demo_photo(caption, gradient):
+    """Render a placeholder field photo: vertical two-colour gradient with the
+    caption printed on it, returned as a JPEG ContentFile.
+
+    Real evidence photos cannot ship with the repo, so demo reports carry
+    clearly-labelled generated images instead of broken links.
+    """
+    top, bottom = gradient
+    img = Image.new("RGB", (PHOTO_WIDTH, PHOTO_HEIGHT))
+    draw = ImageDraw.Draw(img)
+    for y in range(PHOTO_HEIGHT):
+        t = y / PHOTO_HEIGHT
+        draw.line(
+            [(0, y), (PHOTO_WIDTH, y)],
+            fill=tuple(round(top[c] + (bottom[c] - top[c]) * t) for c in range(3)),
+        )
+    # Dark strip at the bottom so the caption reads on any gradient.
+    # Pillow's default font has no em-dash glyph, so draw with a hyphen.
+    draw.rectangle([(0, PHOTO_HEIGHT - 90), (PHOTO_WIDTH, PHOTO_HEIGHT)],
+                   fill=(28, 28, 30))
+    draw.text((24, PHOTO_HEIGHT - 72), caption.replace("—", "-"),
+              fill=(255, 255, 255), font=ImageFont.load_default(28))
+    draw.text((24, 24), "DEMO PHOTO",
+              fill=(255, 255, 255), font=ImageFont.load_default(18))
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG", quality=PHOTO_JPEG_QUALITY)
+    return ContentFile(buffer.getvalue())
 
 
 class Command(BaseCommand):
@@ -119,11 +156,24 @@ class Command(BaseCommand):
             self._beneficiary(name, gender, dob, project, location)
 
         # ── Reports (draft / submitted / approved) ───────────────────────
-        self._report(water, officer1, "Borehole 12 drilling progress",
-                     "weekly", "approved")
-        self._report(water, officer1, "Community Survey — Nyalenda ward",
-                     "monthly", "submitted")
-        self._report(water, officer1, "Pump maintenance notes", "daily", "draft")
+        borehole = self._report(water, officer1, "Borehole 12 drilling progress",
+                                "weekly", "approved")
+        survey = self._report(water, officer1, "Community Survey — Nyalenda ward",
+                              "monthly", "submitted")
+        pump = self._report(water, officer1, "Pump maintenance notes",
+                            "daily", "draft")
+
+        # ── Report photos (generated evidence images) ────────────────────
+        self._report_photo(borehole, "Drilling rig on site — Borehole 12",
+                           ((30, 74, 47), (123, 175, 122)))
+        self._report_photo(borehole, "Casing installed at 40m depth",
+                           ((58, 58, 60), (177, 156, 121)))
+        self._report_photo(survey, "Household interviews — Nyalenda ward",
+                           ((232, 160, 32), (255, 200, 74)))
+        self._report_photo(survey, "Water collection point, Nyalenda",
+                           ((21, 101, 192), (144, 202, 249)))
+        self._report_photo(pump, "Worn impeller before replacement",
+                           ((146, 64, 14), (232, 160, 32)))
 
         # ── Notifications for the manager (demo activity feed) ───────────
         for title, message in [
@@ -217,6 +267,18 @@ class Command(BaseCommand):
         if created and status == "approved":
             report.status = Report.Status.APPROVED
             report.save(update_fields=["status"])
+        return report
+
+    def _report_photo(self, report, caption, gradient):
+        """Attach a generated demo photo to a report (idempotent on caption)."""
+        if ReportImage.objects.filter(report=report, caption=caption).exists():
+            return
+        image = ReportImage(report=report, caption=caption)
+        image.image.save(
+            f"demo_{report.pk}_{ReportImage.objects.filter(report=report).count()}.jpg",
+            _demo_photo(caption, gradient),
+            save=True,
+        )
 
     def _summary(self):
         out = self.stdout

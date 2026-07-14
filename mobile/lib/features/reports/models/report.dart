@@ -5,9 +5,11 @@ class ReportImage {
 
   const ReportImage({required this.id, required this.imageUrl, this.caption});
 
+  // The API serialises the ImageField as `image` (absolute URL); the DB
+  // column is image_url, which older payloads exposed directly.
   factory ReportImage.fromJson(Map<String, dynamic> json) => ReportImage(
         id: json['id'] as int,
-        imageUrl: (json['image_url'] ?? '') as String,
+        imageUrl: (json['image'] ?? json['image_url'] ?? '') as String,
         caption: json['caption'] as String?,
       );
 }
