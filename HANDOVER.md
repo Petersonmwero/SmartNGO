@@ -1,8 +1,41 @@
-# Session Handover — 2026-07-13 | Complete UI Overhaul
+# Session Handover — 2026-07-14 | UI Review Bug Fixes (+ 2026-07-13 UI Overhaul)
 
 ---
 
-## Completed This Session
+## Bug fixes from Peterson's UI review (2026-07-14)
+
+### Bug 1 — GPS decimal precision ("Ensure that no more than 10 digits")
+Devices report float coordinates with more precision than DECIMAL(10,7)
+holds (e.g. -1.218110000000001), and DRF's DecimalField rejected them
+**before** any `validate_*` method ran.
+- **Backend** (`apps/reports/serializers.py`): `gps_latitude`/`gps_longitude`
+  redeclared without digit limits so raw values reach the validators;
+  `validate_gps_latitude`/`validate_gps_longitude` round to 7 dp via a shared
+  `_round_coordinate()` helper and range-check (±90 / ±180, which also caps
+  the integer digits). 4 new tests (rounding accepted, out-of-range lat/lng
+  rejected, null still allowed).
+- **Flutter** (`submit_report_screen.dart`): coordinates rounded to 7 dp at
+  capture time (`toStringAsFixed(7)`).
+
+### Bug 2 — Reports list "Failed to load" for officer
+Not an auth/server problem: `/api/v1/reports/` returned 200 for the officer.
+Root cause was client-side parsing — DRF serialises DecimalFields as JSON
+**strings** (`"gps_latitude": "-0.1022000"`), and `Report.fromJson` used
+`as num?`, which throws on strings and failed the whole list parse. It only
+surfaced now because the seeded reports are the first with non-null GPS.
+- **Flutter** (`models/report.dart`): GPS fields parsed via a tolerant
+  `_asDouble()` (accepts string, number, or null). 2 new model tests.
+
+### Verification
+- Backend: **180/180 tests**; Flutter: **44/44 tests**, analyze 0 issues.
+- Live end-to-end as officer1@demo.ngo with the exact bug coordinates
+  (-1.218110000000001, 36.887390000000004): create → 201 with values rounded
+  to -1.2181100/36.8873900 → photo upload 201 → submit → report appears in
+  the list with 1 image. Web app rebuilt and re-served with the fix.
+
+---
+
+## Previous session (2026-07-13): Complete UI Overhaul
 
 ### Complete UI overhaul (single job, all screens)
 Every screen redesigned to the design-system spec. See PROGRESS.md

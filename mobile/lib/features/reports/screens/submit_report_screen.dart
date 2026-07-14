@@ -119,8 +119,10 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
             const LocationSettings(accuracy: LocationAccuracy.high),
       );
       setState(() {
-        _lat = pos.latitude;
-        _lng = pos.longitude;
+        // Round to 7 decimal places — the API stores DECIMAL(10,7) and
+        // rejects the extra float precision devices report.
+        _lat = double.parse(pos.latitude.toStringAsFixed(7));
+        _lng = double.parse(pos.longitude.toStringAsFixed(7));
         _accuracy = pos.accuracy;
       });
     } catch (e) {

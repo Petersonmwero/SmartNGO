@@ -46,6 +46,58 @@ class TestCreate:
         assert resp.status_code == 403
 
 
+class TestGpsPrecision:
+    """Raw device coordinates exceed DECIMAL(10,7); the serializer must
+    round to 7 decimal places instead of rejecting them."""
+
+    def test_high_precision_coordinates_are_rounded_and_accepted(
+        self, auth_client, officer_user, assigned_project
+    ):
+        resp = auth_client(officer_user).post(
+            REPORTS,
+            _payload(
+                assigned_project.id,
+                gps_latitude="-1.218110000000001",
+                gps_longitude="36.887390000000004",
+            ),
+            format="json",
+        )
+        assert resp.status_code == 201
+        assert float(resp.data["gps_latitude"]) == pytest.approx(-1.2181100)
+        assert float(resp.data["gps_longitude"]) == pytest.approx(36.8873900)
+
+    def test_out_of_range_latitude_rejected(
+        self, auth_client, officer_user, assigned_project
+    ):
+        resp = auth_client(officer_user).post(
+            REPORTS,
+            _payload(assigned_project.id, gps_latitude="91.0"),
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_out_of_range_longitude_rejected(
+        self, auth_client, officer_user, assigned_project
+    ):
+        resp = auth_client(officer_user).post(
+            REPORTS,
+            _payload(assigned_project.id, gps_longitude="-180.5"),
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_null_coordinates_still_allowed(
+        self, auth_client, officer_user, assigned_project
+    ):
+        resp = auth_client(officer_user).post(
+            REPORTS,
+            _payload(assigned_project.id, gps_latitude=None, gps_longitude=None),
+            format="json",
+        )
+        assert resp.status_code == 201
+        assert resp.data["gps_latitude"] is None
+
+
 class TestWorkflow:
     def test_author_submits_draft(self, auth_client, officer_user, draft_report):
         resp = auth_client(officer_user).post(f"{REPORTS}{draft_report.id}/submit/")

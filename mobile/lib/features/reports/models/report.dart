@@ -12,6 +12,12 @@ class ReportImage {
       );
 }
 
+/// DRF serialises DecimalFields as JSON strings (e.g. "-0.1022000"), so GPS
+/// values must be parsed from either a number or a string — a plain
+/// `as num?` cast throws and would fail the whole list parse.
+double? _asDouble(dynamic value) =>
+    value == null ? null : double.tryParse(value.toString());
+
 class Report {
   final int id;
   final String title;
@@ -51,8 +57,8 @@ class Report {
         projectId: json['project'] as int,
         officerId: json['officer'] as int,
         officerName: json['officer_name'] as String?,
-        gpsLatitude: (json['gps_latitude'] as num?)?.toDouble(),
-        gpsLongitude: (json['gps_longitude'] as num?)?.toDouble(),
+        gpsLatitude: _asDouble(json['gps_latitude']),
+        gpsLongitude: _asDouble(json['gps_longitude']),
         images: (json['images'] as List<dynamic>? ?? [])
             .map((e) => ReportImage.fromJson(e as Map<String, dynamic>))
             .toList(),
