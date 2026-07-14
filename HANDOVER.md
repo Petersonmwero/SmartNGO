@@ -35,10 +35,18 @@ completed, verified, and committed it).
   icon circles + amber Space Grotesk numbers, demographics donut recolored
   amber=female/green=male to match beneficiary avatars, shimmer loading).
 - Verified: **flutter analyze 0 issues, 44/44 tests, release web build
-  compiles**. Live 4-role click-through was NOT re-run this session (the
-  backend was down); the same screens were driven live last session and
-  today's deltas are visual-only — worth a quick 4-role smoke before the
-  supervisor demo.
+  compiles**, and a **live 4-role smoke test** (puppeteer keyboard-login
+  against Django on :8000 local_sqlite + web build on :58569): all four
+  roles logged in and every reachable screen rendered with **zero console,
+  page, or API errors** — dashboards ×4, projects, reports, beneficiaries,
+  notifications (via bell; note `/notifications` is NOT a GoRouter route,
+  it's pushed with MaterialPageRoute from the dashboard), analytics,
+  users/ngos (admin), profile, project detail, report detail, login,
+  register, forgot password. Donor correctly gets the 3-tab nav.
+  Smoke scripts + 33 screenshots in the session scratchpad (not committed).
+- Only cosmetic observation: the seeded report photo renders the grey
+  fallback placeholder (media file missing locally) — the fallback itself
+  is the designed behavior; reseed images if photos should show in the demo.
 
 ---
 
