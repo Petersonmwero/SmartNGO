@@ -14,7 +14,10 @@ class StatusBadge extends StatelessWidget {
   /// Optional display override; defaults to a prettified [status].
   final String? label;
 
-  const StatusBadge(this.status, {super.key, this.label});
+  /// Larger variant (11px, roomier padding) for primary list cards.
+  final bool large;
+
+  const StatusBadge(this.status, {super.key, this.label, this.large = false});
 
   static (Color, Color) colorsFor(String status) => switch (status) {
         'active' || 'approved' => (AppColors.success, AppColors.successTint),
@@ -36,7 +39,9 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (fg, bg) = colorsFor(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: large
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 5)
+          : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
@@ -44,7 +49,7 @@ class StatusBadge extends StatelessWidget {
       child: Text(
         (label ?? labelFor(status)).toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              fontSize: 10,
+              fontSize: large ? 11 : 10,
               color: fg,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,

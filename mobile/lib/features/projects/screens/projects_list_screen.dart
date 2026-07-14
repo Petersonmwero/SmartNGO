@@ -10,6 +10,7 @@ import '../../../shared/widgets/project_progress_bar.dart';
 import '../../../shared/widgets/shimmer_card.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../auth/auth_provider.dart';
+import '../../beneficiaries/beneficiary_repository.dart';
 import '../models/project.dart';
 import '../project_repository.dart';
 import 'project_detail_screen.dart';
@@ -227,6 +228,7 @@ class _ProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final (accent, _) = StatusBadge.colorsFor(project.status);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -238,53 +240,101 @@ class _ProjectCard extends StatelessWidget {
             ),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      project.projectName,
-                      style: Theme.of(context).textTheme.titleMedium,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              // Status accent bar.
+              Container(width: 4, color: accent),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              project.projectName,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          StatusBadge(project.status, large: true),
+                        ],
+                      ),
+                      if (project.description.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          project.description,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.muted),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      ProjectProgressBar(project.timelineProgress,
+                          label: 'Timeline'),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          InfoChip(Icons.calendar_today_outlined, _dates),
+                          InfoChip(Icons.payments_outlined, _budget),
+                          _BeneficiaryCountChip(projectId: project.id),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  StatusBadge(project.status),
-                ],
-              ),
-              if (project.description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(
-                  project.description,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.muted),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
-              const SizedBox(height: 12),
-              ProjectProgressBar(project.timelineProgress, label: 'Timeline'),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  InfoChip(Icons.calendar_today_outlined, _dates),
-                  InfoChip(Icons.payments_outlined, _budget),
-                ],
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Beneficiary count chip, fetched lazily per card; hidden while loading
+/// or when the count cannot be fetched.
+class _BeneficiaryCountChip extends StatefulWidget {
+  final int projectId;
+  const _BeneficiaryCountChip({required this.projectId});
+
+  @override
+  State<_BeneficiaryCountChip> createState() => _BeneficiaryCountChipState();
+}
+
+class _BeneficiaryCountChipState extends State<_BeneficiaryCountChip> {
+  late final Future<int> _count;
+
+  @override
+  void initState() {
+    super.initState();
+    _count = context
+        .read<BeneficiaryRepository>()
+        .count(projectId: widget.projectId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<int>(
+      future: _count,
+      builder: (context, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final n = snap.data!;
+        return InfoChip(
+            Icons.people_outline, '$n beneficiar${n == 1 ? 'y' : 'ies'}');
+      },
     );
   }
 }

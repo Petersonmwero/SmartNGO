@@ -3,7 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 
 abstract final class AppColors {
   static const primary = Color(0xFF0D4A2F);
+  static const primaryMid = Color(0xFF1A6B45); // gradient partner of primary
   static const accent = Color(0xFFE8A020);
+  static const accentLight = Color(0xFFFFC84A); // amber that reads on green
   static const secondary = Color(0xFF7BAF7A);
   static const background = Color(0xFFF7F5F0);
 
@@ -100,6 +102,10 @@ ThemeData buildAppTheme() {
       titleTextStyle: headingFont(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
       iconTheme: const IconThemeData(color: Colors.white),
       actionsIconTheme: const IconThemeData(color: Colors.white),
+      // Hairline separation from the content in lieu of elevation.
+      shape: Border(
+        bottom: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+      ),
     ),
     cardTheme: CardThemeData(
       color: Colors.white,
@@ -171,7 +177,7 @@ ThemeData buildAppTheme() {
         return bodyFont(fontSize: 12, color: AppColors.muted);
       }),
       elevation: 8,
-      height: 64,
+      height: 68,
     ),
     progressIndicatorTheme: const ProgressIndicatorThemeData(
       color: primary,

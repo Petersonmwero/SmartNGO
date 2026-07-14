@@ -9,7 +9,11 @@ class ProjectProgressBar extends StatelessWidget {
   final double progress;
   final String? label;
 
-  const ProjectProgressBar(this.progress, {super.key, this.label});
+  /// Track/fill thickness; dashboards use a slimmer 4px variant.
+  final double height;
+
+  const ProjectProgressBar(this.progress,
+      {super.key, this.label, this.height = 6});
 
   @override
   Widget build(BuildContext context) {
@@ -37,20 +41,23 @@ class ProjectProgressBar extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 6),
-        LayoutBuilder(
-          builder: (context, constraints) => Container(
-            height: 6,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1D5DB),
-              borderRadius: BorderRadius.circular(999),
-            ),
+        Container(
+          height: height,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFFD1D5DB),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          alignment: Alignment.centerLeft,
+          // Fraction-based fill (not LayoutBuilder) so the bar also works
+          // inside IntrinsicHeight parents like accent-bar cards.
+          child: AnimatedFractionallySizedBox(
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
             alignment: Alignment.centerLeft,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOutCubic,
-              height: 6,
-              width: constraints.maxWidth * clamped,
+            widthFactor: clamped,
+            heightFactor: 1,
+            child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [AppColors.primary, AppColors.secondary],

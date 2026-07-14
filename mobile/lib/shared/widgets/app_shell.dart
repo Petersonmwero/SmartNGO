@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme.dart';
 import '../../features/auth/auth_provider.dart';
 import '../../features/notifications/notifications_provider.dart';
 
@@ -47,17 +48,44 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       body: widget.child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (i) => context.go(tabs[i].path),
-        destinations: [
-          for (final tab in tabs)
-            NavigationDestination(
-              icon: Icon(tab.icon),
-              selectedIcon: Icon(tab.activeIcon),
-              label: tab.label,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
             ),
-        ],
+          ],
+        ),
+        child: NavigationBar(
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (i) => context.go(tabs[i].path),
+          destinations: [
+            for (final tab in tabs)
+              NavigationDestination(
+                icon: Icon(tab.icon),
+                // Filled icon with a small green dot beneath it marks the
+                // active tab.
+                selectedIcon: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(tab.activeIcon),
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ),
+                label: tab.label,
+              ),
+          ],
+        ),
       ),
     );
   }

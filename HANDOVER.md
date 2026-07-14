@@ -1,4 +1,37 @@
-# Session Handover — 2026-07-14 | UI Review Bug Fixes (+ 2026-07-13 UI Overhaul)
+# Session Handover — 2026-07-14 | Premium Dashboard + Bug Fixes
+
+---
+
+## Premium dashboard redesign (2026-07-14, after the bug fixes)
+
+Dashboard home rebuilt to a layered "banking app" look, per Peterson's spec:
+- **Header**: green gradient (primary → new `AppColors.primaryMid` #1A6B45),
+  "Smart NGO M&E" subtitle, greeting, amber role pill; right column has the
+  bell (red unread badge) above a 48px amber initials avatar. Below: a
+  white/10 **stats strip** (3 role-aware numbers in `accentLight` amber with
+  thin dividers) that replaces the old KPI card row.
+- **Layered sheet**: cream content container with 24px rounded top corners
+  overlaps the header by 20px (Transform.translate; header carries 20px of
+  extra bottom padding so no gap shows).
+- **Quick Actions**: horizontal scrollable 100×90 chips (green icon square =
+  primary action, amber tint = secondary, grey = profile), role-specific
+  sets for manager/officer/admin/donor.
+- **Recent Projects**: mini-cards with a 4px status-colored left accent bar,
+  slim 4px progress bar, end-date + budget meta row.
+- **Recent Activity**: 32px colored icon circles (green person = assignment,
+  amber clock = deadline, blue check = approval, red chart = budget),
+  timestamp under the text, indented dividers, "See all →".
+- **Other screens**: projects list cards gained the status accent bar,
+  `StatusBadge(large:)` variant, and a lazily fetched beneficiary-count
+  chip; bottom nav is 68px with a top shadow and a green dot under the
+  active tab; AppBars have a white/20 hairline bottom border.
+- **Technical note**: `ProjectProgressBar` now fills via
+  `AnimatedFractionallySizedBox` instead of `LayoutBuilder` — LayoutBuilder
+  cannot compute intrinsics, which crashed inside the new `IntrinsicHeight`
+  accent-bar rows.
+- Verified: **44/44 Flutter tests, analyze 0 issues**; all four role
+  dashboards captured live (docs/screenshots/app-dashboard-{manager,officer,
+  admin,donor}.png) — each shows its own stats strip, actions, and data.
 
 ---
 

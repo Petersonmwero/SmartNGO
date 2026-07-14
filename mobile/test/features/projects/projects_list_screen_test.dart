@@ -6,6 +6,7 @@ import 'package:smartngo/core/api_client.dart';
 import 'package:smartngo/core/token_storage.dart';
 import 'package:smartngo/features/auth/auth_provider.dart';
 import 'package:smartngo/features/auth/auth_repository.dart';
+import 'package:smartngo/features/beneficiaries/beneficiary_repository.dart';
 import 'package:smartngo/features/projects/project_repository.dart';
 import 'package:smartngo/features/projects/screens/projects_list_screen.dart';
 
@@ -25,6 +26,10 @@ void main() {
       MultiProvider(
         providers: [
           Provider<ProjectRepository>.value(value: repo),
+          // Project cards fetch a per-project beneficiary count; the stub
+          // has no /beneficiaries/ route so the chip simply stays hidden.
+          Provider<BeneficiaryRepository>(
+              create: (_) => BeneficiaryRepository(api)),
           ChangeNotifierProvider<AuthProvider>.value(value: auth),
         ],
         child: const MaterialApp(home: ProjectsListScreen()),
