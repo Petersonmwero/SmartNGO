@@ -64,6 +64,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: Column(
         children: [
           _OfficialHeader(user: user, unread: notifications.unread),
+          // Gold gradient accent bar between header and content.
+          Container(
+            height: 3,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.accent,
+                  AppColors.accentLight,
+                  AppColors.accent,
+                ],
+              ),
+            ),
+          ),
           Expanded(
             child: RefreshIndicator(
               color: AppColors.primary,
@@ -94,6 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   OfficialCard(
                     title: 'Recent Projects',
                     actionLabel: 'View all →',
+                    gradientHeader: true,
                     onAction: () => context.go('/projects'),
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 10),
@@ -102,12 +116,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   OfficialCard(
                     title: 'Recent Activity',
                     actionLabel: 'View all →',
+                    gradientHeader: true,
                     onAction: () => Navigator.of(context).push(
                       MaterialPageRoute(
                           builder: (_) => const NotificationsScreen()),
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 10),
+                    contentPadding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
                     child: _ActivityLog(
                         items: notifications.items.take(5).toList()),
                   ),
@@ -136,7 +150,18 @@ class _OfficialHeader extends StatelessWidget {
         .join();
 
     return Container(
-      color: AppColors.primary,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primaryDark,
+            AppColors.primary,
+            Color(0xFF007A3D),
+          ],
+          stops: [0.0, 0.5, 1.0],
+        ),
+      ),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -207,9 +232,16 @@ class _OfficialHeader extends StatelessWidget {
                 ],
               ),
             ),
-            // User info bar.
+            // User info bar with the gold separator into the content.
             Container(
-              color: AppColors.primaryDark,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF003D1F), AppColors.primaryDark],
+                ),
+                border: Border(
+                  bottom: BorderSide(color: AppColors.accent, width: 2),
+                ),
+              ),
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               child: Row(
@@ -252,27 +284,41 @@ class _TextLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 44,
-      height: 44,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
-      child: const Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('NGO',
+          const Text('NGO',
               style: TextStyle(
                   color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  height: 1.1)),
-          Text('M&E',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1,
+                  height: 1.2)),
+          Container(
+            height: 2,
+            width: 32,
+            color: AppColors.accent,
+            margin: const EdgeInsets.symmetric(vertical: 1),
+          ),
+          const Text('M&E',
               style: TextStyle(
                   color: AppColors.accent,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1)),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  height: 1.2)),
         ],
       ),
     );
@@ -334,26 +380,59 @@ class _WelcomeBanner extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.primarySurface,
-        border: Border.all(color: AppColors.primary),
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [AppColors.primary, AppColors.primaryLight],
+        ),
         borderRadius: BorderRadius.circular(4),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
-          const SizedBox(width: 8),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.waving_hand,
+                color: AppColors.accentLight, size: 22),
+          ),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              'Welcome back, $firstName. You have $pending pending '
-              'item${pending == 1 ? '' : 's'} requiring attention.',
-              style: const TextStyle(
-                color: AppColors.primaryDark,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back, $firstName!',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'You have $pending pending '
+                  'item${pending == 1 ? '' : 's'} requiring your attention.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ),
           ),
+          const Icon(Icons.arrow_forward_ios,
+              color: Colors.white54, size: 16),
         ],
       ),
     );
@@ -373,53 +452,89 @@ class _StatisticsRow extends StatelessWidget {
         ? null
         : s.reports.draft + s.reports.submitted + s.reports.approved;
     final items = [
-      ('Projects', s?.projects.total, Icons.folder_outlined),
-      ('Beneficiaries', s?.beneficiaries, Icons.people_outline),
-      ('Reports', totalReports, Icons.description_outlined),
-      ('Pending', s?.reports.submitted, Icons.pending_outlined),
+      ('Projects', s?.projects.total, Icons.folder_open,
+          AppColors.success, AppColors.successTint),
+      ('Beneficiaries', s?.beneficiaries, Icons.people,
+          AppColors.info, AppColors.infoTint),
+      ('Reports', totalReports, Icons.description,
+          AppColors.warning, AppColors.warningTint),
+      ('Pending', s?.reports.submitted, Icons.pending_actions,
+          AppColors.danger, AppColors.dangerTint),
     ];
 
-    return Row(
+    // 2×2 grid keeps the coloured boxes readable at phone width.
+    return Column(
       children: [
-        for (final (i, item) in items.indexed) ...[
-          if (i > 0)
-            Container(width: 1, height: 48, color: AppColors.border),
-          Expanded(
-            child: Column(
-              children: [
-                Icon(item.$3, color: AppColors.primary, size: 22),
-                const SizedBox(height: 4),
-                if (item.$2 == null)
-                  Shimmer.fromColors(
-                    baseColor: Colors.grey[300]!,
-                    highlightColor: Colors.grey[100]!,
-                    child: Container(
-                      width: 32,
-                      height: 24,
-                      color: Colors.white,
-                    ),
-                  )
-                else
-                  Text(
-                    '${item.$2}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                Text(
-                  item.$1,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontSize: 11, color: AppColors.textMuted),
-                ),
-              ],
-            ),
+        for (var row = 0; row < 2; row++)
+          Row(
+            children: [
+              for (var col = 0; col < 2; col++)
+                _ColoredStatBox(item: items[row * 2 + col]),
+            ],
           ),
-        ],
       ],
+    );
+  }
+}
+
+class _ColoredStatBox extends StatelessWidget {
+  final (String, int?, IconData, Color, Color) item;
+  const _ColoredStatBox({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, value, icon, color, bgColor) = item;
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.all(6),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
+            const SizedBox(height: 8),
+            if (value == null)
+              Shimmer.fromColors(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+                child: Container(width: 36, height: 26, color: Colors.white),
+              )
+            else
+              Text(
+                '$value',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: color.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -430,60 +545,67 @@ class _ServicesGrid extends StatelessWidget {
   final String role;
   const _ServicesGrid({required this.role});
 
+  // Service tile accent colours.
+  static const _green = AppColors.primary;
+  static const _greenLight = Color(0xFF007A3D);
+  static const _amber = AppColors.warning;
+  static const _blue = AppColors.info;
+  static const _purple = Color(0xFF5B2D8E);
+
   @override
   Widget build(BuildContext context) {
     final services = switch (role) {
       'officer' => [
-          ('Submit Report', 'Field report', Icons.upload_file,
+          ('Submit Report', 'Field report', Icons.upload_file, _greenLight,
               () => _push(context, const SubmitReportScreen())),
-          ('My Reports', 'View reports', Icons.description_outlined,
+          ('My Reports', 'View reports', Icons.description_outlined, _amber,
               () => context.go('/reports')),
-          ('Beneficiaries', 'Register & manage', Icons.people_outline,
+          ('Beneficiaries', 'Register & manage', Icons.people_outline, _blue,
               () => context.go('/people')),
-          ('My Projects', 'Assigned projects', Icons.folder_open,
+          ('My Projects', 'Assigned projects', Icons.folder_open, _green,
               () => context.go('/projects')),
           ('Add Beneficiary', 'New registration', Icons.person_add_outlined,
-              () => _push(context, const RegisterBeneficiaryScreen())),
+              _blue, () => _push(context, const RegisterBeneficiaryScreen())),
           ('Notifications', 'View alerts', Icons.notifications_outlined,
-              () => _push(context, const NotificationsScreen())),
+              _purple, () => _push(context, const NotificationsScreen())),
         ],
       'admin' => [
           ('Manage Users', 'User accounts', Icons.manage_accounts_outlined,
-              () => context.push('/users')),
-          ('Manage NGOs', 'Organisations', Icons.domain_outlined,
+              _green, () => context.push('/users')),
+          ('Manage NGOs', 'Organisations', Icons.domain_outlined, _blue,
               () => context.push('/ngos')),
-          ('Projects', 'All projects', Icons.folder_open,
+          ('Projects', 'All projects', Icons.folder_open, _greenLight,
               () => context.go('/projects')),
-          ('Reports', 'View & approve', Icons.description_outlined,
+          ('Reports', 'View & approve', Icons.description_outlined, _amber,
               () => context.go('/reports')),
-          ('Analytics', 'View statistics', Icons.bar_chart_outlined,
+          ('Analytics', 'View statistics', Icons.bar_chart_outlined, _purple,
               () => context.push('/analytics')),
-          ('New Project', 'Create project', Icons.add_circle_outline,
+          ('New Project', 'Create project', Icons.add_circle_outline, _green,
               () => context.push('/projects/new')),
         ],
       'donor' => [
-          ('Projects', 'Funded projects', Icons.folder_open,
+          ('Projects', 'Funded projects', Icons.folder_open, _green,
               () => context.go('/projects')),
-          ('Reports', 'Approved reports', Icons.description_outlined,
+          ('Reports', 'Approved reports', Icons.description_outlined, _amber,
               () => context.go('/reports')),
-          ('Analytics', 'View statistics', Icons.bar_chart_outlined,
+          ('Analytics', 'View statistics', Icons.bar_chart_outlined, _purple,
               () => context.push('/analytics')),
-          ('My Profile', 'Account details', Icons.person_outline,
+          ('My Profile', 'Account details', Icons.person_outline, _blue,
               () => context.go('/profile')),
         ],
       // Manager default.
       _ => [
-          ('Projects', 'Manage projects', Icons.folder_open,
+          ('Projects', 'Manage projects', Icons.folder_open, _green,
               () => context.go('/projects')),
-          ('Reports', 'View & approve', Icons.description_outlined,
+          ('Reports', 'View & approve', Icons.description_outlined, _amber,
               () => context.go('/reports')),
-          ('Beneficiaries', 'Register & manage', Icons.people_outline,
+          ('Beneficiaries', 'Register & manage', Icons.people_outline, _blue,
               () => context.go('/people')),
-          ('New Project', 'Create project', Icons.add_circle_outline,
+          ('New Project', 'Create project', Icons.add_circle_outline, _green,
               () => context.push('/projects/new')),
-          ('Submit Report', 'Field report', Icons.upload_file,
+          ('Submit Report', 'Field report', Icons.upload_file, _greenLight,
               () => _push(context, const SubmitReportScreen())),
-          ('Analytics', 'View statistics', Icons.bar_chart_outlined,
+          ('Analytics', 'View statistics', Icons.bar_chart_outlined, _purple,
               () => context.push('/analytics')),
         ],
     };
@@ -493,15 +615,19 @@ class _ServicesGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisExtent: 118,
+        mainAxisExtent: 132,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
       itemCount: services.length,
       itemBuilder: (context, i) {
-        final (label, subtitle, icon, onTap) = services[i];
+        final (label, subtitle, icon, color, onTap) = services[i];
         return _ServiceTile(
-            label: label, subtitle: subtitle, icon: icon, onTap: onTap);
+            label: label,
+            subtitle: subtitle,
+            icon: icon,
+            color: color,
+            onTap: onTap);
       },
     );
   }
@@ -515,12 +641,14 @@ class _ServiceTile extends StatelessWidget {
   final String label;
   final String subtitle;
   final IconData icon;
+  final Color color;
   final VoidCallback onTap;
 
   const _ServiceTile({
     required this.label,
     required this.subtitle,
     required this.icon,
+    required this.color,
     required this.onTap,
   });
 
@@ -532,22 +660,41 @@ class _ServiceTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
+          color: Colors.white,
           border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                color: AppColors.primarySurface,
-                borderRadius: BorderRadius.circular(4),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [color, color.withValues(alpha: 0.7)],
+                ),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: Icon(icon, color: AppColors.primary, size: 24),
+              child: Icon(icon, color: Colors.white, size: 26),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
@@ -555,7 +702,7 @@ class _ServiceTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
@@ -637,8 +784,12 @@ class _ProjectRow extends StatelessWidget {
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: const BorderSide(color: Color(0xFFEEEEEE)),
+            right: BorderSide(
+                color: accent.withValues(alpha: 0.3), width: 3),
+          ),
         ),
         child: Row(
           children: [
@@ -681,8 +832,7 @@ class _ProjectRow extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     backgroundColor: AppColors.border,
-                    valueColor:
-                        const AlwaysStoppedAnimation(AppColors.primary),
+                    valueColor: AlwaysStoppedAnimation(accent),
                     minHeight: 4,
                   ),
                 ),
@@ -716,27 +866,39 @@ class _ActivityLog extends StatelessWidget {
       );
     }
     return Column(
-      children: [for (final n in items) _ActivityRow(notification: n)],
+      children: [
+        for (final (i, n) in items.indexed)
+          _ActivityRow(notification: n, isLast: i == items.length - 1),
+      ],
     );
   }
 }
 
+/// Timeline-style activity entry: coloured icon node with a connector line
+/// down to the next entry, title + message, and a colour-matched timestamp.
 class _ActivityRow extends StatelessWidget {
   final AppNotification notification;
-  const _ActivityRow({required this.notification});
+  final bool isLast;
+  const _ActivityRow({required this.notification, required this.isLast});
 
-  IconData get _icon {
+  (IconData, Color) get _spec {
     final text = '${notification.title} ${notification.message}'.toLowerCase();
-    if (text.contains('approv')) return Icons.check_circle_outline;
-    if (text.contains('budget')) return Icons.account_balance_wallet_outlined;
+    if (text.contains('approv')) {
+      return (Icons.check_circle_outline, AppColors.info);
+    }
+    if (text.contains('budget')) {
+      return (Icons.account_balance_wallet_outlined, AppColors.danger);
+    }
     if (text.contains('due') || text.contains('deadline')) {
-      return Icons.access_time_outlined;
+      return (Icons.access_time_outlined, AppColors.warning);
     }
     if (text.contains('assign') || text.contains('added')) {
-      return Icons.person_add_outlined;
+      return (Icons.person_add_outlined, AppColors.success);
     }
-    if (text.contains('report')) return Icons.description_outlined;
-    return Icons.notifications_outlined;
+    if (text.contains('report')) {
+      return (Icons.description_outlined, AppColors.success);
+    }
+    return (Icons.notifications_outlined, AppColors.neutral);
   }
 
   String get _timestamp {
@@ -755,29 +917,72 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+    final (icon, color) = _spec;
+    return IntrinsicHeight(
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(
-            width: 56,
-            child: Text(
-              _timestamp,
-              style: const TextStyle(
-                  fontSize: 10, color: AppColors.textMuted),
-            ),
+          Column(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                  border:
+                      Border.all(color: color.withValues(alpha: 0.3)),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: const Color(0xFFEEEEEE),
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                  ),
+                ),
+            ],
           ),
-          Container(width: 1, height: 40, color: AppColors.border),
-          const SizedBox(width: 8),
-          Icon(_icon, size: 16, color: AppColors.primary),
-          const SizedBox(width: 6),
+          const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              notification.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 12, color: AppColors.textSecondary),
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    notification.message,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+                  if (_timestamp.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _timestamp,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: color,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],

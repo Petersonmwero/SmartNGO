@@ -22,8 +22,9 @@ abstract final class AppColors {
   static const kenyaRed = Color(0xFFBB0000);
   static const kenyaBlack = Color(0xFF000000);
 
-  // Neutrals — clean official.
-  static const background = Color(0xFFF5F5F5);
+  // Neutrals — clean official (background carries a faint blue tint for
+  // more depth than pure grey).
+  static const background = Color(0xFFF0F2F5);
   static const surface = Color(0xFFFFFFFF);
   static const surfaceVariant = Color(0xFFF8F8F8);
   static const border = Color(0xFFDDDDDD);

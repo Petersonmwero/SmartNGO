@@ -1,4 +1,37 @@
-# Session Handover — 2026-07-16 | eCitizen Official UI Redesign
+# Session Handover — 2026-07-16 | eCitizen UI + Dashboard Richness
+
+---
+
+## Dashboard visual richness pass (2026-07-16, on top of eCitizen redesign)
+
+Structure kept, colour depth added per Peterson's spec:
+
+- **Header**: 6px flag ribbon with drop shadow; 3-stop diagonal green
+  gradient (primaryDark → primary → #007A3D); 48px logo box with gold
+  divider line + shadow; user-info bar on a #003D1F→primaryDark gradient
+  with a 2px gold bottom rule; plus a 3px gold-gradient accent bar between
+  header and content.
+- **Welcome banner**: green gradient card with glow shadow, waving-hand
+  icon in a white/20 circle, white text, chevron.
+- **MY STATISTICS**: coloured stat boxes (green Projects / blue
+  Beneficiaries / amber Reports / red Pending) with tinted icon circles.
+  **Deviation from spec**: laid out 2×2 instead of 4-across — at 430px the
+  4-across row clips "Beneficiaries" (same overflow class Peterson flagged
+  in his UI review); 2×2 keeps every label intact.
+- **QUICK SERVICES**: tiles now carry 52px gradient icon squares with
+  colour-matched glow (green/amber/blue/purple per service, all roles).
+- **OfficialCard**: default left rule is now GOLD (the eCitizen signature)
+  with green titles — applies app-wide (profile, analytics; SYSTEM ACTIONS
+  keeps its red override); new `gradientHeader:` variant (green gradient,
+  white title, gold action) used by RECENT PROJECTS / RECENT ACTIVITY.
+- **Project rows**: progress bar + 3px right border in the status colour.
+  **Activity feed**: timeline style — colored node circles with rings,
+  connector lines, title + message, colour-matched timestamp.
+- Background app-wide: #F5F5F5 → **#F0F2F5** (blue-tinted grey);
+  bottom nav gold rule 2px + black12 shadow.
+- Verified: analyze 0, **47/47 tests**, web build; all 4 role dashboards
+  captured live incl. scrolled view (pinned header confirmed); docs
+  screenshots refreshed.
 
 ---
 

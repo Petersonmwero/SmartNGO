@@ -49,16 +49,17 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
+          color: Colors.white,
           // Official gold rule along the top of the navigation bar.
-          border: const Border(
-            top: BorderSide(color: AppColors.accent, width: 3),
+          border: Border(
+            top: BorderSide(color: AppColors.accent, width: 2),
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black26.withValues(alpha: 0.08),
+              color: Colors.black12,
               blurRadius: 8,
-              offset: const Offset(0, -2),
+              offset: Offset(0, -2),
             ),
           ],
         ),
