@@ -33,9 +33,6 @@ class LocationStub implements HttpClientAdapter {
     if (q['ward'] == 'Nyalenda A') {
       return _json({'status': 'success', 'data': ['Nyalenda Loc A', 'Nyalenda Loc B']});
     }
-    if (q['location'] == 'Nyalenda Loc A') {
-      return _json({'status': 'success', 'data': ['Sub A1', 'Sub A2']});
-    }
     return _json({'status': 'success', 'data': []});
   }
 
@@ -95,7 +92,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(lastEmitted['ward'], 'Nyalenda A');
 
-    // Pick a location (loaded for the ward).
+    // Pick a location (loaded for the ward) — the last dropdown level.
     await tester.ensureVisible(find.byKey(const Key('location_dropdown')));
     await tester.tap(find.byKey(const Key('location_dropdown')));
     await tester.pumpAndSettle();
@@ -103,13 +100,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(lastEmitted['location'], 'Nyalenda Loc A');
 
-    // Pick a sub-location.
-    await tester.ensureVisible(find.byKey(const Key('sublocation_dropdown')));
-    await tester.tap(find.byKey(const Key('sublocation_dropdown')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sub A2').last);
-    await tester.pumpAndSettle();
-    expect(lastEmitted['sub_location'], 'Sub A2');
+    // No sub-location dropdown exists — village is free text.
+    expect(find.byKey(const Key('sublocation_dropdown')), findsNothing);
 
     // Type a village; the full map is emitted.
     await tester.ensureVisible(find.byKey(const Key('village_field')));
@@ -120,7 +112,6 @@ void main() {
       'constituency': 'Kisumu East',
       'ward': 'Nyalenda A',
       'location': 'Nyalenda Loc A',
-      'sub_location': 'Sub A2',
       'village': 'Nyalenda',
     });
   });
@@ -159,6 +150,5 @@ void main() {
     expect(lastEmitted['constituency'], '');
     expect(lastEmitted['ward'], '');
     expect(lastEmitted['location'], '');
-    expect(lastEmitted['sub_location'], '');
   });
 }

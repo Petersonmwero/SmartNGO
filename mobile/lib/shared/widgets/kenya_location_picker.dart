@@ -7,12 +7,12 @@ import '../../core/theme.dart';
 import '../../features/beneficiaries/beneficiary_repository.dart';
 
 /// Cascading Kenya location picker (eCitizen-style):
-/// fixed Country → County → Constituency → Ward → Location → Sub-Location
-/// dropdowns plus a free-text Village field. Each selection loads the next
+/// fixed Country → County → Constituency → Ward → Location dropdowns plus a
+/// free-text Village / Sub-location field. Each selection loads the next
 /// level from GET /api/v1/locations/kenya/ and resets everything below it.
 ///
 /// Reports every change through [onChanged] as
-/// `{country, county, constituency, ward, location, sub_location, village}`.
+/// `{country, county, constituency, ward, location, village}`.
 class KenyaLocationPicker extends StatefulWidget {
   final ValueChanged<Map<String, String>> onChanged;
 
@@ -27,20 +27,17 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
   List<String> _constituencies = const [];
   List<String> _wards = const [];
   List<String> _locations = const [];
-  List<String> _subLocations = const [];
 
   String? _county;
   String? _constituency;
   String? _ward;
   String? _location;
-  String? _subLocation;
   String _village = '';
 
   bool _loadingCounties = false;
   bool _loadingConstituencies = false;
   bool _loadingWards = false;
   bool _loadingLocations = false;
-  bool _loadingSubLocations = false;
   bool _countiesFailed = false;
 
   @override
@@ -56,7 +53,6 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
       'constituency': _constituency ?? '',
       'ward': _ward ?? '',
       'location': _location ?? '',
-      'sub_location': _subLocation ?? '',
       'village': _village.trim(),
     });
   }
@@ -121,21 +117,6 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
     }
   }
 
-  Future<void> _loadSubLocations(String location) async {
-    setState(() => _loadingSubLocations = true);
-    try {
-      final subLocations = await context
-          .read<BeneficiaryRepository>()
-          .kenyaSubLocations(location);
-      if (!mounted) return;
-      setState(() => _subLocations = subLocations);
-    } on ApiException {
-      if (mounted) setState(() => _subLocations = const []);
-    } finally {
-      if (mounted) setState(() => _loadingSubLocations = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -167,11 +148,9 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
                 _constituency = null;
                 _ward = null;
                 _location = null;
-                _subLocation = null;
                 _constituencies = const [];
                 _wards = const [];
                 _locations = const [];
-                _subLocations = const [];
               });
               _emit();
               if (value != null) _loadConstituencies(value);
@@ -192,10 +171,8 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
               _constituency = value;
               _ward = null;
               _location = null;
-              _subLocation = null;
               _wards = const [];
               _locations = const [];
-              _subLocations = const [];
             });
             _emit();
             if (value != null) _loadWards(value);
@@ -219,9 +196,7 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
             setState(() {
               _ward = value;
               _location = null;
-              _subLocation = null;
               _locations = const [];
-              _subLocations = const [];
             });
             _emit();
             if (value != null) _loadLocations(value);
@@ -242,31 +217,7 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
           isLoading: _loadingLocations,
           enabled: _ward != null && _locations.isNotEmpty,
           onChanged: (value) {
-            setState(() {
-              _location = value;
-              _subLocation = null;
-              _subLocations = const [];
-            });
-            _emit();
-            if (value != null) _loadSubLocations(value);
-          },
-        ),
-        const SizedBox(height: 12),
-        _LocationDropdown(
-          key: const Key('sublocation_dropdown'),
-          label: 'Sub-Location',
-          icon: Icons.near_me_outlined,
-          hint: _location == null
-              ? 'Select location first'
-              : _subLocations.isEmpty && !_loadingSubLocations
-                  ? 'No sub-location data — skip'
-                  : 'Select Sub-Location',
-          items: _subLocations,
-          value: _subLocation,
-          isLoading: _loadingSubLocations,
-          enabled: _location != null && _subLocations.isNotEmpty,
-          onChanged: (value) {
-            setState(() => _subLocation = value);
+            setState(() => _location = value);
             _emit();
           },
         ),
@@ -275,7 +226,7 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
           key: const Key('village_field'),
           decoration: const InputDecoration(
             labelText: 'Village / Sub-location',
-            hintText: 'e.g. Nyalenda, Kondele',
+            hintText: 'e.g. Taru, Samburu, Mwamdudu...',
             prefixIcon: Icon(Icons.home_outlined, color: AppColors.primary),
           ),
           onChanged: (v) {

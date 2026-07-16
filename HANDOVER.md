@@ -1,4 +1,29 @@
-# Session Handover — 2026-07-16 | Kenya Ward Data Complete (all 290)
+# Session Handover — 2026-07-16 | Sub-Location Dropdown Removed
+
+---
+
+## Sub-location dropdown removed (2026-07-16, per Peterson)
+
+Picker simplified to 5 dropdown levels + free text: Country (locked) →
+County → Constituency → Ward → Location, then a "Village / Sub-location"
+TextFormField (hint "e.g. Taru, Samburu, Mwamdudu...") where users type
+their own area. Flutter-only change:
+
+- `kenya_location_picker.dart`: sub-location dropdown, state, loader, and
+  emit key removed; Location is now the last cascading level.
+- Register screen no longer passes subLocation to create().
+- **Backend untouched by design**: the `sub_location` model field, the
+  `?location=` API level, LOCATION_SUBLOCATION data, and the repository's
+  `kenyaSubLocations()` all remain (new records just leave sub_location
+  empty). The list-card summary getter still includes subLocation first,
+  so old seeded rows keep their display; new rows show
+  "Location · Ward · Constituency".
+- Verified: analyze 0, **47/47 tests** (picker test asserts the dropdown
+  is gone), web rebuilt; live E2E Baringo → Baringo Central → Kabarnet →
+  Kabarnet → typed "Kapsoo Village" → submitted; list shows
+  "Kabarnet · Kabarnet · Baringo Central". Test record soft-deleted.
+- `docs/screenshots/app-register-beneficiary.png` retaken with the new
+  5-level form.
 
 ---
 
