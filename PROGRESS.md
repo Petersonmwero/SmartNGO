@@ -3,6 +3,23 @@
 
 ---
 
+## Premium Dashboard Redesign v2 (2026-07-16) ✅
+
+Full rewrite of `dashboard_screen.dart` to fintech-grade spec (commit `0c1a30b`, screenshots `acc7400`):
+
+- [x] Pinned (non-scrolling) gradient header; content sheet scrolls under its 28px rounded corners (LayoutBuilder + OverflowBox + translate)
+- [x] 3-stop deep-forest gradient + faint dot-grid texture overlay (CustomPaint)
+- [x] Full name 26px, glassy role pill with amber role icon, amber 18px bell badge with green ring
+- [x] 52px amber-gradient avatar with glow → taps to Profile
+- [x] Stats strip: bordered glass panel, 24px amber numbers, shimmer while loading
+- [x] Quick actions: chrome-less 56px icon tiles (green gradient primary / amber tint secondary)
+- [x] Project cards: fading 5px accent bar, Progress % row, rounded LinearProgressIndicator, formatted date + budget chips, shimmer + role-aware empty state
+- [x] Activity feed: single grouped card, tinted icon circles, title + message + timestamp, indented dividers
+- [x] SectionHeader bumped to 17px bold app-wide; dashboard has no FAB (already true)
+- [x] Verified: analyze 0, 44/44 tests, all 4 roles live, pinned scroll + pull-to-refresh (CDP touch), 360×740 no overflow
+
+---
+
 ## UI Review Fixes (2026-07-16) ✅
 
 Seven-item review from Peterson, all resolved (commit `ec2aaba`, screenshots `b80b920`):

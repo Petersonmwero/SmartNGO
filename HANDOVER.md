@@ -37,6 +37,10 @@
   **pinned-header scroll** and **pull-to-refresh** (note: Flutter web only
   drag-scrolls with touch — verified via CDP touch events; mouse wheel works
   for scroll) and a 360×740 narrow-viewport pass with no overflow.
+- All pushed: redesign `0c1a30b`, retaken docs screenshots `acc7400` (only
+  the 4 dashboard PNGs changed — other screens render byte-identically).
+- Session state: Django :8000 (local_sqlite) + web build :58569 still
+  running; puppeteer scripts (docshots.js + smoke1-6) in session scratchpad.
 
 ---
 
