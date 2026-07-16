@@ -286,9 +286,6 @@ class _BeneficiaryCard extends StatelessWidget {
     final initial =
         b.name.trim().isNotEmpty ? b.name.trim()[0].toUpperCase() : '?';
     final (avatarBg, avatarFg) = _avatarColors;
-    final meta = [
-      if (b.location.isNotEmpty) b.location,
-    ].join(' · ');
 
     return Card(
       child: ListTile(
@@ -303,13 +300,28 @@ class _BeneficiaryCard extends StatelessWidget {
           ),
         ),
         title: Text(b.name, style: Theme.of(context).textTheme.titleSmall),
-        subtitle: meta.isNotEmpty
-            ? Text(meta,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.muted))
-            : null,
+        subtitle: (b.location.isEmpty && b.projectName.isEmpty)
+            ? null
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (b.location.isNotEmpty)
+                    Text(b.location,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: AppColors.muted)),
+                  if (b.projectName.isNotEmpty)
+                    Text(b.projectName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(
+                                fontSize: 11, color: AppColors.muted)),
+                ],
+              ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,

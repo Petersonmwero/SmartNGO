@@ -1,4 +1,35 @@
-# Session Handover — 2026-07-14 | App-Wide UI Consistency Pass
+# Session Handover — 2026-07-16 | UI Review Fixes
+
+---
+
+## UI review fixes (2026-07-16, from Peterson's 7-item review)
+
+- **Quick-action chip overflow**: chip height 90→96px — the 40px icon square
+  plus two 11px label lines overflowed by ~4px on wrapping labels ("Add
+  Beneficiary"). maxLines/ellipsis were already present.
+- **Project accent bars**: new `StatusBadge.accentFor()` — vivid bar palette
+  (active=primary green, planning=amber, on_hold=red, completed=#1D4ED8
+  blue, else grey) used by dashboard mini-cards AND the projects list. The
+  bars existed but used the badge tint palette, which rendered muddy at 4px
+  (on_hold was an indistinct grey).
+- **Beneficiary cards show project**: backend `BeneficiarySerializer` gained
+  read-only `project_name` (source=project.project_name; queryset already
+  select_related("project")); Flutter model + card show it grey 11px under
+  the location. NOTE: needed a backend restart — the dev server runs
+  --noreload, so serializer changes don't hot-apply.
+- **Bell badge**: 16px stadium, 10px bold, caps at "9+", unchanged -4/-4
+  offset; only rendered when unread > 0 (as before).
+- **Submit Report project dropdown**: already auto-loaded on init with
+  error+retry; added the missing loading state (16px spinner + "Loading
+  projects…" in the field while fetching).
+- **Bottom-nav active dot**: 4→6px under the active icon.
+- **No change needed**: Profile "Sign Out" already exists as the last card
+  (red text, logout icon, confirm dialog) and is visible without scrolling
+  at 430×932 — screenshot `docs/screenshots/app-profile.png` shows it.
+- Verified: backend 180 tests, Flutter 44 tests, analyze 0; live in-browser
+  check of officer/manager dashboards, beneficiaries list (project names
+  visible), and the populated submit-report dropdown. Commit not pushed —
+  Peterson's checklist ended at HANDOVER; push when ready.
 
 ---
 

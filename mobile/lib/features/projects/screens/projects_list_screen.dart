@@ -228,7 +228,7 @@ class _ProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (accent, _) = StatusBadge.colorsFor(project.status);
+    final accent = StatusBadge.accentFor(project.status);
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(

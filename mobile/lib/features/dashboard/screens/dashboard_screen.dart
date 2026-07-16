@@ -398,19 +398,22 @@ class _BellButton extends StatelessWidget {
               top: -4,
               right: -4,
               child: Container(
-                padding: const EdgeInsets.all(3),
+                height: 16,
                 constraints: const BoxConstraints(minWidth: 16),
-                decoration: const BoxDecoration(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
                   color: AppColors.error,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '$unread',
+                  unread > 9 ? '9+' : '$unread',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      height: 1),
                 ),
               ),
             ),
@@ -546,7 +549,9 @@ class _QuickActionChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           width: 100,
-          height: 90,
+          // 96px fits the 40px icon square plus two 11px label lines; 90px
+          // overflowed by ~4px on wrapping labels ("Add Beneficiary").
+          height: 96,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -610,7 +615,7 @@ class _MiniProjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (accent, _) = StatusBadge.colorsFor(project.status);
+    final accent = StatusBadge.accentFor(project.status);
     return _softCard(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),

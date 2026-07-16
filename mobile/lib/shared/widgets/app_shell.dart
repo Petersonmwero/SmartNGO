@@ -73,8 +73,8 @@ class _AppShellState extends State<AppShell> {
                     Icon(tab.activeIcon),
                     const SizedBox(height: 2),
                     Container(
-                      width: 4,
-                      height: 4,
+                      width: 6,
+                      height: 6,
                       decoration: const BoxDecoration(
                         color: AppColors.primary,
                         shape: BoxShape.circle,

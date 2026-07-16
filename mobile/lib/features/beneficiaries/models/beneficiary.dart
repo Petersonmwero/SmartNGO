@@ -7,6 +7,7 @@ class Beneficiary {
   final String phone;
   final String location;
   final int project;
+  final String projectName;
   final bool isActive;
 
   const Beneficiary({
@@ -19,6 +20,7 @@ class Beneficiary {
     this.age,
     this.phone = '',
     this.location = '',
+    this.projectName = '',
   });
 
   factory Beneficiary.fromJson(Map<String, dynamic> json) => Beneficiary(
@@ -30,6 +32,7 @@ class Beneficiary {
         phone: (json['phone'] ?? '') as String,
         location: (json['location'] ?? '') as String,
         project: json['project'] as int,
+        projectName: (json['project_name'] ?? '') as String,
         isActive: (json['is_active'] ?? true) as bool,
       );
 }

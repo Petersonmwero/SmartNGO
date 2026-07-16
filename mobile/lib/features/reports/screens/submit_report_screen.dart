@@ -273,6 +273,24 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                     onPressed: _loadProjects, child: const Text('Retry')),
               ],
             )
+          else if (_projects == null)
+            const InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Project',
+                prefixIcon: Icon(Icons.work_outline),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text('Loading projects…'),
+                ],
+              ),
+            )
           else
             DropdownButtonFormField<int>(
               key: const Key('project_selector'),

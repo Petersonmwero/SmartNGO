@@ -9,6 +9,10 @@ from .models import Beneficiary
 class BeneficiarySerializer(serializers.ModelSerializer):
     # Age is derived from date_of_birth on read — never stored.
     age = serializers.SerializerMethodField()
+    # Display name so clients need not resolve the project id themselves.
+    project_name = serializers.CharField(
+        source="project.project_name", read_only=True
+    )
 
     class Meta:
         model = Beneficiary
@@ -21,6 +25,7 @@ class BeneficiarySerializer(serializers.ModelSerializer):
             "phone",
             "location",
             "project",
+            "project_name",
             "is_active",
             "created_at",
         ]

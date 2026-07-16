@@ -19,6 +19,18 @@ class StatusBadge extends StatelessWidget {
 
   const StatusBadge(this.status, {super.key, this.label, this.large = false});
 
+  /// Vivid accent for the 4px left bar on project cards. Separate from the
+  /// badge palette: bars need saturated hues (the badge's tint-foreground
+  /// pairs render muddy at 4px wide — on_hold was an indistinct grey).
+  static Color accentFor(String status) => switch (status) {
+        'active' => AppColors.primary,
+        'planning' => AppColors.accent,
+        'on_hold' => AppColors.error,
+        'completed' => const Color(0xFF1D4ED8),
+        // cancelled and anything unrecognised.
+        _ => AppColors.muted,
+      };
+
   static (Color, Color) colorsFor(String status) => switch (status) {
         'active' || 'approved' => (AppColors.success, AppColors.successTint),
         'planning' || 'submitted' => (AppColors.warning, AppColors.warningTint),
