@@ -138,22 +138,35 @@ class Command(BaseCommand):
         self._indicator(bursary, "Bursaries awarded", "120", "0", "girls")
         self._indicator(food, "Households reached", "800", "270", "households")
 
-        # ── Beneficiaries ────────────────────────────────────────────────
-        for name, gender, dob, project, location in [
-            ("Amani Wanjiku", "female", date(2018, 4, 12), water, "Kisumu West"),
-            ("Baraka Otieno", "male", date(2015, 9, 3), water, "Kisumu West"),
-            ("Zawadi Cherono", "female", date(1992, 1, 20), water, "Nyalenda"),
-            ("Neema Akinyi", "female", date(1996, 7, 8), water, "Nyalenda"),
-            ("Chebet Kimutai", "female", date(2010, 3, 15), bursary, "Kabarnet"),
-            ("Jepkorir Ruto", "female", date(2009, 11, 2), bursary, "Marigat"),
-            ("Chepkemoi Langat", "female", date(2011, 6, 25), bursary, "Kabartonjo"),
-            ("Juma Hassan", "male", date(2012, 11, 30), food, "Lodwar"),
-            ("Ekai Lokol", "male", date(1988, 2, 14), food, "Kakuma"),
-            ("Akiru Napeyok", "female", date(1995, 8, 21), food, "Lokichar"),
-            ("Lokwawi Emuria", "male", date(2005, 5, 9), food, "Lodwar"),
-            ("Asekon Ewoi", "female", date(2001, 12, 3), food, "Kalokol"),
+        # ── Beneficiaries (county, constituency, ward, village) ──────────
+        for name, gender, dob, project, county, constituency, ward, village in [
+            ("Amani Wanjiku", "female", date(2018, 4, 12), water,
+             "Kisumu", "Kisumu West", "Central Kisumu", ""),
+            ("Baraka Otieno", "male", date(2015, 9, 3), water,
+             "Kisumu", "Kisumu West", "Central Kisumu", ""),
+            ("Zawadi Cherono", "female", date(1992, 1, 20), water,
+             "Kisumu", "Kisumu East", "Nyalenda A", "Nyalenda"),
+            ("Neema Akinyi", "female", date(1996, 7, 8), water,
+             "Kisumu", "Kisumu East", "Nyalenda A", "Nyalenda"),
+            ("Chebet Kimutai", "female", date(2010, 3, 15), bursary,
+             "Baringo", "Baringo Central", "Kabarnet", ""),
+            ("Jepkorir Ruto", "female", date(2009, 11, 2), bursary,
+             "Baringo", "Baringo South", "Marigat", ""),
+            ("Chepkemoi Langat", "female", date(2011, 6, 25), bursary,
+             "Baringo", "Baringo North", "Kabartonjo", ""),
+            ("Juma Hassan", "male", date(2012, 11, 30), food,
+             "Turkana", "Turkana Central", "Lodwar Township", "Lodwar"),
+            ("Ekai Lokol", "male", date(1988, 2, 14), food,
+             "Turkana", "Turkana West", "Kakuma", "Kakuma"),
+            ("Akiru Napeyok", "female", date(1995, 8, 21), food,
+             "Turkana", "Turkana South", "Lokichar", "Lokichar"),
+            ("Lokwawi Emuria", "male", date(2005, 5, 9), food,
+             "Turkana", "Turkana Central", "Kanamkemer", "Lodwar"),
+            ("Asekon Ewoi", "female", date(2001, 12, 3), food,
+             "Turkana", "Turkana Central", "Kalokol", ""),
         ]:
-            self._beneficiary(name, gender, dob, project, location)
+            self._beneficiary(
+                name, gender, dob, project, county, constituency, ward, village)
 
         # ── Reports (draft / submitted / approved) ───────────────────────
         borehole = self._report(water, officer1, "Borehole 12 drilling progress",
@@ -235,11 +248,13 @@ class Command(BaseCommand):
         ProjectAssignment.objects.get_or_create(
             project=project, user=user, defaults={"role": role})
 
-    def _beneficiary(self, name, gender, dob, project, location):
+    def _beneficiary(self, name, gender, dob, project,
+                     county, constituency, ward, village):
         Beneficiary.objects.get_or_create(
             name=name, project=project,
             defaults={"gender": gender, "date_of_birth": dob,
-                      "location": location})
+                      "county": county, "constituency": constituency,
+                      "ward": ward, "village": village})
 
     def _indicator(self, project, name, target, current, unit):
         Indicator.objects.get_or_create(

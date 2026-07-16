@@ -2,17 +2,82 @@ import csv
 import io
 
 from django.http import HttpResponse
-from rest_framework import viewsets
+from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsFieldOfficer, IsProjectManager, IsSystemAdmin
 from apps.common.mixins import ProjectScopedViewSetMixin
 from core.utils import compute_age
 
 from .filters import BeneficiaryFilter
+from .kenya_locations import (
+    CONSTITUENCY_WARDS,
+    COUNTY_CONSTITUENCIES,
+    KENYA_COUNTIES,
+)
 from .models import Beneficiary
 from .serializers import BeneficiarySerializer
+
+
+class _LocationListResponse(serializers.Serializer):
+    """Schema-only serializer for the Kenya locations envelope."""
+
+    status = serializers.CharField()
+    data = serializers.ListField(child=serializers.CharField())
+
+
+class KenyaLocationView(APIView):
+    """Public reference data for the cascading Kenya location picker.
+
+    Exactly one query parameter selects the level returned:
+    ``?counties=true`` → all 47 counties; ``?county=<name>`` → that county's
+    constituencies; ``?constituency=<name>`` → that constituency's wards.
+    Unknown names (and constituencies without ward data yet) return an
+    empty list rather than an error, so the client can degrade gracefully.
+    """
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("counties", str, description="Any value: list all counties"),
+            OpenApiParameter("county", str, description="List constituencies of this county"),
+            OpenApiParameter("constituency", str, description="List wards of this constituency"),
+        ],
+        responses={200: _LocationListResponse},
+        operation_id="kenya_locations",
+    )
+    def get(self, request):
+        query = request.query_params
+
+        if "counties" in query:
+            return Response({"status": "success", "data": KENYA_COUNTIES})
+
+        county = query.get("county")
+        if county:
+            return Response({
+                "status": "success",
+                "data": COUNTY_CONSTITUENCIES.get(county, []),
+            })
+
+        constituency = query.get("constituency")
+        if constituency:
+            return Response({
+                "status": "success",
+                "data": CONSTITUENCY_WARDS.get(constituency, []),
+            })
+
+        return Response(
+            {
+                "status": "error",
+                "message": "Specify counties, county, or constituency parameter",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 # Officers register beneficiaries, so they may write (on their assigned projects).
 WRITE_PERMISSION = IsSystemAdmin | IsProjectManager | IsFieldOfficer

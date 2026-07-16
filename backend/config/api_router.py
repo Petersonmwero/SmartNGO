@@ -10,7 +10,7 @@ from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserManagementViewSet
 from apps.analytics.views import AnalyticsDashboardView
-from apps.beneficiaries.views import BeneficiaryViewSet
+from apps.beneficiaries.views import BeneficiaryViewSet, KenyaLocationView
 from apps.indicators.views import IndicatorViewSet
 from apps.ngos.views import NGOViewSet
 from apps.notifications.views import NotificationViewSet
@@ -61,5 +61,6 @@ urlpatterns = [
         name="report-image-detail",
     ),
     path("analytics/dashboard/", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
+    path("locations/kenya/", KenyaLocationView.as_view(), name="kenya-locations"),
     *router.urls,
 ]

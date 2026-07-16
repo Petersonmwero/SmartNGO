@@ -1,4 +1,58 @@
-# Session Handover — 2026-07-16 | Premium Dashboard Redesign
+# Session Handover — 2026-07-16 | Kenya Cascading Location Picker
+
+---
+
+## Kenya cascading location picker (2026-07-16, eCitizen-style)
+
+Beneficiary location upgraded from one free-text field to Kenya's
+administrative hierarchy (country → county → constituency → ward → village).
+
+**Backend**
+- `apps/beneficiaries/kenya_locations.py`: all **47 counties**, the complete
+  real constituency list for every county (**290**), and real ward lists for
+  the demo-relevant + major counties (Nairobi, Mombasa, Kisumu, Nakuru,
+  Kiambu, Baringo, Turkana — 65 constituencies). **Data gap (deliberate)**:
+  constituencies in other counties return an empty ward list rather than
+  fabricated names; the picker then shows "No ward data — skip" and ward
+  stays optional. Extend the dict to close the gap.
+- `GET /api/v1/locations/kenya/` (`KenyaLocationView`, AllowAny —
+  public reference data): `?counties=true` | `?county=X` | `?constituency=X`
+  → `{status, data:[...]}`; no param → 400. Unknown names → empty list, not
+  an error. @extend_schema keeps Swagger at 0 warnings.
+- `Beneficiary` model: `location` CharField **replaced** by `country`
+  (default Kenya) / `county` / `constituency` / `ward` / `village`
+  (migration 0002). A `location` @property joins them (most specific first)
+  so the CSV export and any old callers keep working. Serializer exposes the
+  new fields + computed `full_location`.
+- seed_demo beneficiaries reseeded with real hierarchy rows (dev DB was
+  **flushed** — demo report/photos re-seeded by seed_demo; E2E artifacts
+  from earlier sessions are gone). Tests: **189 pass** (9 new: data
+  integrity + endpoint incl. anonymous access and 400).
+
+**Flutter**
+- `shared/widgets/kenya_location_picker.dart`: fixed Kenya field (locked,
+  flag), three cascading dropdowns (each selection resets+loads the level
+  below; shimmer + green border while loading; disabled grey until parent
+  chosen; contextual hints "Select county first"), village text field;
+  emits `{country, county, constituency, ward, village}`.
+- Register Beneficiary screen rebuilt into `_SectionCard`s (Personal
+  Details / Location Details / Project Assignment), gender segments with
+  icons, tappable DOB card with amber live-age chip, icon submit button.
+- Repository: `kenyaCounties/kenyaConstituencies/kenyaWards` + create()
+  takes the new fields. Model: new fields + `locationSummary` getter; list
+  cards + search use "village · constituency · county".
+- Tests: **47 pass** (3 new: repo cascade lookups; picker widget cascade +
+  reset-on-county-change). analyze 0.
+
+**Verified live** (officer1): county load → constituency load → ward
+degrade (Kwale has no ward data) → village typed → project picked → submit
+201 → green snackbar → list row shows "Mtopanga · Kinango · Kwale". Test
+record soft-deleted afterwards. Driving note: Flutter web dropdowns can be
+driven by click-to-open + ArrowDown/Enter, but the focused start item is
+inconsistent — don't rely on arrow counts to pick a *specific* item.
+
+`docs/screenshots/app-beneficiaries.png` still shows the old single-line
+locations — retake when convenient.
 
 ---
 

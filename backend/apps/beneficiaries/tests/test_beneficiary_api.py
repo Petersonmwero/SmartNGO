@@ -27,7 +27,10 @@ def _payload(project_id, **over):
         "gender": "female",
         "date_of_birth": "2020-06-17",
         "phone": "0700",
-        "location": "Baraton",
+        "county": "Nandi",
+        "constituency": "Chesumei",
+        "ward": "Kaptel/Kamoiywo",
+        "village": "Baraton",
         "project": project_id,
     }
     data.update(over)

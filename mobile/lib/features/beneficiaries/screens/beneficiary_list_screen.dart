@@ -66,7 +66,7 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
     return all
         .where((b) =>
             b.name.toLowerCase().contains(q) ||
-            b.location.toLowerCase().contains(q))
+            b.fullLocation.toLowerCase().contains(q))
         .toList();
   }
 
@@ -300,17 +300,21 @@ class _BeneficiaryCard extends StatelessWidget {
           ),
         ),
         title: Text(b.name, style: Theme.of(context).textTheme.titleSmall),
-        subtitle: (b.location.isEmpty && b.projectName.isEmpty)
+        // "village · constituency · county" per the eCitizen hierarchy.
+        subtitle: (b.locationSummary.isEmpty && b.projectName.isEmpty)
             ? null
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (b.location.isNotEmpty)
-                    Text(b.location,
+                  if (b.locationSummary.isNotEmpty)
+                    Text(b.locationSummary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context)
                             .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.muted)),
+                            .labelSmall
+                            ?.copyWith(
+                                fontSize: 11, color: AppColors.muted)),
                   if (b.projectName.isNotEmpty)
                     Text(b.projectName,
                         maxLines: 1,

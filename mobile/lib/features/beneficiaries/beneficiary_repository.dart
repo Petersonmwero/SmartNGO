@@ -31,7 +31,11 @@ class BeneficiaryRepository {
     required String gender,
     String? dateOfBirth,
     String phone = '',
-    String location = '',
+    String country = 'Kenya',
+    String county = '',
+    String constituency = '',
+    String ward = '',
+    String village = '',
   }) {
     return apiGuard(() async {
       final body = <String, dynamic>{
@@ -39,11 +43,35 @@ class BeneficiaryRepository {
         'name': name,
         'gender': gender,
         'phone': phone,
-        'location': location,
+        'country': country,
+        'county': county,
+        'constituency': constituency,
+        'ward': ward,
+        'village': village,
       };
       if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
       final res = await _api.dio.post('/beneficiaries/', data: body);
       return Beneficiary.fromJson(res.data as Map<String, dynamic>);
+    });
+  }
+
+  // ── Kenya administrative reference data (cascading picker) ────────────
+
+  Future<List<String>> kenyaCounties() =>
+      _kenyaLocations({'counties': 'true'});
+
+  Future<List<String>> kenyaConstituencies(String county) =>
+      _kenyaLocations({'county': county});
+
+  Future<List<String>> kenyaWards(String constituency) =>
+      _kenyaLocations({'constituency': constituency});
+
+  Future<List<String>> _kenyaLocations(Map<String, dynamic> query) {
+    return apiGuard(() async {
+      final res =
+          await _api.dio.get('/locations/kenya/', queryParameters: query);
+      final data = (res.data as Map<String, dynamic>)['data'];
+      return (data as List<dynamic>).cast<String>();
     });
   }
 

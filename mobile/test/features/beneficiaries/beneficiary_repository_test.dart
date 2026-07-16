@@ -28,6 +28,19 @@ class BeneficiaryStub implements HttpClientAdapter {
         ],
       }, 200);
     }
+    if (options.method == 'GET' && options.path == '/locations/kenya/') {
+      final q = options.queryParameters;
+      if (q.containsKey('counties')) {
+        return _json({'status': 'success', 'data': ['Nairobi', 'Kisumu']}, 200);
+      }
+      if (q['county'] == 'Kisumu') {
+        return _json({'status': 'success', 'data': ['Kisumu East', 'Seme']}, 200);
+      }
+      if (q['constituency'] == 'Kisumu East') {
+        return _json({'status': 'success', 'data': ['Kolwa East', 'Nyalenda A']}, 200);
+      }
+      return _json({'status': 'success', 'data': []}, 200);
+    }
     if (options.method == 'POST') {
       return _json(
           {'id': 9, 'name': 'New', 'gender': 'other', 'project': 1, 'is_active': true},
@@ -71,5 +84,14 @@ void main() {
   test('delete hits the soft-delete endpoint', () async {
     await repo.delete(3);
     expect(stub.calls, contains('DELETE /beneficiaries/3/'));
+  });
+
+  test('kenya location lookups cascade county → constituency → ward',
+      () async {
+    expect(await repo.kenyaCounties(), ['Nairobi', 'Kisumu']);
+    expect(await repo.kenyaConstituencies('Kisumu'), ['Kisumu East', 'Seme']);
+    expect(await repo.kenyaWards('Kisumu East'), ['Kolwa East', 'Nyalenda A']);
+    // Unknown names degrade to an empty list, not an error.
+    expect(await repo.kenyaWards('Atlantis'), isEmpty);
   });
 }

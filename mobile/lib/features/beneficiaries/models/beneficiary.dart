@@ -5,7 +5,12 @@ class Beneficiary {
   final String? dateOfBirth;
   final int? age;
   final String phone;
-  final String location;
+  final String country;
+  final String county;
+  final String constituency;
+  final String ward;
+  final String village;
+  final String fullLocation;
   final int project;
   final String projectName;
   final bool isActive;
@@ -19,9 +24,19 @@ class Beneficiary {
     this.dateOfBirth,
     this.age,
     this.phone = '',
-    this.location = '',
+    this.country = 'Kenya',
+    this.county = '',
+    this.constituency = '',
+    this.ward = '',
+    this.village = '',
+    this.fullLocation = '',
     this.projectName = '',
   });
+
+  /// Compact "village · constituency · county" line for list cards
+  /// (falls back through whatever parts are present).
+  String get locationSummary =>
+      [village, constituency, county].where((p) => p.isNotEmpty).join(' · ');
 
   factory Beneficiary.fromJson(Map<String, dynamic> json) => Beneficiary(
         id: json['id'] as int,
@@ -30,7 +45,12 @@ class Beneficiary {
         dateOfBirth: json['date_of_birth'] as String?,
         age: json['age'] as int?,
         phone: (json['phone'] ?? '') as String,
-        location: (json['location'] ?? '') as String,
+        country: (json['country'] ?? 'Kenya') as String,
+        county: (json['county'] ?? '') as String,
+        constituency: (json['constituency'] ?? '') as String,
+        ward: (json['ward'] ?? '') as String,
+        village: (json['village'] ?? '') as String,
+        fullLocation: (json['full_location'] ?? '') as String,
         project: json['project'] as int,
         projectName: (json['project_name'] ?? '') as String,
         isActive: (json['is_active'] ?? true) as bool,

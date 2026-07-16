@@ -13,6 +13,8 @@ class BeneficiarySerializer(serializers.ModelSerializer):
     project_name = serializers.CharField(
         source="project.project_name", read_only=True
     )
+    # Joined "village, ward, constituency, county, country" display string.
+    full_location = serializers.SerializerMethodField()
 
     class Meta:
         model = Beneficiary
@@ -23,7 +25,12 @@ class BeneficiarySerializer(serializers.ModelSerializer):
             "date_of_birth",
             "age",
             "phone",
-            "location",
+            "country",
+            "county",
+            "constituency",
+            "ward",
+            "village",
+            "full_location",
             "project",
             "project_name",
             "is_active",
@@ -31,6 +38,10 @@ class BeneficiarySerializer(serializers.ModelSerializer):
         ]
         # is_active is managed via soft-delete, not direct writes.
         read_only_fields = ["id", "is_active", "created_at"]
+
+    @extend_schema_field(serializers.CharField())
+    def get_full_location(self, obj):
+        return obj.location
 
     @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_age(self, obj):

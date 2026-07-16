@@ -25,7 +25,9 @@ def beneficiary(project):
         gender="female",
         date_of_birth=date(1995, 3, 14),
         phone="0712345678",
-        location="Nairobi",
+        county="Nairobi",
+        constituency="Westlands",
+        ward="Kitisuru",
         project=project,
     )
 

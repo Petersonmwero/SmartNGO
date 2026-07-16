@@ -12,7 +12,15 @@ class Beneficiary(models.Model):
     # Store date_of_birth; age is computed in the serializer (never stored).
     date_of_birth = models.DateField(null=True, blank=True)
     phone = models.CharField(max_length=30, blank=True)
-    location = models.CharField(max_length=255, blank=True)
+    # Kenya administrative hierarchy (eCitizen-style), replacing the old
+    # free-text `location` column. `location` lives on as a property below.
+    country = models.CharField(max_length=100, default="Kenya")
+    county = models.CharField(max_length=100, blank=True)
+    constituency = models.CharField(max_length=100, blank=True)
+    ward = models.CharField(max_length=100, blank=True)
+    village = models.CharField(
+        max_length=255, blank=True, help_text="Village or sub-location"
+    )
     project = models.ForeignKey(
         "projects.Project",
         on_delete=models.CASCADE,
@@ -30,3 +38,13 @@ class Beneficiary(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def location(self):
+        """Backwards-compatible joined address, most specific part first."""
+        parts = filter(
+            None,
+            [self.village, self.ward, self.constituency, self.county,
+             self.country],
+        )
+        return ", ".join(parts)
