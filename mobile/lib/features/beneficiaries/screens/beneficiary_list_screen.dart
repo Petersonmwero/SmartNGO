@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
-import '../../../core/constants/app_theme_data.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/empty_state.dart';
 import '../../../shared/widgets/shimmer_card.dart';
@@ -12,6 +11,8 @@ import '../beneficiary_repository.dart';
 import '../models/beneficiary.dart';
 import 'register_beneficiary_screen.dart';
 
+/// Official beneficiary register: green summary bar, filter bar, and an
+/// alternating table (NAME | AGE | STATUS) in eCitizen style.
 class BeneficiaryListScreen extends StatefulWidget {
   final int? projectId;
 
@@ -28,6 +29,12 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
   int? _total;
   int? _female;
   int? _male;
+
+  static const _genders = <String?, String>{
+    null: 'All genders',
+    'female': 'Female',
+    'male': 'Male',
+  };
 
   @override
   void initState() {
@@ -86,6 +93,10 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
         role == 'officer' || role == 'manager' || role == 'admin';
 
     return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: const Text('BENEFICIARY REGISTER'),
+      ),
       floatingActionButton: canRegister
           ? FloatingActionButton(
               tooltip: 'Register beneficiary',
@@ -95,110 +106,106 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
           : null,
       body: Column(
         children: [
-          // Green gradient header holding the title and the stats strip.
+          // Green summary statistics bar.
           Container(
-            width: double.infinity,
-            decoration:
-                const BoxDecoration(gradient: AppThemeData.headerGradient),
-            padding: EdgeInsets.fromLTRB(
-                16, MediaQuery.paddingOf(context).top + 16, 16, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            color: AppColors.primary,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Row(
               children: [
-                Text('Beneficiaries',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 20,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 12, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
+                _HeaderStat('Total', _total),
+                Container(width: 1, height: 30, color: Colors.white24),
+                _HeaderStat('Female', _female),
+                Container(width: 1, height: 30, color: Colors.white24),
+                _HeaderStat('Male', _male),
+              ],
+            ),
+          ),
+          // Official filter bar.
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    onChanged: (v) => setState(() => _search = v),
+                    decoration: const InputDecoration(
+                      hintText: 'Search by name...',
+                      prefixIcon: Icon(Icons.search,
+                          color: AppColors.primary, size: 20),
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 12),
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      _HeaderStat('Total', _total),
-                      Container(
-                          width: 1,
-                          height: 32,
-                          color: Colors.white.withValues(alpha: 0.3)),
-                      _HeaderStat('Female', _female),
-                      Container(
-                          width: 1,
-                          height: 32,
-                          color: Colors.white.withValues(alpha: 0.3)),
-                      _HeaderStat('Male', _male),
-                    ],
+                ),
+                const SizedBox(width: 8),
+                PopupMenuButton<String?>(
+                  tooltip: 'Filter by gender',
+                  onSelected: (v) => setState(() {
+                    _gender = v == '__all__' ? null : v;
+                    _load();
+                  }),
+                  itemBuilder: (_) => [
+                    for (final e in _genders.entries)
+                      PopupMenuItem(
+                        value: e.key ?? '__all__',
+                        child: Text(e.value),
+                      ),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.primary),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.filter_list,
+                            color: AppColors.primary, size: 18),
+                        const SizedBox(width: 4),
+                        Text(
+                          _gender == null ? 'Filter' : _genders[_gender]!,
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-          // Search bar overlapping the green header.
-          Transform.translate(
-            offset: const Offset(0, -14),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                decoration: AppThemeData.cardDecoration,
-                child: TextField(
-                  onChanged: (v) => setState(() => _search = v),
-                  decoration: InputDecoration(
-                    hintText: 'Search by name…',
-                    prefixIcon:
-                        const Icon(Icons.search, color: AppColors.primary),
-                    isDense: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Gender filter chips.
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+          // Table header.
+          Container(
+            color: AppColors.primary,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: const Row(
               children: [
-                for (final entry in const {
-                  null: 'All',
-                  'female': 'Female',
-                  'male': 'Male',
-                }.entries)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(entry.value),
-                      selected: _gender == entry.key,
-                      onSelected: (_) => setState(() {
-                        _gender = entry.key;
-                        _load();
-                      }),
-                      selectedColor: AppColors.primary,
-                      labelStyle: TextStyle(
-                        color: _gender == entry.key ? Colors.white : null,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
+                Expanded(flex: 4, child: Text('NAME', style: _headerStyle)),
+                Expanded(flex: 1, child: Text('AGE', style: _headerStyle)),
+                Expanded(
+                    flex: 2,
+                    child: Text('STATUS',
+                        style: _headerStyle, textAlign: TextAlign.end)),
               ],
             ),
           ),
           Expanded(
             child: RefreshIndicator(
+              color: AppColors.primary,
               onRefresh: () async => setState(_load),
               child: FutureBuilder<List<Beneficiary>>(
                 future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const ShimmerList(itemCount: 5, cardHeight: 80);
+                    return const ShimmerList(itemCount: 6, cardHeight: 56);
                   }
                   if (snapshot.hasError) {
                     final err = snapshot.error;
@@ -223,11 +230,14 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
                       onButton: canRegister ? _register : null,
                     );
                   }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                  return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 88),
                     itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, i) => _BeneficiaryCard(filtered[i]),
+                    itemBuilder: (context, i) => _BeneficiaryTableRow(
+                      beneficiary: filtered[i],
+                      even: i.isEven,
+                    ),
                   );
                 },
               ),
@@ -237,6 +247,13 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
       ),
     );
   }
+
+  static const _headerStyle = TextStyle(
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.8,
+  );
 }
 
 class _HeaderStat extends StatelessWidget {
@@ -251,103 +268,81 @@ class _HeaderStat extends StatelessWidget {
         children: [
           Text(
             value?.toString() ?? '—',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontSize: 20,
-                  color: AppColors.accentLight,
-                  fontWeight: FontWeight.w700,
-                ),
+            style: const TextStyle(
+                color: AppColors.accentLight,
+                fontSize: 18,
+                fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 2),
           Text(label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontSize: 11,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  )),
+              style:
+                  const TextStyle(color: Colors.white70, fontSize: 10)),
         ],
       ),
     );
   }
 }
 
-class _BeneficiaryCard extends StatelessWidget {
-  final Beneficiary b;
-  const _BeneficiaryCard(this.b);
-
-  /// Spec avatar palette: female = amber bg with dark initials, male =
-  /// green bg with white initials, other = neutral.
-  (Color, Color) get _avatarColors => switch (b.gender) {
-        'female' => (AppColors.accent, Colors.white),
-        'male' => (AppColors.primary, Colors.white),
-        _ => (AppColors.neutralTint, AppColors.neutral),
-      };
+/// Alternating register row: name + location/project, computed age, status.
+class _BeneficiaryTableRow extends StatelessWidget {
+  final Beneficiary beneficiary;
+  final bool even;
+  const _BeneficiaryTableRow({required this.beneficiary, required this.even});
 
   @override
   Widget build(BuildContext context) {
-    final initial =
-        b.name.trim().isNotEmpty ? b.name.trim()[0].toUpperCase() : '?';
-    final (avatarBg, avatarFg) = _avatarColors;
+    final b = beneficiary;
+    final meta = [
+      if (b.locationSummary.isNotEmpty) b.locationSummary,
+      if (b.projectName.isNotEmpty) b.projectName,
+    ].join(' — ');
 
-    return Card(
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          radius: 24,
-          backgroundColor: avatarBg,
-          child: Text(
-            initial,
-            style: TextStyle(color: avatarFg, fontWeight: FontWeight.w700),
-          ),
-        ),
-        title: Text(b.name, style: Theme.of(context).textTheme.titleSmall),
-        // "village · constituency · county" per the eCitizen hierarchy.
-        subtitle: (b.locationSummary.isEmpty && b.projectName.isEmpty)
-            ? null
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (b.locationSummary.isNotEmpty)
-                    Text(b.locationSummary,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(
-                                fontSize: 11, color: AppColors.muted)),
-                  if (b.projectName.isNotEmpty)
-                    Text(b.projectName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(
-                                fontSize: 11, color: AppColors.muted)),
-                ],
-              ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (b.age != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.neutralTint.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(999),
+    return Container(
+      color: even ? Colors.white : AppColors.surfaceVariant,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  b.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-                child: Text('Age ${b.age}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(fontSize: 11, color: AppColors.muted)),
-              ),
-            const SizedBox(height: 4),
-            StatusBadge(b.isActive ? 'active' : 'inactive'),
-          ],
-        ),
+                if (meta.isNotEmpty)
+                  Text(
+                    meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.textMuted),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              b.age?.toString() ?? '—',
+              style: const TextStyle(
+                  fontSize: 12, color: AppColors.textSecondary),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: StatusBadge(b.isActive ? 'active' : 'inactive'),
+            ),
+          ),
+        ],
       ),
     );
   }

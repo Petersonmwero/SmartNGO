@@ -21,10 +21,15 @@ class ShimmerCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _line(widthFactor: 0.6, height: 14),
-          const SizedBox(height: 10),
-          _line(widthFactor: 0.9, height: 10),
-          const SizedBox(height: 8),
-          _line(widthFactor: 0.4, height: 10),
+          // Short rows (table-style lists) only fit one placeholder line.
+          if (height >= 80) ...[
+            const SizedBox(height: 10),
+            _line(widthFactor: 0.9, height: 10),
+          ],
+          if (height >= 104) ...[
+            const SizedBox(height: 8),
+            _line(widthFactor: 0.4, height: 10),
+          ],
         ],
       ),
     );

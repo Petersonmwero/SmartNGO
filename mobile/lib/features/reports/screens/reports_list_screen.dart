@@ -76,16 +76,16 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Reports'),
+            const Text('FIELD REPORTS'),
             if (_count != null)
               Text(
-                '$_count report${_count == 1 ? '' : 's'}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
+                '$_count report${_count == 1 ? '' : 's'} on record',
+                style: const TextStyle(
+                    color: Colors.white70, fontSize: 10, letterSpacing: 0.2),
               ),
           ],
         ),
@@ -146,22 +146,24 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                         );
                       }
                       return ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 88),
                         children: [
                           if (drafts.isNotEmpty) ...[
-                            const SectionHeader('On This Device',
-                                color: AppColors.warning),
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                              child: SectionHeader('On This Device',
+                                  color: AppColors.warning),
+                            ),
                             for (final draft in drafts)
                               Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.fromLTRB(
+                                    16, 0, 16, 12),
                                 child: Dismissible(
                                   key: ValueKey('draft-${draft.id}'),
                                   direction: DismissDirection.endToStart,
                                   background: Container(
-                                    decoration: BoxDecoration(
-                                      color: AppColors.danger,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
+                                    color: AppColors.error,
                                     alignment: Alignment.centerRight,
                                     padding: const EdgeInsets.only(right: 20),
                                     child: const Icon(Icons.delete_outline,
@@ -176,16 +178,16 @@ class _ReportsListScreenState extends State<ReportsListScreen> {
                               ),
                           ],
                           if (errorMsg != null)
-                            _InlineError(errorMsg,
-                                onRetry: () => setState(_load))
-                          else ...[
-                            if (drafts.isNotEmpty && items.isNotEmpty)
-                              const SectionHeader('Submitted Reports'),
-                            for (final report in items)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _ReportCard(report: report),
-                              ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
+                              child: _InlineError(errorMsg,
+                                  onRetry: () => setState(_load)),
+                            )
+                          else if (items.isNotEmpty) ...[
+                            const _ReportTableHeader(),
+                            for (final (i, report) in items.indexed)
+                              _ReportTableRow(report: report, even: i.isEven),
                           ],
                         ],
                       );
@@ -324,80 +326,103 @@ class _InlineError extends StatelessWidget {
   }
 }
 
-class _ReportCard extends StatelessWidget {
-  final Report report;
-  const _ReportCard({required this.report});
+/// Green official column header for the report table.
+class _ReportTableHeader extends StatelessWidget {
+  const _ReportTableHeader();
+
+  static const _style = TextStyle(
+    color: Colors.white,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.8,
+  );
 
   @override
   Widget build(BuildContext context) {
-    final (accent, _) = StatusBadge.colorsFor(report.status);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.push('/reports/${report.id}'),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(width: 4, color: accent),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              report.title,
-                              style: Theme.of(context).textTheme.titleMedium,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          StatusBadge(report.status),
-                        ],
-                      ),
-                      if (report.description.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          report.description,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: AppColors.muted),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          InfoChip(
-                              Icons.assignment_outlined, report.typeLabel),
-                          if (report.officerName != null &&
-                              report.officerName!.isNotEmpty)
-                            InfoChip(
-                                Icons.person_outline, report.officerName!),
-                          if (report.dateSubmitted != null)
-                            InfoChip(
-                              Icons.access_time,
-                              report.dateSubmitted!.length >= 10
-                                  ? report.dateSubmitted!.substring(0, 10)
-                                  : report.dateSubmitted!,
-                            ),
-                        ],
-                      ),
-                    ],
+    return Container(
+      color: AppColors.primary,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: const Row(
+        children: [
+          Expanded(flex: 3, child: Text('REPORT TITLE', style: _style)),
+          Expanded(flex: 1, child: Text('TYPE', style: _style)),
+          Expanded(
+              flex: 2,
+              child:
+                  Text('STATUS', style: _style, textAlign: TextAlign.end)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Alternating official table row: title + officer/date, type, status.
+class _ReportTableRow extends StatelessWidget {
+  final Report report;
+  final bool even;
+  const _ReportTableRow({required this.report, required this.even});
+
+  @override
+  Widget build(BuildContext context) {
+    final date = report.dateSubmitted != null &&
+            report.dateSubmitted!.length >= 10
+        ? report.dateSubmitted!.substring(0, 10)
+        : null;
+    final meta = [
+      if (report.officerName != null && report.officerName!.isNotEmpty)
+        report.officerName!,
+      ?date,
+    ].join(' · ');
+
+    return InkWell(
+      onTap: () => context.push('/reports/${report.id}'),
+      child: Container(
+        color: even ? Colors.white : AppColors.surfaceVariant,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    report.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.info, // official link colour
+                    ),
                   ),
-                ),
+                  if (meta.isNotEmpty)
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 11, color: AppColors.textMuted),
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Text(
+                report.typeLabel,
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: StatusBadge(report.status),
+              ),
+            ),
+          ],
         ),
       ),
     );

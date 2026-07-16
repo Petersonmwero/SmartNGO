@@ -2,13 +2,14 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../core/constants/app_text_styles.dart';
 import '../../../core/theme.dart';
+import '../../../shared/widgets/official_card.dart';
 import '../../../shared/widgets/shimmer_card.dart';
 import '../../beneficiaries/beneficiary_repository.dart';
 import '../analytics_repository.dart';
 
-/// Analytics dashboard with charts for projects, reports, and beneficiaries.
+/// Official analytics dashboard: green summary statistics bar plus bordered
+/// OfficialCard chart sections (eCitizen style).
 class AnalyticsDashboardScreen extends StatefulWidget {
   const AnalyticsDashboardScreen({super.key});
 
@@ -49,7 +50,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Analytics')),
+      appBar: AppBar(title: const Text('ANALYTICS DASHBOARD')),
       body: FutureBuilder<DashboardStats>(
         future: _future,
         builder: (context, snap) {
@@ -61,7 +62,8 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.bar_chart, size: 52, color: AppColors.muted),
+                  const Icon(Icons.bar_chart,
+                      size: 52, color: AppColors.textMuted),
                   const SizedBox(height: 12),
                   const Text('Failed to load analytics.'),
                   const SizedBox(height: 12),
@@ -103,62 +105,83 @@ class _Dashboard extends StatelessWidget {
     final totalReports =
         stats.reports.draft + stats.reports.submitted + stats.reports.approved;
     return RefreshIndicator(
+      color: AppColors.primary,
       onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 24),
         children: [
-          // KPI summary rows (2×2)
-          Row(
-            children: [
-              _KpiTile('Total Projects', '${stats.projects.total}',
-                  Icons.work_outline, AppColors.primary),
-              const SizedBox(width: 12),
-              _KpiTile(
-                  'Active Projects',
-                  '${stats.projects.byStatus['active'] ?? 0}',
-                  Icons.play_circle_outline,
-                  AppColors.success),
-            ],
+          // Green summary statistics bar.
+          Container(
+            color: AppColors.primary,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                _MiniStat('${stats.projects.total}', 'Projects'),
+                _vSep(),
+                _MiniStat('${stats.beneficiaries}', 'Beneficiaries'),
+                _vSep(),
+                _MiniStat('$totalReports', 'Reports'),
+                _vSep(),
+                _MiniStat('${stats.reports.approved}', 'Approved'),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _KpiTile('Beneficiaries', '${stats.beneficiaries}',
-                  Icons.people_outline, AppColors.secondary),
-              const SizedBox(width: 12),
-              _KpiTile('Total Reports', '$totalReports',
-                  Icons.description_outlined, AppColors.accent),
-            ],
+          const SizedBox(height: 6),
+          OfficialCard(
+            title: 'Projects by Status',
+            child: _ProjectsPieChart(byStatus: stats.projects.byStatus),
           ),
-          const SizedBox(height: 24),
+          OfficialCard(
+            title: 'Reports Overview',
+            child: _ReportsBarChart(reports: stats.reports),
+          ),
+          OfficialCard(
+            title: 'Beneficiary Demographics',
+            child:
+                _DemographicsSection(female: femaleCount, male: maleCount),
+          ),
+        ],
+      ),
+    );
+  }
 
-          // Projects by status — pie chart
-          _SectionHeader('Projects by Status'),
-          const SizedBox(height: 12),
-          _ProjectsPieChart(byStatus: stats.projects.byStatus),
-          const SizedBox(height: 24),
+  Widget _vSep() =>
+      Container(width: 1, height: 32, color: Colors.white24);
+}
 
-          // Reports — bar chart
-          _SectionHeader('Reports Overview'),
-          const SizedBox(height: 12),
-          _ReportsBarChart(reports: stats.reports),
-          const SizedBox(height: 24),
+class _MiniStat extends StatelessWidget {
+  final String value;
+  final String label;
+  const _MiniStat(this.value, this.label);
 
-          // Beneficiary demographics — pie chart
-          _SectionHeader('Beneficiary Demographics'),
-          const SizedBox(height: 12),
-          _DemographicsPieChart(female: femaleCount, male: maleCount),
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value,
+              style: const TextStyle(
+                  color: AppColors.accentLight,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  const TextStyle(color: Colors.white70, fontSize: 10)),
         ],
       ),
     );
   }
 }
 
-/// Male/female beneficiary split with percentage labels.
-class _DemographicsPieChart extends StatelessWidget {
+/// Beneficiary gender split: donut chart plus an official table row.
+class _DemographicsSection extends StatelessWidget {
   final int? female;
   final int? male;
-  const _DemographicsPieChart({required this.female, required this.male});
+  const _DemographicsSection({required this.female, required this.male});
 
   @override
   Widget build(BuildContext context) {
@@ -166,126 +189,87 @@ class _DemographicsPieChart extends StatelessWidget {
     final m = male ?? 0;
     final total = f + m;
     if (total == 0) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Center(child: Text('No beneficiary data yet.')),
-        ),
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: Text('No beneficiary data yet.')),
       );
     }
 
     String pct(int v) => '${(v * 100 / total).round()}%';
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 180,
-              child: PieChart(
-                PieChartData(
-                  // Amber = female, green = male — same coding as the
-                  // beneficiary list avatars.
-                  sections: [
-                    if (f > 0)
-                      PieChartSectionData(
-                        value: f.toDouble(),
-                        color: AppColors.accent,
-                        radius: 56,
-                        title: pct(f),
-                        titleStyle: const TextStyle(
-                            color: AppColors.charcoal,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      ),
-                    if (m > 0)
-                      PieChartSectionData(
-                        value: m.toDouble(),
-                        color: AppColors.primaryMid,
-                        radius: 56,
-                        title: pct(m),
-                        titleStyle: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600),
-                      ),
-                  ],
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 40,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 16,
-              children: [
-                _legendDot(context, AppColors.accent, 'Female ($f)'),
-                _legendDot(context, AppColors.primaryMid, 'Male ($m)'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _legendDot(BuildContext context, Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Column(
       children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        SizedBox(
+          height: 170,
+          child: PieChart(
+            PieChartData(
+              sections: [
+                if (f > 0)
+                  PieChartSectionData(
+                    value: f.toDouble(),
+                    color: AppColors.accent,
+                    radius: 52,
+                    title: pct(f),
+                    titleStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                if (m > 0)
+                  PieChartSectionData(
+                    value: m.toDouble(),
+                    color: AppColors.primary,
+                    radius: 52,
+                    title: pct(m),
+                    titleStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+              ],
+              sectionsSpace: 2,
+              centerSpaceRadius: 38,
+            ),
+          ),
         ),
-        const SizedBox(width: 4),
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
+        const SizedBox(height: 10),
+        // Official table summary.
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(2),
+          ),
+          child: Row(
+            children: [
+              _demoCell(context, AppColors.accent, 'Female', '$f (${pct(f)})'),
+              Container(width: 1, height: 36, color: AppColors.border),
+              _demoCell(context, AppColors.primary, 'Male', '$m (${pct(m)})'),
+            ],
+          ),
+        ),
       ],
     );
   }
-}
 
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(title, style: Theme.of(context).textTheme.titleMedium);
-  }
-}
-
-class _KpiTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  const _KpiTile(this.label, this.value, this.icon, this.color);
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _demoCell(
+      BuildContext context, Color color, String label, String value) {
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(height: 10),
-              Text(value, style: AppTextStyles.kpiNumber),
-              Text(label, style: AppTextStyles.caption),
-            ],
-          ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(width: 10, height: 10, color: color),
+            const SizedBox(width: 6),
+            Text('$label: ',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.textSecondary)),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
+          ],
         ),
       ),
     );
@@ -325,12 +309,15 @@ class _ProjectsPieChartState extends State<_ProjectsPieChart> {
     final sections = <PieChartSectionData>[];
     int idx = 0;
     widget.byStatus.forEach((key, count) {
-      if (count == 0) { idx++; return; }
+      if (count == 0) {
+        idx++;
+        return;
+      }
       final isTouched = idx == _touched;
       sections.add(PieChartSectionData(
         value: count.toDouble(),
         color: _colors[key] ?? Colors.grey,
-        radius: isTouched ? 72 : 60,
+        radius: isTouched ? 66 : 56,
         title: '$count',
         titleStyle: const TextStyle(
             color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
@@ -339,61 +326,50 @@ class _ProjectsPieChartState extends State<_ProjectsPieChart> {
     });
 
     if (sections.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: Center(child: Text('No projects yet.')),
-        ),
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: Text('No projects yet.')),
       );
     }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            SizedBox(
-              height: 200,
-              child: PieChart(
-                PieChartData(
-                  sections: sections,
-                  pieTouchData: PieTouchData(
-                    touchCallback: (event, response) {
-                      setState(() {
-                        _touched = response?.touchedSection?.touchedSectionIndex ?? -1;
-                      });
-                    },
-                  ),
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 48,
-                ),
+    return Column(
+      children: [
+        SizedBox(
+          height: 190,
+          child: PieChart(
+            PieChartData(
+              sections: sections,
+              pieTouchData: PieTouchData(
+                touchCallback: (event, response) {
+                  setState(() {
+                    _touched =
+                        response?.touchedSection?.touchedSectionIndex ?? -1;
+                  });
+                },
               ),
+              sectionsSpace: 2,
+              centerSpaceRadius: 44,
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 16,
-              runSpacing: 6,
-              children: _labels.entries.map((e) {
-                final count = widget.byStatus[e.key] ?? 0;
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                          color: _colors[e.key], shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 4),
-                    Text('${e.value} ($count)',
-                        style: Theme.of(context).textTheme.labelSmall),
-                  ],
-                );
-              }).toList(),
-            ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          runSpacing: 6,
+          children: _labels.entries.map((e) {
+            final count = widget.byStatus[e.key] ?? 0;
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 10, height: 10, color: _colors[e.key]),
+                const SizedBox(width: 4),
+                Text('${e.value} ($count)',
+                    style: Theme.of(context).textTheme.labelSmall),
+              ],
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
@@ -407,61 +383,70 @@ class _ReportsBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final groups = [
       BarChartGroupData(x: 0, barRods: [
-        BarChartRodData(toY: reports.draft.toDouble(), color: AppColors.muted, width: 28, borderRadius: BorderRadius.circular(4)),
+        BarChartRodData(
+            toY: reports.draft.toDouble(),
+            color: AppColors.neutral,
+            width: 28,
+            borderRadius: BorderRadius.circular(2)),
       ]),
       BarChartGroupData(x: 1, barRods: [
-        BarChartRodData(toY: reports.submitted.toDouble(), color: AppColors.accent, width: 28, borderRadius: BorderRadius.circular(4)),
+        BarChartRodData(
+            toY: reports.submitted.toDouble(),
+            color: AppColors.warning,
+            width: 28,
+            borderRadius: BorderRadius.circular(2)),
       ]),
       BarChartGroupData(x: 2, barRods: [
-        BarChartRodData(toY: reports.approved.toDouble(), color: AppColors.statusActive, width: 28, borderRadius: BorderRadius.circular(4)),
+        BarChartRodData(
+            toY: reports.approved.toDouble(),
+            color: AppColors.primary,
+            width: 28,
+            borderRadius: BorderRadius.circular(2)),
       ]),
     ];
 
     final maxY = [reports.draft, reports.submitted, reports.approved]
         .fold<double>(0, (m, v) => m < v ? v.toDouble() : m);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 20, 20, 12),
-        child: SizedBox(
-          height: 180,
-          child: BarChart(
-            BarChartData(
-              barGroups: groups,
-              maxY: maxY + 2,
-              titlesData: FlTitlesData(
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 28,
-                    getTitlesWidget: (v, _) => Text(
-                      v.toInt().toString(),
+    return SizedBox(
+      height: 180,
+      child: BarChart(
+        BarChartData(
+          barGroups: groups,
+          maxY: maxY + 2,
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 28,
+                getTitlesWidget: (v, _) => Text(
+                  v.toInt().toString(),
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (v, _) {
+                  const labels = ['Draft', 'Submitted', 'Approved'];
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      labels[v.toInt()],
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
-                  ),
-                ),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (v, _) {
-                      const labels = ['Draft', 'Submitted', 'Approved'];
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Text(
-                          labels[v.toInt()],
-                          style: Theme.of(context).textTheme.labelSmall,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  );
+                },
               ),
-              borderData: FlBorderData(show: false),
-              gridData: const FlGridData(show: true, drawVerticalLine: false),
             ),
+            rightTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles:
+                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
+          borderData: FlBorderData(show: false),
+          gridData: const FlGridData(show: true, drawVerticalLine: false),
         ),
       ),
     );

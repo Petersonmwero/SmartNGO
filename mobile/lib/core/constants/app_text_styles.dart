@@ -3,52 +3,63 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../theme.dart';
 
-/// Centralized text styles for elements that repeat across screens.
-///
-/// The app's fonts are loaded through google_fonts (no bundled font assets),
-/// so these are built with GoogleFonts rather than raw fontFamily strings.
-/// Prefer Theme.of(context).textTheme for standard slots; use these for the
-/// specific recurring roles below.
+/// Centralized eCitizen-style text roles. The whole app uses one family
+/// (Inter, via google_fonts) for the clean official look; prefer
+/// Theme.of(context).textTheme for standard slots and these for the
+/// recurring official roles below.
 final class AppTextStyles {
   AppTextStyles._();
 
-  // ── Display (Space Grotesk) ────────────────────────────────────────────
-  static final screenTitle = GoogleFonts.spaceGrotesk(
-      fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white);
+  static final pageTitle = GoogleFonts.inter(
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+      color: AppColors.textPrimary,
+      letterSpacing: 0.2);
 
-  static final greeting = GoogleFonts.spaceGrotesk(
-      fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white);
+  /// Green uppercase section heading used in OfficialCard headers.
+  static final sectionTitle = GoogleFonts.inter(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: AppColors.primary,
+      letterSpacing: 1.0);
 
-  static final sectionTitle = GoogleFonts.spaceGrotesk(
-      fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.charcoal);
+  static final cardTitle = GoogleFonts.inter(
+      fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary);
 
-  static final cardTitle = GoogleFonts.spaceGrotesk(
-      fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.charcoal);
-
-  // ── Body (Inter) ───────────────────────────────────────────────────────
-  static final body =
-      GoogleFonts.inter(fontSize: 14, color: const Color(0xFF3A3A3C));
+  static final body = GoogleFonts.inter(
+      fontSize: 14, height: 1.5, color: AppColors.textSecondary);
 
   static final caption =
-      GoogleFonts.inter(fontSize: 12, color: const Color(0xFF6B7280));
+      GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary);
 
   static final label = GoogleFonts.inter(
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: FontWeight.w500,
-      color: const Color(0xFF6B7280));
+      color: AppColors.textMuted,
+      letterSpacing: 0.3);
 
-  /// Grey uppercase section label ("ACCOUNT INFORMATION").
+  /// Grey uppercase group label ("ACCOUNT INFORMATION").
   static final capsLabel = GoogleFonts.inter(
       fontSize: 11,
       fontWeight: FontWeight.w600,
       letterSpacing: 0.8,
-      color: const Color(0xFF6B7280));
+      color: AppColors.textMuted);
 
-  // ── Numbers (KPIs) ─────────────────────────────────────────────────────
-  static final kpiNumber = GoogleFonts.spaceGrotesk(
-      fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.accent);
+  static final kpiNumber = GoogleFonts.inter(
+      fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.primary);
 
-  // ── Buttons ────────────────────────────────────────────────────────────
-  static final buttonText = GoogleFonts.spaceGrotesk(
-      fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white);
+  static final buttonText = GoogleFonts.inter(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: Colors.white,
+      letterSpacing: 0.5);
+
+  // Legacy role names still referenced by screens.
+  static final screenTitle = GoogleFonts.inter(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+      letterSpacing: 0.2);
+  static final greeting = GoogleFonts.inter(
+      fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white);
 }

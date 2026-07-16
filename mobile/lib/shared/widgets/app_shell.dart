@@ -50,9 +50,13 @@ class _AppShellState extends State<AppShell> {
       body: widget.child,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          // Official gold rule along the top of the navigation bar.
+          border: const Border(
+            top: BorderSide(color: AppColors.accent, width: 3),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Colors.black26.withValues(alpha: 0.08),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -65,23 +69,7 @@ class _AppShellState extends State<AppShell> {
             for (final tab in tabs)
               NavigationDestination(
                 icon: Icon(tab.icon),
-                // Filled icon with a small green dot beneath it marks the
-                // active tab.
-                selectedIcon: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(tab.activeIcon),
-                    const SizedBox(height: 2),
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ),
+                selectedIcon: Icon(tab.activeIcon),
                 label: tab.label,
               ),
           ],

@@ -1,4 +1,55 @@
-# Session Handover — 2026-07-16 | Sub-Location Dropdown Removed
+# Session Handover — 2026-07-16 | eCitizen Official UI Redesign
+
+---
+
+## eCitizen-inspired official UI (2026-07-16, full design-language swap)
+
+Whole app restyled to Kenya-government/eCitizen look per Peterson's spec:
+Kenya green #006633 + gold #CC9900, white structured cards, squared corners
+(2-4px), Inter-only typography, table-style data.
+
+- **Foundation (repaints every screen automatically)**: `AppColors` values
+  swapped to the eCitizen palette while KEEPING legacy constant names as
+  aliases (primaryMid, accentLight, charcoal, muted, tints…) so untouched
+  screens (splash, register, forgot password, project detail, submit
+  wizard, admin screens, picker) adopted it without edits. ThemeData: Inter
+  everywhere (Space Grotesk dropped), AppBars green with a **2px gold rule**
+  (shape border), buttons 48px/radius-2, inputs radius-2 with #BBBBBB
+  borders, cards bordered radius-4, snackbars squared.
+- **New shared widgets** (`shared/widgets/official_card.dart`):
+  `OfficialCard` (grey header strip, 4px green left rule, uppercase title,
+  optional VIEW ALL action), `FlagRibbon` (5-band Kenya strip — NOTE: a
+  childless ColoredBox in a Row collapses to zero height; needs
+  crossAxisAlignment.stretch), `InfoRow` (label/value table row).
+  StatusBadge → official bordered uppercase style; on_hold now red.
+- **Dashboard**: official header (flag ribbon, white NGO/M&E text-logo
+  block, system name, bell w/ red badge, gold avatar, primaryDark user-info
+  bar with "Last login: Today"), welcome notice banner, MY STATISTICS
+  4-stat card, QUICK SERVICES 3-col tile grid (role-aware), RECENT
+  PROJECTS dot+badge+progress table rows, RECENT ACTIVITY timestamp-column
+  log rows.
+- **Login**: government header (ribbon, 60px logo square, SMART NGO /
+  M&E SYSTEM / Baraton line), SYSTEM LOGIN card, blue Forgot Password,
+  SIGN IN TO SYSTEM + CREATE NEW ACCOUNT, © footer. All keys/logic kept
+  (email_field/password_field/login_button, resend-verification flow).
+- **Tables**: projects (PROJECT NAME|STATUS|PROGRESS), reports (REPORT
+  TITLE|TYPE|STATUS, officer+date under title), beneficiaries
+  (NAME|AGE|STATUS with location—project under name) — green column
+  headers, alternating white/#F8F8F8 rows, link-blue titles; search +
+  Filter popup bars on white.
+- **Profile**: identity strip + ACCOUNT INFORMATION InfoRow table +
+  SECURITY & SETTINGS + red-ruled SYSTEM ACTIONS sign-out.
+  **Notifications**: action bar (N unread + Mark All Read), flat log rows
+  (gold left rule + amber surface when unread). **Analytics**: green
+  summary bar + OfficialCard chart sections + demographics table row.
+  **Nav bar**: 3px gold top rule, primarySurface indicator.
+- **Fixes en route**: Container(color:)+decoration assert in the
+  notifications action bar; ShimmerCard now adapts line count to height
+  (3-line body overflowed 56px table-row placeholders).
+- Verified: analyze 0, **47/47 tests**, web build; all 4 roles logged in
+  live and every tab/screen captured (docs screenshots now show the
+  official UI). Puppeteer coordinate updates: dashboard bell moved to
+  (350,38); officer Submit Report service tile at (87,467).
 
 ---
 

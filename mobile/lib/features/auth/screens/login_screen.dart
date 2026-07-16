@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api_exception.dart';
-import '../../../core/constants/app_theme_data.dart';
 import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
+import '../../../shared/widgets/official_card.dart';
 import '../auth_provider.dart';
 import '../auth_repository.dart';
 import 'forgot_password_screen.dart';
 import 'register_screen.dart';
 
+/// Official eCitizen-style login: government header with the Kenya flag
+/// ribbon and system identity, a bordered SYSTEM LOGIN card, and the
+/// institutional footer.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -63,7 +65,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await context.read<AuthRepository>().resendVerification(email);
       if (!mounted) return;
-      showSuccessSnackBar(context, 'Verification email resent. Check your inbox.');
+      showSuccessSnackBar(
+          context, 'Verification email resent. Check your inbox.');
     } on ApiException catch (e) {
       if (!mounted) return;
       showErrorSnackBar(context, e.message);
@@ -75,245 +78,174 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final screenHeight = MediaQuery.sizeOf(context).height;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppThemeData.headerGradient),
-        child: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            // Branding header
-            SizedBox(
-              height: screenHeight * 0.34,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.22),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.eco_rounded,
-                        size: 44,
-                        color: AppColors.primary,
-                      ),
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          _GovernmentHeader(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Login card.
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: AppColors.border),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    const SizedBox(height: 18),
-                    Text(
-                      'Smart NGO',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Monitoring & Evaluation Platform',
-                      style: GoogleFonts.inter(
-                        fontSize: 13,
-                        color: Colors.white.withValues(alpha: 0.72),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Form card
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(28),
-                    topRight: Radius.circular(28),
-                  ),
-                  boxShadow: AppThemeData.headerShadow,
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
-                  child: Form(
-                    key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          'Welcome back',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Sign in to your account',
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: AppColors.muted),
-                        ),
-                        const SizedBox(height: 28),
-                        BlurValidatedTextField(
-                          key: const Key('email_field'),
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Email address',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
-                          validator: (v) => (v == null || !v.contains('@'))
-                              ? 'Enter a valid email'
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
-                        BlurValidatedTextField(
-                          key: const Key('password_field'),
-                          controller: _passwordController,
-                          obscureText: _obscure,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) =>
-                              auth.busy ? null : _submit(),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined),
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: const BoxDecoration(
+                            color: AppColors.surfaceVariant,
+                            border: Border(
+                              bottom: BorderSide(color: AppColors.border),
+                              left: BorderSide(
+                                  color: AppColors.primary, width: 4),
                             ),
                           ),
-                          validator: (v) => (v == null || v.length < 8)
-                              ? 'Password must be at least 8 characters'
-                              : null,
-                        ),
-                        const SizedBox(height: 4),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            style: TextButton.styleFrom(
-                                foregroundColor: AppColors.accent),
-                            onPressed: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const ForgotPasswordScreen(),
-                              ),
-                            ),
-                            child: const Text('Forgot password?'),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton(
-                          key: const Key('login_button'),
-                          onPressed: auth.busy ? null : _submit,
-                          child: auth.busy
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Sign in'),
-                        ),
-                        // Amber info box shown after an EMAIL_NOT_VERIFIED error.
-                        if (_showResend) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.warningTint,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: AppColors.accent
-                                      .withValues(alpha: 0.5)),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.mark_email_unread_outlined,
-                                    size: 20, color: AppColors.warning),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Please verify your email before signing in.',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                                color: AppColors.warning),
-                                      ),
-                                      GestureDetector(
-                                        onTap: _resendBusy
-                                            ? null
-                                            : _resendVerification,
-                                        child: Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 4),
-                                          child: Text(
-                                            _resendBusy
-                                                ? 'Sending…'
-                                                : 'Resend verification email',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodySmall
-                                                ?.copyWith(
-                                                  color: AppColors.warning,
-                                                  fontWeight: FontWeight.w700,
-                                                  decoration: TextDecoration
-                                                      .underline,
-                                                ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.lock_outline,
+                                  color: AppColors.primary, size: 18),
+                              SizedBox(width: 8),
+                              Text(
+                                'SYSTEM LOGIN',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                  letterSpacing: 1.0,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
-                        const SizedBox(height: 10),
-                        TextButton(
-                          onPressed: auth.busy
-                              ? null
-                              : () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen(),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Form(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                BlurValidatedTextField(
+                                  key: const Key('email_field'),
+                                  controller: _emailController,
+                                  keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.next,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Email Address',
+                                    prefixIcon: Icon(Icons.email_outlined,
+                                        size: 20),
+                                  ),
+                                  validator: (v) =>
+                                      (v == null || !v.contains('@'))
+                                          ? 'Enter a valid email'
+                                          : null,
+                                ),
+                                const SizedBox(height: 14),
+                                BlurValidatedTextField(
+                                  key: const Key('password_field'),
+                                  controller: _passwordController,
+                                  obscureText: _obscure,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) =>
+                                      auth.busy ? null : _submit(),
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    prefixIcon: const Icon(
+                                        Icons.lock_outlined,
+                                        size: 20),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(_obscure
+                                          ? Icons.visibility_off_outlined
+                                          : Icons.visibility_outlined),
+                                      onPressed: () => setState(
+                                          () => _obscure = !_obscure),
                                     ),
                                   ),
-                          child: Text.rich(
-                            TextSpan(
-                              text: "Don't have an account? ",
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(color: AppColors.muted),
-                              children: const [
-                                TextSpan(
-                                  text: 'Register',
-                                  style: TextStyle(
-                                    color: AppColors.accent,
-                                    fontWeight: FontWeight.w700,
+                                  validator: (v) => (v == null ||
+                                          v.length < 8)
+                                      ? 'Password must be at least 8 characters'
+                                      : null,
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    style: TextButton.styleFrom(
+                                        foregroundColor: AppColors.info),
+                                    onPressed: () =>
+                                        Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ForgotPasswordScreen(),
+                                      ),
+                                    ),
+                                    child: const Text('Forgot Password?',
+                                        style: TextStyle(fontSize: 12)),
                                   ),
+                                ),
+                                const SizedBox(height: 4),
+                                FilledButton(
+                                  key: const Key('login_button'),
+                                  onPressed: auth.busy ? null : _submit,
+                                  child: auth.busy
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(Icons.login, size: 18),
+                                            SizedBox(width: 8),
+                                            Text('SIGN IN TO SYSTEM'),
+                                          ],
+                                        ),
+                                ),
+                                if (_showResend) ...[
+                                  const SizedBox(height: 12),
+                                  _ResendNotice(
+                                    busy: _resendBusy,
+                                    onResend: _resendVerification,
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                                const Row(
+                                  children: [
+                                    Expanded(child: Divider()),
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 10),
+                                      child: Text('OR',
+                                          style: TextStyle(
+                                              color: AppColors.textMuted,
+                                              fontSize: 12)),
+                                    ),
+                                    Expanded(child: Divider()),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton(
+                                  onPressed: auth.busy
+                                      ? null
+                                      : () => Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const RegisterScreen(),
+                                            ),
+                                          ),
+                                  child: const Text('CREATE NEW ACCOUNT'),
                                 ),
                               ],
                             ),
@@ -322,12 +254,149 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    '© 2026 Smart NGO M&E System\n'
+                    'University of Eastern Africa, Baraton',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 11, color: AppColors.textMuted, height: 1.5),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Official green header with the flag ribbon and system identity block.
+class _GovernmentHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.primary,
+      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+      child: Column(
+        children: [
+          const FlagRibbon(),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 60,
+                  height: 60,
+                  color: Colors.white,
+                  child: const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text('NGO',
+                            style: TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                height: 1.2)),
+                        Text('M&E',
+                            style: TextStyle(
+                                color: AppColors.accent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                height: 1.2)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('SMART NGO',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                          )),
+                      Text('MONITORING & EVALUATION SYSTEM',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            letterSpacing: 1.0,
+                          )),
+                      SizedBox(height: 4),
+                      Text('University of Eastern Africa, Baraton',
+                          style: TextStyle(
+                            color: AppColors.accentLight,
+                            fontSize: 10,
+                            fontStyle: FontStyle.italic,
+                          )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Amber notice shown after an EMAIL_NOT_VERIFIED error, with resend link.
+class _ResendNotice extends StatelessWidget {
+  final bool busy;
+  final VoidCallback onResend;
+  const _ResendNotice({required this.busy, required this.onResend});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.warningTint,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: AppColors.warning),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.mark_email_unread_outlined,
+              size: 20, color: AppColors.warning),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Please verify your email before signing in.',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.warning),
+                ),
+                GestureDetector(
+                  onTap: busy ? null : onResend,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      busy ? 'Sending…' : 'Resend verification email',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
