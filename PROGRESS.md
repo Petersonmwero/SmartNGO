@@ -3,6 +3,19 @@
 
 ---
 
+## Kenya Ward Data Complete (2026-07-16) ✅
+
+All 290 constituencies now have ward data (commit `eca21ca`):
+
+- [x] `CONSTITUENCY_WARDS` covers every constituency — 1,378 ward entries, no duplicate keys, zero gaps (verified programmatically)
+- [x] Merge corrections: Lungalunga→Lunga Lunga, Mt Elgon→Mt. Elgon, "West Pokot"→Kapenguria, skipped non-existent "Mau Narok"/"Murang'a South" (real Kangema wards added), added missing Busia county (7 constituencies), fixed Ndia
+- [x] Locations for uncurated wards generated as "‹ward› A/B" via a setdefault loop (curated lists stay authoritative); sub-locations degrade to skip
+- [x] New integrity tests: every constituency has wards, every ward has locations — 195 backend tests pass
+- [x] Verified: API spot-checks across 6 counties + live browser cascade through Bomet (previously "No ward data")
+- Known limitation: dicts keyed by bare ward name, so same-named wards share location lists (future: key by constituency+ward)
+
+---
+
 ## Kenya Location Hierarchy (2026-07-16) ✅
 
 eCitizen-style cascading location capture for beneficiaries, built in two passes
