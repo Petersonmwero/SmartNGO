@@ -1,4 +1,36 @@
-# Session Handover — 2026-07-16 | Kenya 5-Level Location Hierarchy
+# Session Handover — 2026-07-16 | Kenya Ward Data Complete (all 290)
+
+---
+
+## Ward data completed for all 290 constituencies (2026-07-16)
+
+- `CONSTITUENCY_WARDS` now covers **every constituency** (1,378 ward
+  entries; verified: no duplicate dict keys, zero constituencies missing).
+  Sources: existing curated tables kept authoritative; Peterson's supplied
+  lists merged for the previously-missing counties, with corrections:
+  "Lungalunga"→"Lunga Lunga", "Mt Elgon"→"Mt. Elgon", his "West Pokot"
+  constituency entry re-keyed to **Kapenguria** (the ward list he supplied
+  is Kapenguria's), "Mau Narok" and "Murang'a South" skipped (not real
+  constituencies — added real **Kangema** wards instead), **Busia county
+  was absent from his paste** — real wards added for its 7 constituencies,
+  and Ndia's ward list fixed (it contained "Nairobi").
+- **Locations for the ~1,200 new wards are generated**, not hand-written:
+  a `setdefault` loop at the bottom of kenya_locations.py gives any ward
+  without curated data "<ward> A"/"<ward> B" locations (per Peterson's
+  A/B/C instruction). Curated lists always win. Sub-locations for
+  generated locations stay empty → picker shows "skip".
+- Known limitation (pre-existing): the dicts are keyed by bare name, so
+  same-named wards in different constituencies (e.g. "Township" ×many)
+  share one location list — 1,282 unique ward names vs 1,378 ward entries.
+  A future fix would key by (constituency, ward).
+- New integrity tests: every constituency has non-empty wards; every ward
+  has locations. **195 backend tests pass.** No Flutter changes needed
+  (the picker already handled data-present paths).
+- Verified: API spot-checks across 6 counties (Kwale/Kinango incl.
+  generated locations, Nairobi/Westlands unchanged, Bungoma, Machakos,
+  Siaya, Kericho) + live browser cascade through **Bomet → Sotik →
+  Ndanai/Abosi → Ndanai/Abosi A** — the exact path that previously showed
+  "No ward data — skip".
 
 ---
 

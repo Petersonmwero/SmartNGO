@@ -34,6 +34,24 @@ class TestKenyaLocationData:
                 f"Ward key {constituency!r} is not a known constituency"
             )
 
+    def test_every_constituency_has_wards(self):
+        # Full national coverage: all 290 constituencies resolve to a
+        # non-empty ward list.
+        for county, constituencies in COUNTY_CONSTITUENCIES.items():
+            for constituency in constituencies:
+                assert CONSTITUENCY_WARDS.get(constituency), (
+                    f"{constituency} ({county}) has no wards"
+                )
+
+    def test_every_ward_has_locations(self):
+        # Curated or generated "<ward> A/B" — the Location level is always
+        # selectable.
+        for constituency, wards in CONSTITUENCY_WARDS.items():
+            for ward in wards:
+                assert WARD_LOCATIONS.get(ward), (
+                    f"Ward {ward} ({constituency}) has no locations"
+                )
+
     def test_location_keys_are_real_wards(self):
         all_wards = {w for lst in CONSTITUENCY_WARDS.values() for w in lst}
         for ward in WARD_LOCATIONS:
