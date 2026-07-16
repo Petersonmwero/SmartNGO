@@ -1,5 +1,20 @@
 # PROGRESS.md — Smart NGO M&E Application
-### Last updated: 2026-07-14
+### Last updated: 2026-07-16
+
+---
+
+## UI Review Fixes (2026-07-16) ✅
+
+Seven-item review from Peterson, all resolved (commit `ec2aaba`, screenshots `b80b920`):
+
+- [x] Quick-action chip overflow: height 90→96px (icon square + two wrapped label lines)
+- [x] Project accent bars: new `StatusBadge.accentFor()` vivid palette (active=green, planning=amber, on_hold=red, completed=blue, cancelled=grey) on dashboard + projects list
+- [x] Beneficiary cards show project name: `project_name` added to `BeneficiarySerializer` (read-only, no N+1) + Flutter model/card
+- [x] Bell badge: 16px stadium, 10px bold, caps at "9+"
+- [x] Submit Report dropdown: loading spinner added (auto-fetch + error/retry already existed)
+- [x] Bottom-nav active dot: 4→6px
+- [x] Profile Sign Out: verified already present and visible — no change needed
+- [x] Verified: backend 180 tests, Flutter 44 tests, analyze 0, live browser check; docs screenshots retaken
 
 ---
 
