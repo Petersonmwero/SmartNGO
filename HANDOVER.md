@@ -24,6 +24,9 @@ their own area. Flutter-only change:
   "Kabarnet · Kabarnet · Baringo Central". Test record soft-deleted.
 - `docs/screenshots/app-register-beneficiary.png` retaken with the new
   5-level form.
+- Pushed as `070ad45`. Session state unchanged: Django :8000 (nohup) +
+  web :58569 serving the new build; puppeteer scripts (docshots.js,
+  smoke1-13) in the session scratchpad.
 
 ---
 

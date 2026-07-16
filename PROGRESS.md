@@ -3,6 +3,18 @@
 
 ---
 
+## Sub-Location Dropdown Removed (2026-07-16) ✅
+
+Final picker shape per Peterson (commit `070ad45`): 5 dropdown levels + free text —
+Country (locked) → County → Constituency → Ward → Location, then a free-text
+"Village / Sub-location" field:
+
+- [x] Sub-location dropdown, state, loader, and emit key removed from `KenyaLocationPicker` (Flutter-only change)
+- [x] Backend intentionally untouched: `sub_location` field, `?location=` API level, and reference data remain (new records leave it empty)
+- [x] Verified: analyze 0, 47/47 tests, live E2E (Baringo chain + typed village, submitted, card shows "Location · Ward · Constituency"), register screenshot retaken
+
+---
+
 ## Kenya Ward Data Complete (2026-07-16) ✅
 
 All 290 constituencies now have ward data (commit `eca21ca`):
