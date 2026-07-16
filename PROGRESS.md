@@ -12,6 +12,7 @@ Country (locked) → County → Constituency → Ward → Location, then a free-
 - [x] Sub-location dropdown, state, loader, and emit key removed from `KenyaLocationPicker` (Flutter-only change)
 - [x] Backend intentionally untouched: `sub_location` field, `?location=` API level, and reference data remain (new records leave it empty)
 - [x] Verified: analyze 0, 47/47 tests, live E2E (Baringo chain + typed village, submitted, card shows "Location · Ward · Constituency"), register screenshot retaken
+- [x] Full docs screenshot set refreshed (`8a210c6`) — repo, docs, and demo environment in sync
 
 ---
 
