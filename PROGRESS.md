@@ -3,6 +3,21 @@
 
 ---
 
+## Kenya Location Hierarchy (2026-07-16) ✅
+
+eCitizen-style cascading location capture for beneficiaries, built in two passes
+(picker v1 `78e98d0`, 5-level hierarchy `5486335`, screenshots `eb43b69`):
+
+- [x] Reference data: all 47 counties, complete real constituency list (290), ward lists for demo + major counties, locations + sub-locations for a representative ward subset
+- [x] Integrity tests pin the chain (every ward key a real ward, every location key a real location); levels without data degrade to an empty list, never an error
+- [x] `GET /api/v1/locations/kenya/` (public): ?counties / ?county / ?constituency / ?ward / ?location, sorted counties
+- [x] Beneficiary model: `location` CharField replaced by country/county/constituency/ward/location/sub_location/village + `full_location` property (migrations 0002–0003); serializer + CSV export updated; seed data carries full chains
+- [x] Flutter `KenyaLocationPicker` (shared widget): locked Kenya field, 5 cascading dropdowns with shimmer/disabled/skip states, village field; Register Beneficiary rebuilt into section cards (Personal / Location / Project)
+- [x] Beneficiary cards show "Sub-Location · Location · Ward" (degrading gracefully)
+- [x] Verified: backend 193 tests, Flutter 47 tests, analyze 0; live full-depth registration E2E + no-data branch; docs set now 14 screenshots (added app-register-beneficiary.png)
+
+---
+
 ## Premium Dashboard Redesign v2 (2026-07-16) ✅
 
 Full rewrite of `dashboard_screen.dart` to fintech-grade spec (commit `0c1a30b`, screenshots `acc7400`):

@@ -40,6 +40,14 @@ Picker now runs County → Constituency → Ward → Location → Sub-Location
   web dropdown aligns item 1 over the button — open, then click the same
   spot (or +48px per item) to pick deterministically; arrow-key counts are
   NOT reliable.
+- **All pushed**: picker v1 `78e98d0`, 5-level hierarchy `5486335`, docs
+  screenshots `eb43b69` (beneficiary cards show hierarchy lines; NEW
+  `app-register-beneficiary.png` shows the filled cascade — docs set is
+  now 14 screenshots).
+- Session state: Django on :8000 (nohup, log /tmp/smartngo-django.log —
+  harness-tracked background tasks kept getting reaped, hence nohup) and
+  web build on :58569; puppeteer scripts (docshots.js, smoke1-11) in the
+  session scratchpad.
 
 ---
 
