@@ -12,6 +12,7 @@ All 290 constituencies now have ward data (commit `eca21ca`):
 - [x] Locations for uncurated wards generated as "‹ward› A/B" via a setdefault loop (curated lists stay authoritative); sub-locations degrade to skip
 - [x] New integrity tests: every constituency has wards, every ward has locations — 195 backend tests pass
 - [x] Verified: API spot-checks across 6 counties + live browser cascade through Bomet (previously "No ward data")
+- [x] Docs screenshots refreshed (`694e7b0`); all pushed — repo, docs, and demo environment in sync
 - Known limitation: dicts keyed by bare ward name, so same-named wards share location lists (future: key by constituency+ward)
 
 ---

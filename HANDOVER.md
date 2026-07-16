@@ -31,6 +31,13 @@
   Siaya, Kericho) + live browser cascade through **Bomet → Sotik →
   Ndanai/Abosi → Ndanai/Abosi A** — the exact path that previously showed
   "No ward data — skip".
+- **All pushed**: ward data `eca21ca`, PROGRESS `1949b72`, screenshot
+  refresh `694e7b0` (only officer-dashboard + notifications PNGs changed —
+  timestamps; the ward work is backend-only). app-register-beneficiary.png
+  intentionally kept on the curated Kabarnet full-depth cascade.
+- Session state: Django :8000 (nohup, /tmp/smartngo-django.log) + web
+  :58569 both serving the complete dataset; puppeteer scripts
+  (docshots.js, smoke1-12) in the session scratchpad.
 
 ---
 
