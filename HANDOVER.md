@@ -28,8 +28,12 @@
   at 430×932 — screenshot `docs/screenshots/app-profile.png` shows it.
 - Verified: backend 180 tests, Flutter 44 tests, analyze 0; live in-browser
   check of officer/manager dashboards, beneficiaries list (project names
-  visible), and the populated submit-report dropdown. Commit not pushed —
-  Peterson's checklist ended at HANDOVER; push when ready.
+  visible), and the populated submit-report dropdown.
+- All pushed: fixes `ec2aaba`, retaken docs screenshots `b80b920` (11 of 13
+  changed; login + one other were byte-identical), PROGRESS.md `4d5e449`.
+- Session state: Django on :8000 (local_sqlite, restarted with the new
+  serializer) and web build on :58569 both left running; puppeteer smoke/
+  screenshot scripts live in the session scratchpad (not committed).
 
 ---
 
