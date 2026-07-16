@@ -35,6 +35,8 @@ class BeneficiaryRepository {
     String county = '',
     String constituency = '',
     String ward = '',
+    String location = '',
+    String subLocation = '',
     String village = '',
   }) {
     return apiGuard(() async {
@@ -47,6 +49,8 @@ class BeneficiaryRepository {
         'county': county,
         'constituency': constituency,
         'ward': ward,
+        'location': location,
+        'sub_location': subLocation,
         'village': village,
       };
       if (dateOfBirth != null) body['date_of_birth'] = dateOfBirth;
@@ -65,6 +69,12 @@ class BeneficiaryRepository {
 
   Future<List<String>> kenyaWards(String constituency) =>
       _kenyaLocations({'constituency': constituency});
+
+  Future<List<String>> kenyaLocations(String ward) =>
+      _kenyaLocations({'ward': ward});
+
+  Future<List<String>> kenyaSubLocations(String location) =>
+      _kenyaLocations({'location': location});
 
   Future<List<String>> _kenyaLocations(Map<String, dynamic> query) {
     return apiGuard(() async {

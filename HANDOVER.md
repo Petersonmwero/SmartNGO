@@ -1,4 +1,45 @@
-# Session Handover — 2026-07-16 | Kenya Cascading Location Picker
+# Session Handover — 2026-07-16 | Kenya 5-Level Location Hierarchy
+
+---
+
+## Kenya hierarchy extended to 5 levels (2026-07-16, same day as v1)
+
+Picker now runs County → Constituency → Ward → Location → Sub-Location
+(+ free-text Village), per Peterson's spec.
+
+- **Data integrity decision**: Peterson's pasted constituency/ward tables
+  contained regressions vs. the verified data already in the repo ("Mau
+  Narok" as a Nakuru constituency — it's a Njoro ward; "West Pokot"
+  constituency replacing Kapenguria; Baringo South given Eldama Ravine's
+  wards; several Turkana wards on the wrong constituency). Kept the
+  existing verified tables and **added** the two new levels from his data,
+  re-keyed to the repo's ward spellings (Marioshoni→Mariashoni). New
+  integrity tests pin this: every WARD_LOCATIONS key must be a real ward,
+  every LOCATION_SUBLOCATION key a real location.
+- **Backend**: `WARD_LOCATIONS` + `LOCATION_SUBLOCATION` dicts (locations/
+  sub-locations for a representative ward subset — same graceful-empty
+  degradation as wards); endpoint gained `?ward=` and `?location=` params
+  and counties are now returned **sorted**; model gained `location` AND
+  `sub_location` fields (spec only added sub_location, but the picker emits
+  location too — it must persist); the old `location` property is now the
+  **field**, and the joined string moved to `full_location` (CSV export
+  updated accordingly); migration 0003; seed rows carry full chains
+  (e.g. Chebet: Baringo Central/Kabarnet/Kabarnet/Kabarnet A). DB flushed +
+  reseeded. **193 backend tests pass** (4 new).
+- **Flutter**: picker has the 2 new dropdowns (each level resets and loads
+  the one below; "No location data — skip" fallback), emits
+  `location`/`sub_location` (village kept as a 7th key); repository +
+  model + create() extended; list cards show the 3 most specific parts
+  ("Sub-Location · Location · Ward" degrading per spec). **47 tests pass**,
+  analyze 0.
+- **Verified live** (officer1): full-depth chain Baringo → Baringo Central
+  → Kabarnet → Kabarnet → Kabarnet A registered end-to-end; list row shows
+  "Kabarnet A · Kabarnet · Kabarnet". Also exercised the no-data branch
+  (Bomet → ward dropdown disables with skip hint). Test record
+  soft-deleted. Puppeteer driving note: with nothing selected, a Flutter
+  web dropdown aligns item 1 over the button — open, then click the same
+  spot (or +48px per item) to pick deterministically; arrow-key counts are
+  NOT reliable.
 
 ---
 

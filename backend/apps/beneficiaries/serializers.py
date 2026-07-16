@@ -29,6 +29,8 @@ class BeneficiarySerializer(serializers.ModelSerializer):
             "county",
             "constituency",
             "ward",
+            "location",
+            "sub_location",
             "village",
             "full_location",
             "project",
@@ -41,7 +43,7 @@ class BeneficiarySerializer(serializers.ModelSerializer):
 
     @extend_schema_field(serializers.CharField())
     def get_full_location(self, obj):
-        return obj.location
+        return obj.full_location
 
     @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_age(self, obj):

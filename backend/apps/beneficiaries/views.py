@@ -18,6 +18,8 @@ from .kenya_locations import (
     CONSTITUENCY_WARDS,
     COUNTY_CONSTITUENCIES,
     KENYA_COUNTIES,
+    LOCATION_SUBLOCATION,
+    WARD_LOCATIONS,
 )
 from .models import Beneficiary
 from .serializers import BeneficiarySerializer
@@ -34,10 +36,11 @@ class KenyaLocationView(APIView):
     """Public reference data for the cascading Kenya location picker.
 
     Exactly one query parameter selects the level returned:
-    ``?counties=true`` → all 47 counties; ``?county=<name>`` → that county's
-    constituencies; ``?constituency=<name>`` → that constituency's wards.
-    Unknown names (and constituencies without ward data yet) return an
-    empty list rather than an error, so the client can degrade gracefully.
+    ``?counties=true`` → all 47 counties (alphabetical);
+    ``?county=<name>`` → constituencies; ``?constituency=<name>`` → wards;
+    ``?ward=<name>`` → locations; ``?location=<name>`` → sub-locations.
+    Unknown names (and levels without data yet) return an empty list rather
+    than an error, so the client can degrade gracefully.
     """
 
     permission_classes = [AllowAny]
@@ -47,6 +50,8 @@ class KenyaLocationView(APIView):
             OpenApiParameter("counties", str, description="Any value: list all counties"),
             OpenApiParameter("county", str, description="List constituencies of this county"),
             OpenApiParameter("constituency", str, description="List wards of this constituency"),
+            OpenApiParameter("ward", str, description="List locations of this ward"),
+            OpenApiParameter("location", str, description="List sub-locations of this location"),
         ],
         responses={200: _LocationListResponse},
         operation_id="kenya_locations",
@@ -55,26 +60,27 @@ class KenyaLocationView(APIView):
         query = request.query_params
 
         if "counties" in query:
-            return Response({"status": "success", "data": KENYA_COUNTIES})
+            return Response({"status": "success", "data": sorted(KENYA_COUNTIES)})
 
-        county = query.get("county")
-        if county:
-            return Response({
-                "status": "success",
-                "data": COUNTY_CONSTITUENCIES.get(county, []),
-            })
-
-        constituency = query.get("constituency")
-        if constituency:
-            return Response({
-                "status": "success",
-                "data": CONSTITUENCY_WARDS.get(constituency, []),
-            })
+        for param, table in (
+            ("county", COUNTY_CONSTITUENCIES),
+            ("constituency", CONSTITUENCY_WARDS),
+            ("ward", WARD_LOCATIONS),
+            ("location", LOCATION_SUBLOCATION),
+        ):
+            name = query.get(param)
+            if name:
+                return Response(
+                    {"status": "success", "data": table.get(name, [])}
+                )
 
         return Response(
             {
                 "status": "error",
-                "message": "Specify counties, county, or constituency parameter",
+                "message": (
+                    "Provide: counties, county, constituency, ward, "
+                    "or location parameter"
+                ),
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -122,7 +128,7 @@ class BeneficiaryViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
                 b.date_of_birth or "",
                 age,
                 b.phone,
-                b.location,
+                b.full_location,
                 b.project.project_name,
                 b.created_at.strftime("%Y-%m-%d"),
             ])

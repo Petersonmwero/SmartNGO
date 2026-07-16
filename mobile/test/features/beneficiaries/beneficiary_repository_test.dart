@@ -39,6 +39,12 @@ class BeneficiaryStub implements HttpClientAdapter {
       if (q['constituency'] == 'Kisumu East') {
         return _json({'status': 'success', 'data': ['Kolwa East', 'Nyalenda A']}, 200);
       }
+      if (q['ward'] == 'Nyalenda A') {
+        return _json({'status': 'success', 'data': ['Nyalenda A', 'Nyalenda B']}, 200);
+      }
+      if (q['location'] == 'Nyalenda A') {
+        return _json({'status': 'success', 'data': ['Nyalenda A1', 'Nyalenda A2']}, 200);
+      }
       return _json({'status': 'success', 'data': []}, 200);
     }
     if (options.method == 'POST') {
@@ -86,11 +92,14 @@ void main() {
     expect(stub.calls, contains('DELETE /beneficiaries/3/'));
   });
 
-  test('kenya location lookups cascade county → constituency → ward',
-      () async {
+  test('kenya location lookups cascade through all five levels', () async {
     expect(await repo.kenyaCounties(), ['Nairobi', 'Kisumu']);
     expect(await repo.kenyaConstituencies('Kisumu'), ['Kisumu East', 'Seme']);
     expect(await repo.kenyaWards('Kisumu East'), ['Kolwa East', 'Nyalenda A']);
+    expect(await repo.kenyaLocations('Nyalenda A'),
+        ['Nyalenda A', 'Nyalenda B']);
+    expect(await repo.kenyaSubLocations('Nyalenda A'),
+        ['Nyalenda A1', 'Nyalenda A2']);
     // Unknown names degrade to an empty list, not an error.
     expect(await repo.kenyaWards('Atlantis'), isEmpty);
   });

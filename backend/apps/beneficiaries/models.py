@@ -12,14 +12,21 @@ class Beneficiary(models.Model):
     # Store date_of_birth; age is computed in the serializer (never stored).
     date_of_birth = models.DateField(null=True, blank=True)
     phone = models.CharField(max_length=30, blank=True)
-    # Kenya administrative hierarchy (eCitizen-style), replacing the old
-    # free-text `location` column. `location` lives on as a property below.
+    # Kenya administrative hierarchy (eCitizen-style). `location` here is
+    # the administrative unit below ward, NOT the old free-text column —
+    # the joined display string is the `full_location` property below.
     country = models.CharField(max_length=100, default="Kenya")
     county = models.CharField(max_length=100, blank=True)
     constituency = models.CharField(max_length=100, blank=True)
     ward = models.CharField(max_length=100, blank=True)
+    location = models.CharField(
+        max_length=255, blank=True, help_text="Location within ward"
+    )
+    sub_location = models.CharField(
+        max_length=255, blank=True, help_text="Sub-location within location"
+    )
     village = models.CharField(
-        max_length=255, blank=True, help_text="Village or sub-location"
+        max_length=255, blank=True, help_text="Village (free text)"
     )
     project = models.ForeignKey(
         "projects.Project",
@@ -40,11 +47,11 @@ class Beneficiary(models.Model):
         return self.name
 
     @property
-    def location(self):
-        """Backwards-compatible joined address, most specific part first."""
+    def full_location(self):
+        """Joined address string, most specific part first."""
         parts = filter(
             None,
-            [self.village, self.ward, self.constituency, self.county,
-             self.country],
+            [self.village, self.sub_location, self.location, self.ward,
+             self.constituency, self.county, self.country],
         )
         return ", ".join(parts)

@@ -138,35 +138,46 @@ class Command(BaseCommand):
         self._indicator(bursary, "Bursaries awarded", "120", "0", "girls")
         self._indicator(food, "Households reached", "800", "270", "households")
 
-        # ── Beneficiaries (county, constituency, ward, village) ──────────
-        for name, gender, dob, project, county, constituency, ward, village in [
+        # ── Beneficiaries (full admin hierarchy per person) ───────────────
+        # Tuple: (name, gender, dob, project,
+        #         county, constituency, ward, location, sub_location, village)
+        for row in [
             ("Amani Wanjiku", "female", date(2018, 4, 12), water,
-             "Kisumu", "Kisumu West", "Central Kisumu", ""),
+             "Kisumu", "Kisumu West", "Central Kisumu",
+             "Milimani", "Upper Milimani", ""),
             ("Baraka Otieno", "male", date(2015, 9, 3), water,
-             "Kisumu", "Kisumu West", "Central Kisumu", ""),
+             "Kisumu", "Kisumu West", "Central Kisumu",
+             "Central Kisumu", "", ""),
             ("Zawadi Cherono", "female", date(1992, 1, 20), water,
-             "Kisumu", "Kisumu East", "Nyalenda A", "Nyalenda"),
+             "Kisumu", "Kisumu East", "Nyalenda A",
+             "Nyalenda A", "Nyalenda A1", "Nyalenda"),
             ("Neema Akinyi", "female", date(1996, 7, 8), water,
-             "Kisumu", "Kisumu East", "Nyalenda A", "Nyalenda"),
+             "Kisumu", "Kisumu East", "Nyalenda A",
+             "Nyalenda A", "Nyalenda A2", "Nyalenda"),
             ("Chebet Kimutai", "female", date(2010, 3, 15), bursary,
-             "Baringo", "Baringo Central", "Kabarnet", ""),
+             "Baringo", "Baringo Central", "Kabarnet",
+             "Kabarnet", "Kabarnet A", ""),
             ("Jepkorir Ruto", "female", date(2009, 11, 2), bursary,
-             "Baringo", "Baringo South", "Marigat", ""),
+             "Baringo", "Baringo South", "Marigat", "", "", ""),
             ("Chepkemoi Langat", "female", date(2011, 6, 25), bursary,
-             "Baringo", "Baringo North", "Kabartonjo", ""),
+             "Baringo", "Baringo North", "Kabartonjo", "", "", ""),
             ("Juma Hassan", "male", date(2012, 11, 30), food,
-             "Turkana", "Turkana Central", "Lodwar Township", "Lodwar"),
+             "Turkana", "Turkana Central", "Lodwar Township",
+             "Lodwar", "Lodwar A", "Lodwar"),
             ("Ekai Lokol", "male", date(1988, 2, 14), food,
-             "Turkana", "Turkana West", "Kakuma", "Kakuma"),
+             "Turkana", "Turkana West", "Kakuma",
+             "Kakuma", "Kakuma B", "Kakuma"),
             ("Akiru Napeyok", "female", date(1995, 8, 21), food,
-             "Turkana", "Turkana South", "Lokichar", "Lokichar"),
+             "Turkana", "Turkana South", "Lokichar",
+             "Lokichar", "Lokichar A", "Lokichar"),
             ("Lokwawi Emuria", "male", date(2005, 5, 9), food,
-             "Turkana", "Turkana Central", "Kanamkemer", "Lodwar"),
+             "Turkana", "Turkana Central", "Kanamkemer",
+             "", "", "Lodwar"),
             ("Asekon Ewoi", "female", date(2001, 12, 3), food,
-             "Turkana", "Turkana Central", "Kalokol", ""),
+             "Turkana", "Turkana Central", "Kalokol",
+             "Kalokol", "Kalokol A", ""),
         ]:
-            self._beneficiary(
-                name, gender, dob, project, county, constituency, ward, village)
+            self._beneficiary(*row)
 
         # ── Reports (draft / submitted / approved) ───────────────────────
         borehole = self._report(water, officer1, "Borehole 12 drilling progress",
@@ -248,13 +259,14 @@ class Command(BaseCommand):
         ProjectAssignment.objects.get_or_create(
             project=project, user=user, defaults={"role": role})
 
-    def _beneficiary(self, name, gender, dob, project,
-                     county, constituency, ward, village):
+    def _beneficiary(self, name, gender, dob, project, county, constituency,
+                     ward, location, sub_location, village):
         Beneficiary.objects.get_or_create(
             name=name, project=project,
             defaults={"gender": gender, "date_of_birth": dob,
                       "county": county, "constituency": constituency,
-                      "ward": ward, "village": village})
+                      "ward": ward, "location": location,
+                      "sub_location": sub_location, "village": village})
 
     def _indicator(self, project, name, target, current, unit):
         Indicator.objects.get_or_create(

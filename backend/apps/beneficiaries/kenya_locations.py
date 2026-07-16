@@ -1,6 +1,7 @@
 """
 Kenya administrative-boundary reference data for the cascading location
-picker (county → constituency → ward), mirroring the eCitizen hierarchy.
+picker (county → constituency → ward → location → sub-location), mirroring
+the eCitizen hierarchy.
 
 Coverage:
 - KENYA_COUNTIES: all 47 counties.
@@ -8,8 +9,13 @@ Coverage:
   county (290 constituencies, per IEBC delimitation).
 - CONSTITUENCY_WARDS: real ward lists for the counties that appear in the
   demo/seed data and the major urban counties (Nairobi, Mombasa, Kisumu,
-  Nakuru, Kiambu, Baringo, Turkana). Constituencies without ward data return
-  an empty list from the API and the client keeps the ward field optional.
+  Nakuru, Kiambu, Baringo, Turkana).
+- WARD_LOCATIONS / LOCATION_SUBLOCATION: locations and sub-locations for a
+  representative subset of the wards above (project-supplied data).
+
+Any level without data for a given parent returns an empty list from the
+API and the client renders that dropdown as skippable — every level below
+county is optional on the Beneficiary model.
 """
 
 KENYA_COUNTIES = [
@@ -319,4 +325,95 @@ CONSTITUENCY_WARDS = {
         "Kaputir", "Katilu", "Lobokat", "Kalapata", "Lokichar",
     ],
     "Turkana East": ["Kapedo/Napeitom", "Katilia", "Lokori/Kochodin"],
+}
+
+WARD_LOCATIONS = {
+    # ── Nairobi ──────────────────────────────────────────────────────────
+    "Kitisuru": ["Kitisuru", "Peponi", "Tigoni"],
+    "Parklands/Highridge": ["Parklands", "Highridge", "Westlands"],
+    "Kangemi": ["Kangemi", "Kinoo", "Regen"],
+    "Kilimani": ["Kilimani", "Lavington", "Adams Arcade"],
+    "Kawangware": ["Kawangware", "Gitaru", "Kabiria"],
+    "Karen": ["Karen", "Langata", "Hardy"],
+    "Nairobi West": ["Nairobi West", "Nyayo", "South C"],
+    # ── Kisumu ───────────────────────────────────────────────────────────
+    "Railways": ["Railways", "Milimani", "Kondele"],
+    "Migosi": ["Migosi", "Manyatta", "Nyalenda"],
+    "Kondele": ["Kondele", "Obunga", "Nyawita"],
+    "Kolwa East": ["Kolwa", "Nyamasaria", "Manyatta A"],
+    "Manyatta B": ["Manyatta B", "Nyalenda A", "Obunga"],
+    "Nyalenda A": ["Nyalenda A", "Nyalenda B", "Manyatta"],
+    "Kolwa Central": ["Kolwa Central", "Kanyakwar"],
+    "Central Kisumu": ["Central Kisumu", "Milimani", "Migosi"],
+    "South West Kisumu": ["South West Kisumu", "Dunga", "Hippo Point"],
+    # ── Mombasa ──────────────────────────────────────────────────────────
+    "Tudor": ["Tudor", "Mishomoroni", "Mkadara"],
+    "Tononoka": ["Tononoka", "Kizingo", "Ganjoni"],
+    "Bamburi": ["Bamburi", "Mtopanga", "Mwakirunge"],
+    "Kongowea": ["Kongowea", "Kadzandani", "Mkomani"],
+    "Mtongwe": ["Mtongwe", "Shika Adabu", "Likoni"],
+    # ── Nakuru ───────────────────────────────────────────────────────────
+    "Biashara": ["Biashara", "Kivumbini", "Afraha"],
+    "Kivumbini": ["Kivumbini", "Flamingo", "Section 58"],
+    "Naivasha East": ["Naivasha East", "Kihoto", "Kamere"],
+    "Gilgil": ["Gilgil", "Elementaita", "Mbaruk"],
+    "Mariashoni": ["Mariashoni", "Elburgon", "Molo Town"],
+    # ── Kiambu ───────────────────────────────────────────────────────────
+    "Kamenu": ["Kamenu", "Hospital", "Thika Town"],
+    "Gitothua": ["Gitothua", "Biashara", "Gatongora"],
+    "Murera": ["Murera", "Witeithie", "Kalimoni"],
+    # ── Baringo ──────────────────────────────────────────────────────────
+    "Kabarnet": ["Kabarnet", "Sacho", "Tenges"],
+    "Tirioko": ["Tirioko", "Kolowa", "Ribkwo"],
+    "Silale": ["Silale", "Loiyamorock", "Tangulbei"],
+    "Emining": ["Emining", "Rongoa", "Kisanana"],
+    # ── Turkana ──────────────────────────────────────────────────────────
+    "Lodwar Township": ["Lodwar", "Napetet", "Lolupe"],
+    "Kakuma": ["Kakuma", "Lokichoggio", "Kalobeyei"],
+    "Lokichar": ["Lokichar", "Kerio", "Nakwamoru"],
+    "Kalokol": ["Kalokol", "Eliye Springs", "Ferguson Gulf"],
+}
+
+LOCATION_SUBLOCATION = {
+    # ── Nairobi ──────────────────────────────────────────────────────────
+    "Kitisuru": ["Kitisuru A", "Kitisuru B", "Peponi"],
+    "Parklands": [
+        "1st Avenue", "2nd Avenue", "3rd Avenue",
+        "4th Avenue", "5th Avenue", "6th Avenue",
+    ],
+    "Kangemi": ["Kangemi A", "Kangemi B", "Lower Kangemi"],
+    "Kilimani": ["Kilimani", "Lavington", "Valley Arcade"],
+    "Kawangware": ["Kawangware A", "Kawangware B", "Gitaru"],
+    "Karen": ["Karen A", "Karen B", "Karen C"],
+    # ── Kisumu ───────────────────────────────────────────────────────────
+    "Kolwa": ["Kolwa A", "Kolwa B", "Upper Kolwa"],
+    "Nyamasaria": ["Nyamasaria A", "Nyamasaria B"],
+    "Manyatta A": ["Manyatta A1", "Manyatta A2"],
+    "Nyalenda A": ["Nyalenda A1", "Nyalenda A2"],
+    "Nyalenda B": ["Nyalenda B1", "Nyalenda B2"],
+    "Obunga": ["Obunga A", "Obunga B", "Lower Obunga"],
+    "Kondele": ["Kondele A", "Kondele B", "Upper Kondele"],
+    "Milimani": ["Milimani", "Upper Milimani"],
+    "Migosi": ["Migosi A", "Migosi B"],
+    # ── Mombasa ──────────────────────────────────────────────────────────
+    "Tudor": ["Tudor A", "Tudor B", "Mishomoroni"],
+    "Tononoka": ["Tononoka A", "Tononoka B"],
+    "Bamburi": ["Bamburi A", "Bamburi B", "Mtopanga"],
+    "Kongowea": ["Kongowea A", "Kongowea B"],
+    "Mtongwe": ["Mtongwe A", "Mtongwe B"],
+    # ── Nakuru ───────────────────────────────────────────────────────────
+    "Biashara": ["Biashara A", "Biashara B"],
+    "Kivumbini": ["Kivumbini A", "Kivumbini B"],
+    "Naivasha East": ["Naivasha East A", "Naivasha East B"],
+    "Gilgil": ["Gilgil A", "Gilgil B", "Elementaita"],
+    "Mariashoni": ["Mariashoni A", "Mariashoni B"],
+    # ── Baringo ──────────────────────────────────────────────────────────
+    "Kabarnet": ["Kabarnet A", "Kabarnet B", "Sacho"],
+    "Tirioko": ["Tirioko A", "Tirioko B"],
+    "Silale": ["Silale A", "Silale B"],
+    # ── Turkana ──────────────────────────────────────────────────────────
+    "Lodwar": ["Lodwar A", "Lodwar B", "Napetet"],
+    "Kakuma": ["Kakuma A", "Kakuma B", "Kalobeyei"],
+    "Lokichar": ["Lokichar A", "Lokichar B"],
+    "Kalokol": ["Kalokol A", "Kalokol B"],
 }

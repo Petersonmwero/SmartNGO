@@ -104,6 +104,8 @@ class _RegisterBeneficiaryScreenState
         county: _location['county'] ?? '',
         constituency: _location['constituency'] ?? '',
         ward: _location['ward'] ?? '',
+        location: _location['location'] ?? '',
+        subLocation: _location['sub_location'] ?? '',
         village: _location['village'] ?? '',
       );
       if (!mounted) return;

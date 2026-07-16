@@ -5,6 +5,8 @@ from apps.beneficiaries.kenya_locations import (
     CONSTITUENCY_WARDS,
     COUNTY_CONSTITUENCIES,
     KENYA_COUNTIES,
+    LOCATION_SUBLOCATION,
+    WARD_LOCATIONS,
 )
 
 LOCATIONS = "/api/v1/locations/kenya/"
@@ -32,14 +34,31 @@ class TestKenyaLocationData:
                 f"Ward key {constituency!r} is not a known constituency"
             )
 
+    def test_location_keys_are_real_wards(self):
+        all_wards = {w for lst in CONSTITUENCY_WARDS.values() for w in lst}
+        for ward in WARD_LOCATIONS:
+            assert ward in all_wards, (
+                f"Location key {ward!r} is not a known ward"
+            )
+
+    def test_sublocation_keys_are_real_locations(self):
+        all_locations = {
+            loc for lst in WARD_LOCATIONS.values() for loc in lst
+        }
+        for location in LOCATION_SUBLOCATION:
+            assert location in all_locations, (
+                f"Sub-location key {location!r} is not a known location"
+            )
+
 
 class TestKenyaLocationView:
-    def test_counties(self, api_client):
+    def test_counties_sorted(self, api_client):
         resp = api_client.get(LOCATIONS, {"counties": "true"})
         assert resp.status_code == 200
         assert resp.data["status"] == "success"
         assert len(resp.data["data"]) == 47
-        assert "Nairobi" in resp.data["data"]
+        assert resp.data["data"] == sorted(resp.data["data"])
+        assert resp.data["data"][0] == "Baringo"
 
     def test_constituencies_for_county(self, api_client):
         resp = api_client.get(LOCATIONS, {"county": "Kisumu"})
@@ -52,8 +71,23 @@ class TestKenyaLocationView:
         assert resp.status_code == 200
         assert "Kitisuru" in resp.data["data"]
 
+    def test_locations_for_ward(self, api_client):
+        resp = api_client.get(LOCATIONS, {"ward": "Lodwar Township"})
+        assert resp.status_code == 200
+        assert "Lodwar" in resp.data["data"]
+
+    def test_sublocations_for_location(self, api_client):
+        resp = api_client.get(LOCATIONS, {"location": "Lodwar"})
+        assert resp.status_code == 200
+        assert "Lodwar A" in resp.data["data"]
+
     def test_unknown_names_return_empty_list(self, api_client):
-        for params in ({"county": "Atlantis"}, {"constituency": "Atlantis"}):
+        for params in (
+            {"county": "Atlantis"},
+            {"constituency": "Atlantis"},
+            {"ward": "Atlantis"},
+            {"location": "Atlantis"},
+        ):
             resp = api_client.get(LOCATIONS, params)
             assert resp.status_code == 200
             assert resp.data["data"] == []
