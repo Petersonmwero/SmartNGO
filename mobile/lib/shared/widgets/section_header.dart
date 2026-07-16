@@ -27,6 +27,8 @@ class SectionHeader extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
                   color: color ?? AppColors.charcoal,
                 ),
           ),

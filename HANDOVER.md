@@ -1,4 +1,42 @@
-# Session Handover — 2026-07-16 | UI Review Fixes
+# Session Handover — 2026-07-16 | Premium Dashboard Redesign
+
+---
+
+## Premium dashboard redesign v2 (2026-07-16, after the review fixes)
+
+`dashboard_screen.dart` fully rewritten to Peterson's fintech-grade spec:
+
+- **Pinned header**: the gradient header no longer scrolls — layout is
+  `Column[_Header, Expanded(sheet)]`, with the cream sheet stretched 28px
+  taller than its slot via `LayoutBuilder + OverflowBox` and pulled up with
+  `Transform.translate` so its 28px-radius corners overlap the gradient with
+  no gap at the bottom (a plain translate leaves a strip; a taller-child
+  SizedBox inside Expanded throws overflow — OverflowBox avoids both).
+- **Header**: 3-stop diagonal gradient (0xFF0A3D24 → primary → primaryMid)
+  with a faint CustomPaint dot grid (white @0.03); brand line 12px/ls 0.5,
+  greeting 14px, **full name** 26px bold; glassy role pill (white/15 bg,
+  white/25 border, amber role icon: admin=shield, manager=premium,
+  officer=badge, donor=volunteer); bell badge now **amber 18px circle with
+  1.5px green border** (kept 9+ cap); **52px amber-gradient avatar with glow
+  shadow**, taps to /profile; stats strip white/12 + white/20 border, 24px
+  amber numbers, **shimmer rectangles while stats load**.
+- **Quick actions**: chrome-less 88px chips — 56px icon tile (green gradient
+  + green glow for primary, 0xFFFFF8E7 amber tint for secondary; neutral
+  style dropped), 11px w600 label under it.
+- **Project cards**: dual soft shadow, 5px accent bar with top→bottom fade,
+  "Progress" + green % row, 5px rounded LinearProgressIndicator in the
+  accent color, InfoChip footer with `d MMM yyyy` end date + budget; shimmer
+  cards while loading; role-aware empty state with Create Project button.
+- **Activity feed**: single white card, 38px tinted icon circles, title +
+  message lines, 10px right-aligned timestamps, 64px-indented hairline
+  dividers; icon map gained report=description/green and
+  budget=wallet/red (was chart).
+- **SectionHeader** (shared): title bumped to 17px w700 app-wide.
+- No FAB existed on the dashboard (spec's removal item was already true).
+- Verified: analyze 0, 44/44 tests, web build; live all-4-roles check plus
+  **pinned-header scroll** and **pull-to-refresh** (note: Flutter web only
+  drag-scrolls with touch — verified via CDP touch events; mouse wheel works
+  for scroll) and a 360×740 narrow-viewport pass with no overflow.
 
 ---
 
