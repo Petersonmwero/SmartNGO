@@ -3,6 +3,23 @@
 
 ---
 
+## eCitizen Official UI Redesign (2026-07-16) ✅
+
+Full design-language swap to Kenya-government/eCitizen style, in two passes
+(structure `13a11a2`, dashboard richness `74fb017`):
+
+- [x] Palette swapped at the foundation: Kenya green #006633 + gold #CC9900, blue-tinted #F0F2F5 background; legacy AppColors names kept as aliases so untouched screens repainted automatically
+- [x] Theme: Inter-only typography, green AppBars with 2px gold rule, squared buttons/inputs (radius 2), bordered cards (radius 4)
+- [x] New shared widgets: OfficialCard (gold left rule + uppercase title + gradientHeader variant), FlagRibbon, InfoRow; StatusBadge → bordered official style
+- [x] Dashboard: official government header (flag ribbon, logo box, user-info bar, gold accent bars), gradient welcome banner, colored 2×2 statistics boxes, gradient service tiles, table-style project rows, timeline activity feed
+- [x] Login: government identity header + SYSTEM LOGIN card + institutional footer (all keys/logic kept)
+- [x] Lists as official tables: projects (NAME|STATUS|PROGRESS), reports (TITLE|TYPE|STATUS), beneficiaries (NAME|AGE|STATUS) — green column headers, alternating rows, link-blue titles
+- [x] Profile info tables, notifications log rows, analytics summary bar + OfficialCard charts, gold-ruled bottom nav
+- [x] Fixes en route: FlagRibbon zero-height collapse (childless ColoredBox needs stretch), Container color+decoration assert, ShimmerCard adaptive line count
+- [x] Verified: analyze 0, 47/47 tests, all 4 roles live, docs screenshots refreshed
+
+---
+
 ## Sub-Location Dropdown Removed (2026-07-16) ✅
 
 Final picker shape per Peterson (commit `070ad45`): 5 dropdown levels + free text —
