@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -98,6 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   OfficialCard(
                     title: 'My Statistics',
+                    contentPadding: EdgeInsets.zero,
                     child: _StatisticsRow(stats: _stats),
                   ),
                   OfficialCard(
@@ -462,16 +464,14 @@ class _StatisticsRow extends StatelessWidget {
           AppColors.danger, AppColors.dangerTint),
     ];
 
-    // 2×2 grid keeps the coloured boxes readable at phone width.
-    return Column(
+    // Compact horizontal strip, eCitizen statistics-bar style.
+    return Row(
       children: [
-        for (var row = 0; row < 2; row++)
-          Row(
-            children: [
-              for (var col = 0; col < 2; col++)
-                _ColoredStatBox(item: items[row * 2 + col]),
-            ],
-          ),
+        for (final (i, item) in items.indexed) ...[
+          if (i > 0)
+            Container(width: 1, height: 60, color: AppColors.border),
+          _ColoredStatBox(item: item),
+        ],
       ],
     );
   }
@@ -486,48 +486,34 @@ class _ColoredStatBox extends StatelessWidget {
     final (label, value, icon, color, bgColor) = item;
     return Expanded(
       child: Container(
-        margin: const EdgeInsets.all(6),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+        color: bgColor,
         child: Column(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(height: 8),
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
             if (value == null)
               Shimmer.fromColors(
                 baseColor: Colors.grey[300]!,
                 highlightColor: Colors.grey[100]!,
-                child: Container(width: 36, height: 26, color: Colors.white),
+                child: Container(width: 30, height: 22, color: Colors.white),
               )
             else
               Text(
                 '$value',
                 style: TextStyle(
-                  fontSize: 26,
+                  fontSize: 22,
                   fontWeight: FontWeight.w800,
                   color: color,
                 ),
               ),
-            const SizedBox(height: 2),
             Text(
               label,
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 color: color.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w500,
               ),
@@ -768,6 +754,23 @@ class _ProjectRow extends StatelessWidget {
   final Project project;
   const _ProjectRow({required this.project});
 
+  String get _endDate {
+    final raw = project.endDate;
+    if (raw == null) return '—';
+    final parsed = DateTime.tryParse(raw);
+    return parsed == null ? raw : DateFormat('d MMM yyyy').format(parsed);
+  }
+
+  String get _budget {
+    final value = double.tryParse(project.budget);
+    if (value == null) return project.budget;
+    if (value >= 1000000) {
+      return 'KES ${(value / 1000000).toStringAsFixed(1)}M';
+    }
+    if (value >= 1000) return 'KES ${(value / 1000).toStringAsFixed(0)}K';
+    return 'KES ${value.toStringAsFixed(0)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final accent = StatusBadge.accentFor(project.status);
@@ -801,15 +804,45 @@ class _ProjectRow extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                project.projectName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    project.projectName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.info, // official link colour
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 10, color: AppColors.textMuted),
+                      const SizedBox(width: 3),
+                      Text(
+                        _endDate,
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.textMuted),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.attach_money,
+                          size: 10, color: AppColors.textMuted),
+                      Flexible(
+                        child: Text(
+                          _budget,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 10, color: AppColors.textMuted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),

@@ -2,10 +2,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/api_exception.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/official_card.dart';
 import '../../../shared/widgets/shimmer_card.dart';
+import '../../auth/auth_provider.dart';
 import '../../beneficiaries/beneficiary_repository.dart';
+import '../../ngos/ngo_repository.dart';
 import '../analytics_repository.dart';
 
 /// Official analytics dashboard: green summary statistics bar plus bordered
@@ -22,16 +25,34 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   late Future<DashboardStats> _future;
   int? _femaleCount;
   int? _maleCount;
+  String? _ngoName;
 
   @override
   void initState() {
     super.initState();
     _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resolveNgoName());
   }
 
   void _load() {
     _future = context.read<AnalyticsRepository>().dashboard();
     _loadDemographics();
+  }
+
+  /// Best-effort: resolve the NGO's display name for the header subtitle
+  /// (the authenticated payload only carries the NGO id).
+  Future<void> _resolveNgoName() async {
+    final ngoId = context.read<AuthProvider>().user?.ngoId;
+    if (ngoId == null) return;
+    try {
+      final ngos = await context.read<NgoRepository>().listPublic();
+      final match = ngos.where((n) => n.id == ngoId);
+      if (mounted && match.isNotEmpty) {
+        setState(() => _ngoName = match.first.name);
+      }
+    } on ApiException {
+      // Subtitle falls back to the system name alone.
+    }
   }
 
   Future<void> _loadDemographics() async {
@@ -50,7 +71,23 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ANALYTICS DASHBOARD')),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('ANALYTICS DASHBOARD'),
+            Text(
+              _ngoName == null
+                  ? 'Smart NGO M&E System'
+                  : 'Smart NGO M&E — $_ngoName',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white70, fontSize: 10, letterSpacing: 0.2),
+            ),
+          ],
+        ),
+      ),
       body: FutureBuilder<DashboardStats>(
         future: _future,
         builder: (context, snap) {

@@ -1,4 +1,25 @@
-# Session Handover — 2026-07-16 | eCitizen UI + Dashboard Richness
+# Session Handover — 2026-07-17 | eCitizen UI Review Fixes
+
+---
+
+## UI review fixes round 2 (2026-07-17, from Peterson)
+
+- **Stats strip**: dashboard MY STATISTICS reverted from 2×2 grid to a
+  compact horizontal 4-box strip (flush coloured surfaces, 1px separators,
+  20px icons, 22px numbers, 10px labels — at that size "Beneficiaries"
+  fits, which is why the 2×2 compromise existed). OfficialCard gets
+  contentPadding: zero there so the strip runs edge-to-edge.
+- **Project rows**: dashboard RECENT PROJECTS rows now show a meta line
+  under the (link-blue) name — calendar icon + "d MMM yyyy" end date and
+  $-icon + KES budget.
+- **Subtitles**: BENEFICIARY REGISTER gained "N beneficiaries registered";
+  ANALYTICS DASHBOARD gained "Smart NGO M&E — <NGO name>" (NGO name
+  resolved best-effort via NgoRepository.listPublic like the profile
+  screen; falls back to the system name). Projects/reports subtitles
+  already existed from the redesign.
+- Verified: analyze 0, 47/47 tests, live capture of the dashboard
+  (stats strip + meta rows) and both AppBar subtitles; docs screenshots
+  refreshed.
 
 ---
 

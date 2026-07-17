@@ -95,7 +95,18 @@ class _BeneficiaryListScreenState extends State<BeneficiaryListScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('BENEFICIARY REGISTER'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('BENEFICIARY REGISTER'),
+            if (_total != null)
+              Text(
+                '$_total beneficiar${_total == 1 ? 'y' : 'ies'} registered',
+                style: const TextStyle(
+                    color: Colors.white70, fontSize: 10, letterSpacing: 0.2),
+              ),
+          ],
+        ),
       ),
       floatingActionButton: canRegister
           ? FloatingActionButton(
