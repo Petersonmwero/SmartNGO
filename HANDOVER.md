@@ -20,6 +20,10 @@
 - Verified: analyze 0, 47/47 tests, live capture of the dashboard
   (stats strip + meta rows) and both AppBar subtitles; docs screenshots
   refreshed.
+- Pushed as `2a7252c`. Session state: Django :8000 (nohup,
+  /tmp/smartngo-django.log) + web :58569 serving the current build;
+  puppeteer scripts (docshots.js, regshot.js, smoke1-14) in the session
+  scratchpad.
 
 ---
 

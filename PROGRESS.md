@@ -1,5 +1,16 @@
 # PROGRESS.md — Smart NGO M&E Application
-### Last updated: 2026-07-16
+### Last updated: 2026-07-17
+
+---
+
+## eCitizen UI Review Fixes (2026-07-17) ✅
+
+Peterson's round-2 review, all resolved (commit `2a7252c`, pushed):
+
+- [x] Dashboard stats: 2×2 grid → compact horizontal 4-box colored strip (flush surfaces, separators; 10px labels make 4-across fit)
+- [x] Recent Projects rows: link-blue names + meta line (end date, KES budget)
+- [x] AppBar subtitles completed: beneficiaries count + analytics "Smart NGO M&E — ‹NGO›" (projects/reports already had theirs)
+- [x] Verified: analyze 0, 47/47 tests, live dashboard capture + subtitle crops; docs screenshots refreshed
 
 ---
 
