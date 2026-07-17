@@ -24,6 +24,10 @@
   /tmp/smartngo-django.log) + web :58569 serving the current build;
   puppeteer scripts (docshots.js, regshot.js, smoke1-14) in the session
   scratchpad.
+- 2026-07-17 re-verification: full docs screenshot set recaptured live —
+  all 13 byte-identical to the committed set (zero console/API errors),
+  confirming repo, docs, and demo environment are in sync. Nothing else
+  outstanding; the project is demo-ready.
 
 ---
 

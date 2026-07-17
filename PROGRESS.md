@@ -11,6 +11,7 @@ Peterson's round-2 review, all resolved (commit `2a7252c`, pushed):
 - [x] Recent Projects rows: link-blue names + meta line (end date, KES budget)
 - [x] AppBar subtitles completed: beneficiaries count + analytics "Smart NGO M&E — ‹NGO›" (projects/reports already had theirs)
 - [x] Verified: analyze 0, 47/47 tests, live dashboard capture + subtitle crops; docs screenshots refreshed
+- [x] Final re-verification: screenshot set recaptured live, byte-identical — repo, docs, and demo environment confirmed in sync; **demo-ready**
 
 ---
 
