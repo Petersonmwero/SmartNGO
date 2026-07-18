@@ -1,5 +1,22 @@
 # PROGRESS.md — Smart NGO M&E Application
-### Last updated: 2026-07-17
+### Last updated: 2026-07-18
+
+---
+
+## Weighted Composite Progress — EVM (2026-07-18) ✅
+
+Project progress upgraded from "% of timeline elapsed" to a PMBOK-style
+Earned Value composite (commit `9e38da6`):
+**Progress = Financial × 30% + Physical × 50% + Time × 20%.**
+
+- [x] Backend: `ProjectPhase` model (type, allocated/spent budget, dates, status) + nested `/projects/{id}/phases/` CRUD (reads: any authenticated NGO member; writes: manager/admin); `Milestone.weight` (1–10, serializer-bounded)
+- [x] Backend: computed on `Project` — financial (phase spend / budget), physical (completed milestone weight share), time (calendar elapsed), composite, CPI, SPI, `health_status` (healthy ≥0.95 / at_risk ≥0.8 / critical); all exposed read-only on `ProjectSerializer`, `phases`+`milestones` prefetched against N+1
+- [x] Migration `0002_milestone_weight_projectphase`; `seed_demo` extended — 14 phases + weighted milestones give one healthy, two critical, one not-started demo project
+- [x] New `test_progress_evm.py`; **208 backend tests pass** (accidental `test_auth.py` regression from the interrupted session reverted — API uses first_name/last_name)
+- [x] Flutter: `ProjectProgressCard` (composite ring + 3 dimension bars with detail lines), `ProjectHealthCard` (CPI/SPI + plain-language readings + rating badge), `PhaseBudgetTable` (official table, TOTAL row, Manage Phases action), `HealthDot`
+- [x] Flutter: `PhaseManagementScreen` (phase CRUD, add/edit bottom sheet, "progress recalculated" feedback); milestone weight dropdown in Add Milestone sheet + weight shown on milestone cards
+- [x] Flutter: projects list + dashboard rows switched to server composite (health dots; list rows show "F/P/T" breakdown); project-detail header badge now "N% complete"
+- [x] Verified: analyze 0, **47/47 Flutter tests**, live browser pass (dashboard, project register, detail cards, phase management, milestones) with zero console/API errors
 
 ---
 

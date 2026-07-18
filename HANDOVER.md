@@ -1,4 +1,78 @@
-# Session Handover — 2026-07-17 | eCitizen UI Review Fixes
+# Session Handover — 2026-07-18 | EVM Weighted Composite Progress
+
+---
+
+## Weighted Composite Progress / EVM (2026-07-18, commit `9e38da6`)
+
+Project progress is no longer "% of timeline elapsed" — it is a weighted
+composite per PMBOK Earned Value Management:
+**Financial × 30% + Physical × 50% + Time × 20%** (weights are constants on
+the `Project` model).
+
+**Backend** (built in the interrupted session, verified + committed here):
+- `ProjectPhase` (`project_phases` table): phase_name/type
+  (planning/implementation/monitoring/closeout), allocated_budget,
+  spent_budget, dates, status. Nested CRUD at
+  `/projects/{id}/phases/` — reads for any authenticated user in the
+  project's NGO, writes manager/admin. Phase spend drives financial
+  progress, so any spend edit changes composite progress on next read (all
+  computed properties, no caching).
+- `Milestone.weight` (PositiveInteger, default 1; serializer bounds 1–10).
+  Physical progress = completed weight / total weight.
+- `Project` computed properties: financial/physical/time progress,
+  progress_percentage (composite), total_spent, budget_remaining,
+  cost_performance_index (physical/financial, None until spend),
+  schedule_performance_index (physical/time, None before start),
+  health_status (both ≥0.95 healthy, ≥0.8 at_risk, else critical; CPI or
+  SPI None → not_started). All read-only on ProjectSerializer; list
+  queryset prefetches phases+milestones (N+1 guard).
+- Migration `0002_milestone_weight_projectphase` (already applied to dev
+  DB by the previous session). `seed_demo`: 14 phases + weighted
+  milestones tuned so demo shows variety — Girls Education healthy
+  (CPI 1.00/SPI 1.11), Clean Water critical (72% spend vs 25% delivery),
+  Food Security critical (50% vs 10%), Clinic not_started.
+- **Gotcha fixed**: the interrupted session had rewritten
+  `test_auth.py` to post `full_name` — but the API uses
+  first_name/last_name (full_name is a computed property). Reverted to
+  HEAD; **208 backend tests pass** (incl. new `test_progress_evm.py`).
+
+**Flutter** (completed this session):
+- `models/phase.dart` (+ `ProjectPhase.asDouble` for DRF decimal
+  strings); `Project` model gained all EVM fields + `compositeFraction`,
+  `dimensionSummary` ("F: x% · P: y% · T: z%"), `healthLabel/healthColor`;
+  `Milestone.weight`; repository phase CRUD + weight on createMilestone.
+- `widgets/evm_cards.dart`: `ProjectProgressCard` (64px composite ring,
+  3 dimension bars with detail lines like "KES 220K of 1.10M spent" /
+  "2 of 10 milestone weights delivered" / "36 of 200 project days"),
+  `ProjectHealthCard` (rating badge + CPI/SPI with plain-language
+  readings), `PhaseBudgetTable` (green-headed ALLOC/SPENT/UTIL table,
+  TOTAL row, MANAGE PHASES action for manager/admin), `HealthDot`.
+- `screens/phase_management_screen.dart`: phase list cards with
+  utilization bars, add/edit bottom sheet (type/status dropdowns, date
+  pickers, amount validation), delete confirm; pops `true` so the detail
+  screen refetches ("progress recalculated" snackbars).
+- Project detail: Overview tab shows the 3 EVM cards after the info
+  grid (old "Timeline elapsed" card removed); header badge now
+  "N% complete" (composite); Add Milestone sheet gained a weight
+  dropdown (1 — Minor / 5 — Major / 10 — Critical); milestone cards
+  show "· Weight N".
+- Projects list rows: composite % + bar, HealthDot beside the name,
+  dimensionSummary line. Dashboard RECENT PROJECTS rows: composite % +
+  HealthDot.
+- Verified: analyze 0, **47/47 tests**, live browser pass as manager —
+  dashboard rows, project register (breakdown lines + dots), Girls
+  Education detail (all three cards render with correct numbers),
+  MANAGE PHASES screen, milestones tab with weights — zero console/API
+  errors. Screenshots in session scratchpad (evm-*.png).
+- Dev DB was **flushed + reseeded** (old seed milestones were renamed;
+  get_or_create would have duplicated them). Demo photos re-seeded fine
+  (3 reports / 5 images).
+- Docs screenshots NOT retaken this session (project detail/list/
+  dashboard now differ) — retake when convenient.
+- Session state: Django :8000 (nohup, /tmp/smartngo-django.log) + web
+  :58569 (nohup, /tmp/smartngo-web.log) serving the new build;
+  evmshot.js/phaseshot.js in the session scratchpad (reuse the
+  4aa33d74 scratchpad's node_modules via NODE_PATH).
 
 ---
 
