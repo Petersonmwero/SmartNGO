@@ -16,6 +16,7 @@ import '../../notifications/notifications_provider.dart';
 import '../../notifications/screens/notifications_screen.dart';
 import '../../projects/models/project.dart';
 import '../../projects/project_repository.dart';
+import '../../projects/widgets/evm_cards.dart';
 import '../../projects/screens/project_detail_screen.dart';
 import '../../reports/screens/submit_report_screen.dart';
 
@@ -774,7 +775,8 @@ class _ProjectRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = StatusBadge.accentFor(project.status);
-    final progress = project.timelineProgress.clamp(0.0, 1.0);
+    // Server-computed weighted composite (EVM), not elapsed time.
+    final progress = project.compositeFraction;
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
@@ -851,13 +853,20 @@ class _ProjectRow extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  '${(progress * 100).round()}%',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    HealthDot(project: project, size: 6),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${(progress * 100).round()}%',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 SizedBox(

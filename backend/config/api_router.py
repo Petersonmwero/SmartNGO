@@ -17,6 +17,7 @@ from apps.notifications.views import NotificationViewSet
 from apps.projects.views import (
     MilestoneViewSet,
     ProjectAssignmentViewSet,
+    ProjectPhaseViewSet,
     ProjectViewSet,
 )
 from apps.reports.views import ReportImageViewSet, ReportViewSet
@@ -35,6 +36,17 @@ router.register("users", UserManagementViewSet, basename="user")
 _assignment_list = ProjectAssignmentViewSet.as_view({"get": "list", "post": "create"})
 _assignment_detail = ProjectAssignmentViewSet.as_view({"delete": "destroy"})
 
+# Nested: /projects/<project_pk>/phases/[<pk>/]
+_phase_list = ProjectPhaseViewSet.as_view({"get": "list", "post": "create"})
+_phase_detail = ProjectPhaseViewSet.as_view(
+    {
+        "get": "retrieve",
+        "put": "update",
+        "patch": "partial_update",
+        "delete": "destroy",
+    }
+)
+
 # Nested: /reports/<report_pk>/images/[<pk>/]
 _report_image_list = ReportImageViewSet.as_view({"get": "list", "post": "create"})
 _report_image_detail = ReportImageViewSet.as_view({"delete": "destroy"})
@@ -49,6 +61,16 @@ urlpatterns = [
         "projects/<int:project_pk>/assignments/<int:pk>/",
         _assignment_detail,
         name="project-assignment-detail",
+    ),
+    path(
+        "projects/<int:project_pk>/phases/",
+        _phase_list,
+        name="project-phases",
+    ),
+    path(
+        "projects/<int:project_pk>/phases/<int:pk>/",
+        _phase_detail,
+        name="project-phase-detail",
     ),
     path(
         "reports/<int:report_pk>/images/",

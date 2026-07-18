@@ -10,6 +10,7 @@ import '../../../shared/widgets/status_badge.dart';
 import '../../auth/auth_provider.dart';
 import '../models/project.dart';
 import '../project_repository.dart';
+import '../widgets/evm_cards.dart';
 import 'project_detail_screen.dart';
 
 /// Official table-style project register: filter bar, green column header,
@@ -245,7 +246,8 @@ class _ProjectTableRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = project.timelineProgress.clamp(0.0, 1.0);
+    // Server-computed weighted composite (EVM), not elapsed time.
+    final progress = project.compositeFraction;
     return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
@@ -265,15 +267,23 @@ class _ProjectTableRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    project.projectName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.info, // official link colour
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          project.projectName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.info, // official link colour
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      HealthDot(project: project, size: 7),
+                    ],
                   ),
                   if (project.description.isNotEmpty)
                     Text(
@@ -283,6 +293,13 @@ class _ProjectTableRow extends StatelessWidget {
                       style: const TextStyle(
                           fontSize: 11, color: AppColors.textMuted),
                     ),
+                  Text(
+                    project.dimensionSummary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 10, color: AppColors.textMuted),
+                  ),
                 ],
               ),
             ),

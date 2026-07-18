@@ -20,7 +20,12 @@ from apps.beneficiaries.models import Beneficiary
 from apps.indicators.models import Indicator
 from apps.ngos.models import NGO
 from apps.notifications.models import Notification
-from apps.projects.models import Milestone, Project, ProjectAssignment
+from apps.projects.models import (
+    Milestone,
+    Project,
+    ProjectAssignment,
+    ProjectPhase,
+)
 from apps.reports.models import Report, ReportImage
 
 DEMO_PASSWORD = "DemoPass123!"
@@ -109,28 +114,88 @@ class Command(BaseCommand):
         self._assign(food, officer2, "officer")
         self._assign(clinic, manager2, "manager")
 
-        # ── Milestones ───────────────────────────────────────────────────
-        # Clean Water: 2 done, 1 pending.
-        self._milestone(water, "Site survey completed",
-                        today - timedelta(days=200), "completed")
-        self._milestone(water, "Phase 1 Drilling",
-                        today - timedelta(days=60), "completed")
-        self._milestone(water, "Community handover ceremony",
-                        today + timedelta(days=80), "pending")
-        # Girls Education: 2 pending.
+        # ── Milestones (weights drive the physical-progress dimension) ────
+        # Clean Water: 3/12 weights delivered -> physical 25%.
+        self._milestone(water, "Site surveys completed",
+                        today - timedelta(days=200), "completed", weight=2)
+        self._milestone(water, "Community mobilisation",
+                        today - timedelta(days=150), "completed", weight=1)
+        self._milestone(water, "Phase 1 Borehole Drilling",
+                        today + timedelta(days=30), "pending", weight=4)
+        self._milestone(water, "Pump installation",
+                        today + timedelta(days=70), "pending", weight=3)
+        self._milestone(water, "Hygiene training",
+                        today + timedelta(days=95), "pending", weight=2)
+        # Girls Education: 2/10 weights delivered -> physical 20% (healthy:
+        # matches 20% financial and slightly leads ~18% time progress).
+        self._milestone(bursary, "Needs assessment completed",
+                        today - timedelta(days=10), "completed", weight=2)
         self._milestone(bursary, "Bursary application window opens",
-                        today + timedelta(days=20), "pending")
+                        today + timedelta(days=20), "pending", weight=3)
         self._milestone(bursary, "First disbursement",
-                        today + timedelta(days=90), "pending")
-        # Food Security: 1 done, 2 pending, 1 overdue.
+                        today + timedelta(days=90), "pending", weight=5)
+        # Food Security: 1/10 weights delivered -> physical 10% against 50%
+        # financial spend (critical: spending far faster than delivering).
         self._milestone(food, "Baseline nutrition survey",
-                        today - timedelta(days=100), "completed")
+                        today - timedelta(days=100), "completed", weight=1)
         self._milestone(food, "Seed distribution — Phase 1",
-                        today - timedelta(days=10), "overdue")
+                        today - timedelta(days=10), "overdue", weight=4)
         self._milestone(food, "Irrigation training",
-                        today + timedelta(days=45), "pending")
+                        today + timedelta(days=45), "pending", weight=3)
         self._milestone(food, "Harvest assessment",
-                        today + timedelta(days=180), "pending")
+                        today + timedelta(days=180), "pending", weight=2)
+
+        # ── Project phases (spend drives the financial dimension) ─────────
+        # Clean Water: KES 1,728,000 of 2.4M spent -> financial 72%.
+        self._phase(water, "Planning", "planning", "400000", "400000",
+                    today - timedelta(days=263), today - timedelta(days=210),
+                    "completed")
+        self._phase(water, "Site Survey", "planning", "200000", "200000",
+                    today - timedelta(days=210), today - timedelta(days=160),
+                    "completed")
+        self._phase(water, "Drilling", "implementation", "1200000", "928000",
+                    today - timedelta(days=160), today + timedelta(days=40),
+                    "in_progress")
+        self._phase(water, "Installation", "implementation", "400000", "200000",
+                    today - timedelta(days=30), today + timedelta(days=75),
+                    "in_progress")
+        self._phase(water, "Training", "closeout", "200000", "0",
+                    today + timedelta(days=75), today + timedelta(days=102),
+                    "not_started")
+        # Girls Education: KES 220,000 of 1.1M spent -> financial 20%.
+        self._phase(bursary, "Planning", "planning", "200000", "200000",
+                    today - timedelta(days=36), today - timedelta(days=5),
+                    "completed")
+        self._phase(bursary, "School Outreach", "implementation",
+                    "150000", "20000",
+                    today - timedelta(days=5), today + timedelta(days=40),
+                    "in_progress")
+        self._phase(bursary, "Bursary Disbursement", "implementation",
+                    "650000", "0",
+                    today + timedelta(days=40), today + timedelta(days=130),
+                    "not_started")
+        self._phase(bursary, "Monitoring & Evaluation", "monitoring",
+                    "100000", "0",
+                    today + timedelta(days=130), today + timedelta(days=164),
+                    "not_started")
+        # Food Security: KES 2,900,000 of 5.8M spent -> financial 50%.
+        self._phase(food, "Planning", "planning", "500000", "500000",
+                    today - timedelta(days=136), today - timedelta(days=100),
+                    "completed")
+        self._phase(food, "Input Procurement", "implementation",
+                    "2500000", "2200000",
+                    today - timedelta(days=100), today + timedelta(days=20),
+                    "in_progress")
+        self._phase(food, "Distribution", "implementation",
+                    "1800000", "200000",
+                    today - timedelta(days=20), today + timedelta(days=120),
+                    "in_progress")
+        self._phase(food, "Farmer Training", "implementation", "700000", "0",
+                    today + timedelta(days=120), today + timedelta(days=210),
+                    "not_started")
+        self._phase(food, "Evaluation & Closeout", "closeout", "300000", "0",
+                    today + timedelta(days=210), today + timedelta(days=264),
+                    "not_started")
 
         # ── Indicators (KPIs) ────────────────────────────────────────────
         self._indicator(water, "Boreholes drilled", "50", "36", "wells")
@@ -203,7 +268,7 @@ class Command(BaseCommand):
         for title, message in [
             ("New report submitted by Jane Achieng",
              "Community Survey — Nyalenda ward is awaiting your approval."),
-            ("Milestone due in 3 days: Phase 1 Drilling",
+            ("Milestone due in 3 days: Phase 1 Borehole Drilling",
              "Clean Water Initiative — Kisumu has an upcoming milestone."),
             ("Report approved: Community Survey",
              "Your report was approved and is included in donor summaries."),
@@ -274,10 +339,20 @@ class Command(BaseCommand):
             defaults={"target_value": target, "current_value": current,
                       "unit": unit})
 
-    def _milestone(self, project, title, due, status):
+    def _milestone(self, project, title, due, status, weight=1):
         Milestone.objects.get_or_create(
             title=title, project=project,
-            defaults={"due_date": due, "status": status})
+            defaults={"due_date": due, "status": status, "weight": weight})
+
+    def _phase(self, project, name, phase_type, allocated, spent,
+               start, end, status):
+        ProjectPhase.objects.get_or_create(
+            phase_name=name, project=project,
+            defaults={"phase_type": phase_type,
+                      "allocated_budget": allocated, "spent_budget": spent,
+                      "start_date": start, "end_date": end,
+                      "status": status,
+                      "description": f"{name} phase — {project.project_name}."})
 
     def _report(self, project, officer, title, report_type, status):
         report, created = Report.objects.get_or_create(

@@ -16,7 +16,9 @@ import '../models/indicator.dart';
 import '../models/milestone.dart';
 import '../models/project.dart';
 import '../project_repository.dart';
+import '../widgets/evm_cards.dart';
 import 'create_project_screen.dart';
+import 'phase_management_screen.dart';
 
 class ProjectDetailScreen extends StatefulWidget {
   final int projectId;
@@ -114,6 +116,19 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     if (added == true && mounted) _reload();
   }
 
+  Future<void> _openPhaseManagement() async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PhaseManagementScreen(
+          projectId: widget.projectId,
+          projectName: widget.title,
+        ),
+      ),
+    );
+    // Phase spend feeds the server-computed progress — refetch on change.
+    if (changed == true && mounted) _reload();
+  }
+
   Future<void> _editProject() async {
     final project = await _project;
     if (!mounted) return;
@@ -151,7 +166,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
                           _HeaderBadge(_formatBudget(p.budget)),
                           const SizedBox(width: 8),
                           _HeaderBadge(
-                              '${(p.timelineProgress * 100).round()}% elapsed'),
+                              '${p.progressPercentage.round()}% complete'),
                         ],
                       ],
                     ),
@@ -181,9 +196,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
         children: [
           _OverviewTab(
             future: _project,
+            milestones: _milestones,
             beneficiaryCount: _beneficiaryCount,
             canManage: canManage,
             onEdit: _editProject,
+            onManagePhases: _openPhaseManagement,
           ),
           _MilestonesTab(future: _milestones),
           _TeamTab(
@@ -287,15 +304,19 @@ class _AsyncTab<T> extends StatelessWidget {
 
 class _OverviewTab extends StatelessWidget {
   final Future<Project> future;
+  final Future<List<Milestone>> milestones;
   final Future<int> beneficiaryCount;
   final bool canManage;
   final VoidCallback onEdit;
+  final VoidCallback onManagePhases;
 
   const _OverviewTab({
     required this.future,
+    required this.milestones,
     required this.beneficiaryCount,
     required this.canManage,
     required this.onEdit,
+    required this.onManagePhases,
   });
 
   @override
@@ -337,12 +358,19 @@ class _OverviewTab extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ProjectProgressBar(p.timelineProgress,
-                  label: 'Timeline elapsed'),
-            ),
+          // Weighted Composite Progress (EVM) — computed server-side.
+          FutureBuilder<List<Milestone>>(
+            future: milestones,
+            builder: (context, snap) =>
+                ProjectProgressCard(project: p, milestones: snap.data),
+          ),
+          const SizedBox(height: 12),
+          ProjectHealthCard(project: p),
+          const SizedBox(height: 12),
+          PhaseBudgetTable(
+            project: p,
+            canManage: canManage,
+            onManage: onManagePhases,
           ),
           if (p.description.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -439,7 +467,7 @@ class _MilestoneCard extends StatelessWidget {
       child: ListTile(
         leading: Icon(icon, color: color),
         title: Text(m.title, style: Theme.of(context).textTheme.titleSmall),
-        subtitle: Text('Due: ${m.dueDate ?? '—'}',
+        subtitle: Text('Due: ${m.dueDate ?? '—'} · Weight ${m.weight}',
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
@@ -656,6 +684,7 @@ class _AddMilestoneSheetState extends State<_AddMilestoneSheet> {
   final _formKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   DateTime? _dueDate;
+  int _weight = 1;
   bool _busy = false;
 
   @override
@@ -672,6 +701,7 @@ class _AddMilestoneSheetState extends State<_AddMilestoneSheet> {
             widget.projectId,
             title: _title.text.trim(),
             dueDate: DateFormat('yyyy-MM-dd').format(_dueDate!),
+            weight: _weight,
           );
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -698,6 +728,29 @@ class _AddMilestoneSheetState extends State<_AddMilestoneSheet> {
               decoration: const InputDecoration(labelText: 'Title'),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Required' : null,
+            ),
+            const SizedBox(height: 12),
+            // Weight drives the physical-progress dimension of the
+            // composite progress model (1 = minor, 10 = critical).
+            DropdownButtonFormField<int>(
+              initialValue: _weight,
+              decoration: const InputDecoration(
+                labelText: 'Weight (importance)',
+                helperText: 'Counts towards physical progress',
+              ),
+              items: [
+                for (var w = 1; w <= 10; w++)
+                  DropdownMenuItem(
+                    value: w,
+                    child: Text(switch (w) {
+                      1 => '1 — Minor',
+                      5 => '5 — Major',
+                      10 => '10 — Critical',
+                      _ => '$w',
+                    }),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _weight = v!),
             ),
             const SizedBox(height: 12),
             FormField<DateTime>(

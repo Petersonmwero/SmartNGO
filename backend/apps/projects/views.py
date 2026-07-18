@@ -15,10 +15,11 @@ from apps.common.mixins import ProjectScopedViewSetMixin
 from apps.common.pdf import monthly_report_pdf, project_summary_pdf
 
 from .filters import MilestoneFilter, ProjectFilter
-from .models import Milestone, Project, ProjectAssignment
+from .models import Milestone, Project, ProjectAssignment, ProjectPhase
 from .serializers import (
     MilestoneSerializer,
     ProjectAssignmentSerializer,
+    ProjectPhaseSerializer,
     ProjectSerializer,
 )
 
@@ -41,7 +42,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if getattr(self, "swagger_fake_view", False):
             return Project.objects.none()
         user = self.request.user
-        qs = Project.objects.select_related("ngo").order_by("-created_at")
+        # phases/milestones feed the computed progress properties on every
+        # serialized row — prefetch them to avoid N+1 queries on list views.
+        qs = (
+            Project.objects.select_related("ngo")
+            .prefetch_related("phases", "milestones")
+            .order_by("-created_at")
+        )
         if user.role == Role.ADMIN:
             return qs
         if user.role == Role.OFFICER:
@@ -143,6 +150,41 @@ class ProjectAssignmentViewSet(
         if ProjectAssignment.objects.filter(project=project, user=user).exists():
             raise ValidationError("User is already assigned to this project.")
         serializer.save(project=project)
+
+
+class ProjectPhaseViewSet(viewsets.ModelViewSet):
+    """Budget phases of a project (nested sub-resource).
+
+    Routed at /api/v1/projects/<project_pk>/phases/. Reads are open to any
+    authenticated user who can see the project; writes are manager/admin.
+    Because project progress is computed from properties, updating a phase's
+    spent_budget changes the project's progress on the next read — no cache
+    invalidation is needed.
+    """
+
+    serializer_class = ProjectPhaseSerializer
+    queryset = ProjectPhase.objects.none()  # for schema model derivation
+
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [WRITE_PERMISSION()]
+        return [IsAuthenticated()]
+
+    def get_project(self):
+        project = get_object_or_404(Project, pk=self.kwargs["project_pk"])
+        user = self.request.user
+        # Non-admins may only touch phases of projects in their own NGO.
+        if user.role != Role.ADMIN and project.ngo_id != user.ngo_id:
+            raise PermissionDenied("You do not have access to this project.")
+        return project
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ProjectPhase.objects.none()
+        return ProjectPhase.objects.filter(project=self.get_project())
+
+    def perform_create(self, serializer):
+        serializer.save(project=self.get_project())
 
 
 class MilestoneViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):

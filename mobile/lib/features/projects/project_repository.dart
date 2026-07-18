@@ -4,6 +4,7 @@ import '../../core/paginated.dart';
 import 'models/assignment.dart';
 import 'models/indicator.dart';
 import 'models/milestone.dart';
+import 'models/phase.dart';
 import 'models/project.dart';
 
 class ProjectRepository {
@@ -119,6 +120,7 @@ class ProjectRepository {
     required String title,
     required String dueDate,
     String description = '',
+    int weight = 1,
   }) {
     return apiGuard(() async {
       await _api.dio.post('/milestones/', data: {
@@ -126,7 +128,38 @@ class ProjectRepository {
         'title': title,
         'due_date': dueDate,
         'description': description,
+        'weight': weight,
       });
+    });
+  }
+
+  // ── Project phases (EVM budget breakdown) ───────────────────────────────
+  Future<List<ProjectPhase>> phases(int projectId) {
+    return apiGuard(() async {
+      final res = await _api.dio.get('/projects/$projectId/phases/');
+      return Paginated.fromJson(
+              res.data as Map<String, dynamic>, ProjectPhase.fromJson)
+          .results;
+    });
+  }
+
+  Future<void> createPhase(int projectId, Map<String, dynamic> data) {
+    return apiGuard(() async {
+      await _api.dio.post('/projects/$projectId/phases/', data: data);
+    });
+  }
+
+  Future<void> updatePhase(
+      int projectId, int phaseId, Map<String, dynamic> data) {
+    return apiGuard(() async {
+      await _api.dio
+          .patch('/projects/$projectId/phases/$phaseId/', data: data);
+    });
+  }
+
+  Future<void> deletePhase(int projectId, int phaseId) {
+    return apiGuard(() async {
+      await _api.dio.delete('/projects/$projectId/phases/$phaseId/');
     });
   }
 
