@@ -72,7 +72,16 @@ the `Project` model).
   projects list + dashboards show composite % and health dots; analytics/
   beneficiaries/notifications/reports shifted only on relative
   timestamps). Login/submit-report/register-beneficiary byte-identical.
-  Captured live with zero console/API errors.
+  Committed `d45d2b6`.
+- **Screenshot gotcha + fix (`afbfa73`)**: the batch `docshots.js` run
+  produced a wrong `app-notifications.png` — the bell tap (350,38) fired
+  before the dashboard finished re-rendering after the profile→home hash
+  change, so it landed on empty space and captured the dashboard instead.
+  The run still reported "no console/API errors" (a missed tap is a silent
+  no-op), so **visually verify each shot, don't trust the error count**.
+  Recaptured with `notifshot.js` (fresh login → 7s settle → bell at
+  (343,40) → 4s for the MaterialPageRoute push); the PNG now shows the
+  real notifications screen. All 14 confirmed correct by eye.
 - Session state: Django :8000 (nohup, /tmp/smartngo-django.log) + web
   :58569 (nohup, /tmp/smartngo-web.log) serving the new build;
   evmshot.js/phaseshot.js in the session scratchpad (reuse the
