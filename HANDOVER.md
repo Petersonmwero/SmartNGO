@@ -67,8 +67,12 @@ the `Project` model).
 - Dev DB was **flushed + reseeded** (old seed milestones were renamed;
   get_or_create would have duplicated them). Demo photos re-seeded fine
   (3 reports / 5 images).
-- Docs screenshots NOT retaken this session (project detail/list/
-  dashboard now differ) — retake when convenient.
+- Docs screenshots **retaken 2026-07-20** against the EVM build — 10 of
+  14 PNGs updated (project detail now shows the PROGRESS + HEALTH cards,
+  projects list + dashboards show composite % and health dots; analytics/
+  beneficiaries/notifications/reports shifted only on relative
+  timestamps). Login/submit-report/register-beneficiary byte-identical.
+  Captured live with zero console/API errors.
 - Session state: Django :8000 (nohup, /tmp/smartngo-django.log) + web
   :58569 (nohup, /tmp/smartngo-web.log) serving the new build;
   evmshot.js/phaseshot.js in the session scratchpad (reuse the
