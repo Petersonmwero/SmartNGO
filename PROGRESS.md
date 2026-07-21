@@ -28,6 +28,13 @@ off the phase baseline.
   Food Security critical; Clinic not_started). No seed retune needed.
 - [x] Flutter: `ProjectHealthCard` SPI readings reworded from schedule
   language to "ahead of / behind planned work"; analyze 0, 47/47 tests
+- [x] Flutter: `Project.plannedValueProgress` parsed from the API (0 when the
+  key is absent, so pre-PV payloads still parse) and surfaced as a footnote
+  under the SPI row — "Earned 20.0% of budgeted work vs 19.7% planned", one
+  decimal so the figure explains the index; 3 new tests, **50 Flutter tests**
+- [x] Verified live in Chrome at 430×932: Girls Education SPI 1.02 healthy,
+  Food Security SPI 0.20 critical (49% planned vs 34% calendar — the
+  front-loaded case the fix exists for), zero console/API errors
 
 ---
 

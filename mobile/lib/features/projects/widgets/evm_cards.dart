@@ -274,6 +274,14 @@ class ProjectHealthCard extends StatelessWidget {
             value: project.schedulePerformanceIndex,
             reading: spiText,
             readingColor: spiColor,
+            // Spells out the ratio behind the SPI figure, so the reading is
+            // traceable to the phase baseline rather than to the calendar.
+            // One decimal, matching the server: rounding both sides to whole
+            // percents can print "20% vs 20%" next to an SPI of 1.02.
+            footnote:
+                'Earned ${project.physicalProgress.toStringAsFixed(1)}% of '
+                'budgeted work vs '
+                '${project.plannedValueProgress.toStringAsFixed(1)}% planned',
           ),
         ],
       ),
@@ -287,11 +295,16 @@ class _IndexRow extends StatelessWidget {
   final String reading;
   final Color readingColor;
 
+  /// Optional muted line under the reading, used to show the ratio the
+  /// index was derived from.
+  final String? footnote;
+
   const _IndexRow({
     required this.label,
     required this.value,
     required this.reading,
     required this.readingColor,
+    this.footnote,
   });
 
   @override
@@ -321,6 +334,13 @@ class _IndexRow extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(reading, style: TextStyle(fontSize: 11, color: readingColor)),
+        if (footnote != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            footnote!,
+            style: const TextStyle(fontSize: 10, color: AppColors.textMuted),
+          ),
+        ],
       ],
     );
   }

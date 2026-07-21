@@ -18,6 +18,10 @@ class Project {
   final double financialProgress;
   final double physicalProgress;
   final double timeProgress;
+
+  /// Planned Value: the share of the budget whose work was *scheduled* to
+  /// be done by today, per the phase baseline. SPI is physical / this.
+  final double plannedValueProgress;
   final double? costPerformanceIndex;
   final double? schedulePerformanceIndex;
   final String healthStatus; // healthy | at_risk | critical | not_started
@@ -38,6 +42,7 @@ class Project {
     this.financialProgress = 0,
     this.physicalProgress = 0,
     this.timeProgress = 0,
+    this.plannedValueProgress = 0,
     this.costPerformanceIndex,
     this.schedulePerformanceIndex,
     this.healthStatus = 'not_started',
@@ -65,6 +70,8 @@ class Project {
         financialProgress: ProjectPhase.asDouble(json['financial_progress']),
         physicalProgress: ProjectPhase.asDouble(json['physical_progress']),
         timeProgress: ProjectPhase.asDouble(json['time_progress']),
+        plannedValueProgress:
+            ProjectPhase.asDouble(json['planned_value_progress']),
         costPerformanceIndex:
             _asNullableDouble(json['cost_performance_index']),
         schedulePerformanceIndex:

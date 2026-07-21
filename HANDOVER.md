@@ -40,9 +40,32 @@ vs 34% calendar), so its SPI now reflects the plan it was actually given.
   since the formula no longer measures calendar elapsed. `flutter analyze`
   0 issues, 47/47 tests.
 
-> Note: the Flutter `Project` model still does not parse
-> `planned_value_progress`; nothing renders it yet. Wire it into the health
-> card if a "planned vs earned" line is wanted.
+### Flutter wiring of PV (same day, follow-up)
+
+- `Project.plannedValueProgress` parses `planned_value_progress` via
+  `ProjectPhase.asDouble`, so a pre-PV payload degrades to `0` instead of
+  throwing.
+- `ProjectHealthCard` SPI row gained a muted footnote — "Earned 20.0% of
+  budgeted work vs 19.7% planned" — making the index traceable to the phase
+  baseline. `_IndexRow` took an optional `footnote` for this.
+- Printed to **one decimal on purpose**: rounding both sides to whole
+  percents renders "20% vs 20%" beside an SPI of 1.02, which reads as a bug.
+- New `test/features/projects/project_health_card_test.dart` (3 tests):
+  PV parsing incl. the missing-key fallback, the behind-plan footnote, and
+  the "No work scheduled yet" null case. **50 Flutter tests**, analyze 0.
+
+**Live verification gotcha**: the first browser pass showed SPI 1.11 and
+"vs 0% planned" — the demo Django server runs with `--noreload`, so it was
+still serving pre-change code. Restarted it, re-shot, then confirmed by eye:
+Girls Education SPI 1.02 / "20.0% vs 19.7% planned" (healthy), Food Security
+SPI 0.20 / "10.0% vs 49.0% planned" (critical, and the clearest demo of a
+front-loaded plan: 49% planned vs 34% calendar). Zero console/API errors.
+**Restart the runserver process after backend edits** — it will not reload
+itself.
+
+> `docs/screenshots/app-project-detail.png` was not retaken: it captures the
+> top of the detail screen and cuts off above the SPI rows, so the new line
+> is not in frame.
 
 ---
 
