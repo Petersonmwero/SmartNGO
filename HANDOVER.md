@@ -9,7 +9,7 @@ Last updated: 2026-07-21 · `main` @ `c431600` · working tree clean
 | | |
 |---|---|
 | Backend tests | **216 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **54 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **55 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — 0 warnings, 0 errors |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (54 tests)
+# Flutter (55 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1

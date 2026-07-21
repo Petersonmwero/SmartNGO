@@ -748,9 +748,9 @@ class _RecentProjects extends StatelessWidget {
     return Column(
       children: [
         for (final p in projects!) _ProjectRow(project: p),
-        // Same key as the project register, so the tracks read identically
-        // on both screens.
-        const EvmTrackLegend(),
+        // Neutral swatches: these rows are coloured per project status, so the
+        // key can only speak to shading, not hue.
+        const EvmTrackLegend(color: AppColors.textSecondary),
       ],
     );
   }
@@ -876,7 +876,9 @@ class _ProjectRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 SizedBox(
                   width: 60,
-                  child: EvmProgressTrack(project: project, height: 5),
+                  // Status accent, matching the row's dot and right border.
+                  child: EvmProgressTrack(
+                      project: project, height: 5, color: accent),
                 ),
               ],
             ),

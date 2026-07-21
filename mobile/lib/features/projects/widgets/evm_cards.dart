@@ -27,6 +27,11 @@ class EvmProgressTrack extends StatelessWidget {
   /// Track thickness; the tick overhangs it by [_tickOverhang] either side.
   final double height;
 
+  /// Hue of both bands — the earned-value band solid, the composite band
+  /// tinted. Defaults to the EVM green; the dashboard passes the project's
+  /// status accent so those rows keep their status colouring.
+  final Color? color;
+
   static const double _tickOverhang = 3;
   static const double _tickWidth = 2;
 
@@ -36,7 +41,12 @@ class EvmProgressTrack extends StatelessWidget {
   /// Identifies the earned-value (physical) band.
   static const Key physicalBandKey = Key('evm-physical-band');
 
-  const EvmProgressTrack({super.key, required this.project, this.height = 6});
+  const EvmProgressTrack({
+    super.key,
+    required this.project,
+    this.height = 6,
+    this.color,
+  });
 
   static double _fraction(double percent) => (percent / 100).clamp(0.0, 1.0);
 
@@ -45,6 +55,7 @@ class EvmProgressTrack extends StatelessWidget {
     final composite = project.compositeFraction;
     final physical = _fraction(project.physicalProgress);
     final planned = _fraction(project.plannedValueProgress);
+    final bandColor = color ?? AppColors.primary;
     return Tooltip(
       message: 'Delivered ${project.physicalProgress.toStringAsFixed(1)}% · '
           'planned ${project.plannedValueProgress.toStringAsFixed(1)}% · '
@@ -57,12 +68,16 @@ class EvmProgressTrack extends StatelessWidget {
           // which cannot compute intrinsics and breaks inside IntrinsicHeight.
           children: [
             Container(height: height, color: AppColors.border),
-            _Band(widthFactor: composite, height: height, color: _compositeColor),
+            _Band(
+              widthFactor: composite,
+              height: height,
+              color: compositeTint(bandColor),
+            ),
             _Band(
               key: physicalBandKey,
               widthFactor: physical,
               height: height,
-              color: AppColors.primary,
+              color: bandColor,
             ),
             if (planned > 0)
               Align(
@@ -83,8 +98,8 @@ class EvmProgressTrack extends StatelessWidget {
   }
 
   /// Composite sits behind the earned-value band, so it is tinted to stay
-  /// visually subordinate to it.
-  static const Color _compositeColor = Color(0x66006633);
+  /// visually subordinate to it whatever hue the row uses.
+  static Color compositeTint(Color base) => base.withValues(alpha: 0.4);
 }
 
 class _Band extends StatelessWidget {
@@ -116,10 +131,16 @@ class _Band extends StatelessWidget {
 /// One-line key for [EvmProgressTrack], shown once under a list's column
 /// header rather than repeated on every row.
 class EvmTrackLegend extends StatelessWidget {
-  const EvmTrackLegend({super.key});
+  /// Swatch hue. Pass a neutral where the rows are coloured per status (the
+  /// dashboard): the key then reads as shading — solid = delivered, tinted =
+  /// overall — instead of claiming a hue the rows do not all share.
+  final Color? color;
+
+  const EvmTrackLegend({super.key, this.color});
 
   @override
   Widget build(BuildContext context) {
+    final base = color ?? AppColors.primary;
     return Container(
       // Explicit width: in a centred Column (the dashboard card) the strip
       // would otherwise shrink-wrap its keys and float mid-card.
@@ -130,10 +151,11 @@ class EvmTrackLegend extends StatelessWidget {
         alignment: WrapAlignment.end,
         spacing: 12,
         runSpacing: 2,
-        children: const [
-          _LegendKey(color: AppColors.primary, label: 'Delivered'),
-          _LegendKey(color: EvmProgressTrack._compositeColor, label: 'Overall'),
+        children: [
+          _LegendKey(color: base, label: 'Delivered'),
           _LegendKey(
+              color: EvmProgressTrack.compositeTint(base), label: 'Overall'),
+          const _LegendKey(
               color: AppColors.textPrimary, label: 'Planned', isTick: true),
         ],
       ),

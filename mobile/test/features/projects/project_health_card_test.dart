@@ -136,6 +136,33 @@ void main() {
       expect(band.width, closeTo(200 * 0.10, 0.5));
     });
 
+    testWidgets('honours a caller-supplied band colour', (tester) async {
+      // The dashboard rows stay status-coloured rather than EVM green.
+      const accent = Color(0xFFCC0000);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 200,
+              child: EvmProgressTrack(
+                project: Project.fromJson(
+                  _projectJson(physical: 10.0, plannedValue: 49.0),
+                ),
+                color: accent,
+              ),
+            ),
+          ),
+        ),
+      );
+      final band = tester.widget<Container>(
+        find.descendant(
+          of: find.byKey(EvmProgressTrack.physicalBandKey),
+          matching: find.byType(Container),
+        ),
+      );
+      expect((band.color), accent);
+    });
+
     testWidgets('omits the tick when nothing was planned yet', (tester) async {
       await pumpTrack(
         tester,
