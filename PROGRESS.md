@@ -3,7 +3,7 @@
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
 Last updated: 2026-07-22 · `main` @ local commit (unpushed)
-**Backend 232 tests · Flutter 55 tests · `flutter analyze` 0 issues · Swagger 0/0**
+**Backend 232 tests · Flutter 61 tests · `flutter analyze` 0 issues · Swagger 0/0**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -51,7 +51,7 @@ fraction of its own window), falling back to `time_progress` when a project has
 no phases or no budget; `health_status` from the two indices. All computed
 properties — no migrations, no caching.
 
-**Structured donor reporting (2026-07-22, commit 1 of 3 — backend only)**
+**Structured donor reporting (2026-07-22, commits 1-2 of 3)**
 - [x] `Report`: activity type, optional `linked_phase` / `linked_milestone`,
   `amount_spent` + notes, beneficiary breakdown (reached/male/female/youth),
   impact / challenges / recommendations / next steps, `posted_at`. All
@@ -66,8 +66,16 @@ properties — no migrations, no caching.
   split and youth bounded by total reached, approved reports frozen.
 - [x] `Project.reported_spend`, `.beneficiaries_reached`, `.cost_per_beneficiary`
   exposed read-only; `phases__reports` prefetched against N+1.
-- [x] 16 new tests (`apps/reports/tests/test_structured_reporting.py`);
-  **232 backend tests pass**. Demo figures verified byte-identical before and
+- [x] Flutter capture form (commit 2): Submit Report wizard extended to six
+  steps — Details → Activity → Impact → GPS → Photos → Review. Activity takes
+  the activity type, phase/milestone pickers, spend and reach breakdown;
+  Impact takes the four narrative fields. Client-side gender-split check,
+  inline warning when spend has no phase to post to, and link pickers that
+  degrade when a project has no phases/milestones.
+- [x] Offline drafts carry the structured payload — `report_drafts` schema v2
+  via additive ALTER TABLEs, so drafts saved by the previous build survive.
+- [x] 16 new backend tests (`apps/reports/tests/test_structured_reporting.py`)
+  and 6 new widget tests; **232 backend / 61 Flutter tests pass**. Demo figures verified byte-identical before and
   after (no report carries spend yet), and the shipped Flutter build still
   works unchanged against the new API.
 
@@ -120,7 +128,7 @@ schedule reading.
 ## Verification state
 
 - Backend **232 tests** pass on SQLite test settings.
-- Flutter **55 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Flutter **61 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
   reseeded demo data (15 app frames + 2 Django verify-email pages); every frame

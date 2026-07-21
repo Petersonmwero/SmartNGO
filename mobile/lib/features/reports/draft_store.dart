@@ -25,7 +25,26 @@ abstract class DraftStore {
 class SqfliteDraftStore implements DraftStore {
   static const _dbFile = 'smartngo_drafts.db';
   static const _table = 'report_drafts';
-  static const _schemaVersion = 1;
+  static const _schemaVersion = 2;
+
+  /// Columns added in schema v2 (structured donor reporting), as
+  /// `name TYPE` fragments. Reused by both onCreate and onUpgrade so the two
+  /// paths cannot drift.
+  static const _structuredColumns = <String>[
+    "activity_type TEXT NOT NULL DEFAULT ''",
+    'linked_phase_id INTEGER',
+    'linked_milestone_id INTEGER',
+    "amount_spent TEXT NOT NULL DEFAULT ''",
+    "expenditure_notes TEXT NOT NULL DEFAULT ''",
+    'beneficiaries_reached INTEGER NOT NULL DEFAULT 0',
+    'beneficiaries_male INTEGER NOT NULL DEFAULT 0',
+    'beneficiaries_female INTEGER NOT NULL DEFAULT 0',
+    'beneficiaries_youth INTEGER NOT NULL DEFAULT 0',
+    "impact_description TEXT NOT NULL DEFAULT ''",
+    "challenges_faced TEXT NOT NULL DEFAULT ''",
+    "recommendations TEXT NOT NULL DEFAULT ''",
+    "next_steps TEXT NOT NULL DEFAULT ''",
+  ];
 
   final DatabaseFactory? _factory;
   final String? _dbPath;
@@ -52,9 +71,20 @@ class SqfliteDraftStore implements DraftStore {
             gps_latitude REAL,
             gps_longitude REAL,
             photo_paths TEXT NOT NULL DEFAULT '[]',
-            updated_at INTEGER NOT NULL
+            updated_at INTEGER NOT NULL,
+            ${_structuredColumns.join(',\n            ')}
           )
         '''),
+        // Additive upgrade: a draft captured in the field before the app
+        // updated must survive, so v1 rows are widened in place rather than
+        // the table being recreated.
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) {
+            for (final column in _structuredColumns) {
+              await db.execute('ALTER TABLE $_table ADD COLUMN $column');
+            }
+          }
+        },
       ),
     );
     return _db!;

@@ -9,7 +9,7 @@ Last updated: 2026-07-22 · `main` @ local commit (unpushed) · tree clean
 | | |
 |---|---|
 | Backend tests | **232 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **55 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **61 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — 0 warnings, 0 errors |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (55 tests)
+# Flutter (61 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -57,7 +57,7 @@ indicators, milestones, reports (+ images, draft→submitted→approved workflow
 notifications (signal-driven), users, analytics dashboard, ReportLab PDFs, CSV
 export, email verification, password reset.
 
-**Structured donor reporting** (commit 1 of 3 — backend only) — `Report` gained
+**Structured donor reporting** (commits 1-2 of 3) — `Report` gained
 an activity type, optional links to a phase and a milestone, `amount_spent`,
 a beneficiary breakdown (reached / male / female / youth), four narrative
 fields, and `posted_at`. Every field is optional or defaulted, so older
@@ -79,6 +79,25 @@ reports stay valid.
   so the donor ledger stays append-only. Corrections mean a new report.
 - Because spend is derived, `ProjectViewSet` prefetches `phases__reports` and
   `reports`; without it every serialized project re-queries per phase.
+
+**Capture form (commit 2)** — the Submit Report wizard is now six steps:
+Details → **Activity** → **Impact** → GPS → Photos → Review.
+
+- Activity holds the activity type, phase and milestone pickers, spend +
+  notes, and the reach breakdown; Impact holds the four narrative fields.
+  Everything is optional — a narrative-only report still submits.
+- The gender-split rule is checked client-side before advancing, so an
+  officer is corrected on the spot instead of by a 400 four steps later.
+- Spend aggregates **per phase**, so an amount with no phase selected is
+  stored on the report but never reaches project budget figures. The form
+  says so inline as soon as an amount is typed — found by filing a real
+  report end-to-end and seeing its 125,000 sit outside `total_spent`.
+- Drafts carry the structured data too: `report_drafts` is at **schema v2**,
+  upgraded with additive `ALTER TABLE`s so a draft captured in the field
+  before the app updated survives.
+- `linked_phase`/`linked_milestone` options come from the project's own
+  phases and milestones; the pickers degrade to "No phases recorded" rather
+  than blocking the report when a project has none or the fetch fails.
 
 **Progress engine (EVM, per PMBOK)** — all computed properties on `Project`,
 no caching, no stored aggregates:
@@ -138,6 +157,9 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 - `LayoutBuilder` cannot compute intrinsics — it crashes inside
   `IntrinsicHeight`; `ProjectProgressBar` uses `AnimatedFractionallySizedBox`.
 - Fixed-height shimmer placeholders must adapt their line count to the height.
+- A `DropdownMenuItem`'s child is measured under **unbounded** width, so a
+  `Flexible`/`Expanded` inside one asserts. Use `mainAxisSize.min` and plain
+  `Text` (hit while adding the activity-type picker).
 - A `Container` with no width shrink-wraps in a centred `Column` (the legend
   strip floated mid-card on the dashboard until given `width: double.infinity`).
 - A bare `FractionallySizedBox` inside a `Stack` is sized to its factor and
@@ -213,9 +235,10 @@ Two capture lessons from this session:
 
 ## Next steps
 
-0. Structured donor reporting, commits 2 and 3: the Flutter reporting form
-   (structured fields, phase/milestone pickers) and the donor-facing report
-   views. Commit 1 (backend) is done and deliberately invisible to the app.
+0. Structured donor reporting, commit 3: donor-facing output — the impact PDF
+   and roll-ups driven by approved structured reports, plus showing the
+   captured data back on Report Detail. Also drop the legacy `spent_budget`
+   write shim (known issue 9) once nothing sends it.
 1. Peterson: click through the app at http://localhost:58569 with the demo
    accounts and flag visual issues. Newest to review: the health card's
    earned-vs-planned line (project detail → Overview → scroll one screen) and

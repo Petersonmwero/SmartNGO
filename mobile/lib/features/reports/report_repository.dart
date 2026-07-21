@@ -33,6 +33,10 @@ class ReportRepository {
   }
 
   /// Create a draft report; returns its id.
+  ///
+  /// The structured donor-reporting arguments are all optional — a
+  /// narrative-only report stays valid — and empty ones are left out of the
+  /// body entirely so the server's defaults apply.
   Future<int> createReport({
     required int projectId,
     required String title,
@@ -40,6 +44,19 @@ class ReportRepository {
     String description = '',
     double? latitude,
     double? longitude,
+    String activityType = '',
+    int? linkedPhaseId,
+    int? linkedMilestoneId,
+    String amountSpent = '',
+    String expenditureNotes = '',
+    int beneficiariesReached = 0,
+    int beneficiariesMale = 0,
+    int beneficiariesFemale = 0,
+    int beneficiariesYouth = 0,
+    String impactDescription = '',
+    String challengesFaced = '',
+    String recommendations = '',
+    String nextSteps = '',
   }) {
     return apiGuard(() async {
       final body = <String, dynamic>{
@@ -50,6 +67,25 @@ class ReportRepository {
       };
       if (latitude != null) body['gps_latitude'] = latitude;
       if (longitude != null) body['gps_longitude'] = longitude;
+      if (activityType.isNotEmpty) body['activity_type'] = activityType;
+      if (linkedPhaseId != null) body['linked_phase'] = linkedPhaseId;
+      if (linkedMilestoneId != null) body['linked_milestone'] = linkedMilestoneId;
+      if (amountSpent.isNotEmpty) body['amount_spent'] = amountSpent;
+      if (expenditureNotes.isNotEmpty) {
+        body['expenditure_notes'] = expenditureNotes;
+      }
+      if (beneficiariesReached > 0) {
+        body['beneficiaries_reached'] = beneficiariesReached;
+        body['beneficiaries_male'] = beneficiariesMale;
+        body['beneficiaries_female'] = beneficiariesFemale;
+        body['beneficiaries_youth'] = beneficiariesYouth;
+      }
+      if (impactDescription.isNotEmpty) {
+        body['impact_description'] = impactDescription;
+      }
+      if (challengesFaced.isNotEmpty) body['challenges_faced'] = challengesFaced;
+      if (recommendations.isNotEmpty) body['recommendations'] = recommendations;
+      if (nextSteps.isNotEmpty) body['next_steps'] = nextSteps;
       final res = await _api.dio.post('/reports/', data: body);
       return res.data['id'] as int;
     });

@@ -7,16 +7,25 @@ import '../../../core/api_exception.dart';
 import '../../../core/feedback.dart';
 import '../../../core/theme.dart';
 import '../../../shared/widgets/blur_validated_text_field.dart';
+import '../../projects/models/milestone.dart';
+import '../../projects/models/phase.dart';
 import '../../projects/models/project.dart';
 import '../../projects/project_repository.dart';
 import '../draft_store.dart';
+import '../models/activity_type.dart';
 import '../models/report_draft.dart';
 import '../report_repository.dart';
 
 /// Maximum photos per report (mirrors the backend's MAX_IMAGES_PER_REPORT).
 const int kMaxReportPhotos = 5;
 
-/// Four-step report wizard: Details → Location → Photos → Review.
+/// Six-step report wizard:
+/// Details → Activity → Impact → Location → Photos → Review.
+///
+/// Activity and Impact capture the structured donor-reporting payload —
+/// what was done, what it cost, who it reached, and what it changed. Every
+/// field there is optional: a narrative-only report is still valid, and the
+/// figures only affect project totals once a manager approves the report.
 ///
 /// Can be opened with a pre-selected project (from a project detail screen),
 /// with a local [draft] to resume, or bare (dashboard quick action) — in
@@ -41,10 +50,19 @@ class SubmitReportScreen extends StatefulWidget {
 }
 
 class _SubmitReportScreenState extends State<SubmitReportScreen> {
-  static const _stepLabels = ['Details', 'Location', 'Photos', 'Review'];
+  static const _stepLabels = [
+    'Details',
+    'Activity',
+    'Impact',
+    'GPS',
+    'Photos',
+    'Review',
+  ];
+  static const _activityStep = 1;
 
   int _step = 0;
   final _detailsFormKey = GlobalKey<FormState>();
+  final _activityFormKey = GlobalKey<FormState>();
   final _title = TextEditingController();
   final _description = TextEditingController();
   String _reportType = 'daily';
@@ -55,6 +73,27 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   double? _accuracy;
   final List<XFile> _photos = [];
   bool _busy = false;
+
+  // ── Structured reporting state ────────────────────────────────────────
+  String _activityType = '';
+  int? _linkedPhaseId;
+  int? _linkedMilestoneId;
+  final _amountSpent = TextEditingController();
+  final _expenditureNotes = TextEditingController();
+  final _reached = TextEditingController();
+  final _male = TextEditingController();
+  final _female = TextEditingController();
+  final _youth = TextEditingController();
+  final _impact = TextEditingController();
+  final _challenges = TextEditingController();
+  final _recommendations = TextEditingController();
+  final _nextSteps = TextEditingController();
+
+  /// Phases and milestones of the selected project, for the link pickers.
+  /// Null while loading; empty when the project has none.
+  List<ProjectPhase>? _phases;
+  List<Milestone>? _milestones;
+  int? _linksLoadedFor;
 
   // Project selector state (only used when no project was passed in).
   List<Project>? _projects;
@@ -80,6 +119,21 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       // Best-effort: the OS may have cleared the picker cache since the
       // draft was saved, in which case a thumbnail simply fails to load.
       _photos.addAll(draft.photoPaths.map(XFile.new));
+      _activityType = draft.activityType;
+      _linkedPhaseId = draft.linkedPhaseId;
+      _linkedMilestoneId = draft.linkedMilestoneId;
+      _amountSpent.text = draft.amountSpent;
+      _expenditureNotes.text = draft.expenditureNotes;
+      // Zero means "not recorded" here, so it shows as an empty field
+      // rather than a 0 the officer has to clear.
+      _reached.text = _countText(draft.beneficiariesReached);
+      _male.text = _countText(draft.beneficiariesMale);
+      _female.text = _countText(draft.beneficiariesFemale);
+      _youth.text = _countText(draft.beneficiariesYouth);
+      _impact.text = draft.impactDescription;
+      _challenges.text = draft.challengesFaced;
+      _recommendations.text = draft.recommendations;
+      _nextSteps.text = draft.nextSteps;
     }
     if (!_projectPreselected) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _loadProjects());
@@ -88,9 +142,58 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
   @override
   void dispose() {
-    _title.dispose();
-    _description.dispose();
+    for (final controller in [
+      _title,
+      _description,
+      _amountSpent,
+      _expenditureNotes,
+      _reached,
+      _male,
+      _female,
+      _youth,
+      _impact,
+      _challenges,
+      _recommendations,
+      _nextSteps,
+    ]) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  static String _countText(int value) => value > 0 ? '$value' : '';
+
+  /// Parse a count field; blank means "not recorded", i.e. zero.
+  static int _count(TextEditingController controller) =>
+      int.tryParse(controller.text.trim()) ?? 0;
+
+  /// Load the selected project's phases and milestones for the link
+  /// pickers. Failure is silent: the links are optional, so the step
+  /// degrades to "no phases recorded" rather than blocking the report.
+  Future<void> _loadLinkTargets() async {
+    final projectId = _projectId;
+    if (projectId == null || _linksLoadedFor == projectId) return;
+    _linksLoadedFor = projectId;
+    setState(() {
+      _phases = null;
+      _milestones = null;
+    });
+    final repo = context.read<ProjectRepository>();
+    try {
+      final phases = await repo.phases(projectId);
+      final milestones = await repo.milestones(projectId);
+      if (!mounted) return;
+      setState(() {
+        _phases = phases;
+        _milestones = milestones;
+      });
+    } on ApiException {
+      if (!mounted) return;
+      setState(() {
+        _phases = const [];
+        _milestones = const [];
+      });
+    }
   }
 
   Future<void> _loadProjects() async {
@@ -145,7 +248,33 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     if (_step == 0 && !(_detailsFormKey.currentState?.validate() ?? false)) {
       return;
     }
-    if (_step < _stepLabels.length - 1) setState(() => _step++);
+    if (_step == _activityStep) {
+      if (!(_activityFormKey.currentState?.validate() ?? false)) return;
+      // Mirrors the server's cross-field rule so an officer is told here
+      // rather than by a 400 four steps later.
+      final error = _beneficiaryError();
+      if (error != null) {
+        _toast(error);
+        return;
+      }
+    }
+    if (_step < _stepLabels.length - 1) {
+      setState(() => _step++);
+      if (_step == _activityStep) _loadLinkTargets();
+    }
+  }
+
+  /// The backend rejects a gender split wider than the total reached, and a
+  /// youth count above it; returns the message to show, or null when valid.
+  String? _beneficiaryError() {
+    final reached = _count(_reached);
+    if (_count(_male) + _count(_female) > reached) {
+      return 'Male plus female cannot exceed the total reached.';
+    }
+    if (_count(_youth) > reached) {
+      return 'Youth cannot exceed the total reached.';
+    }
+    return null;
   }
 
   /// Save the form as a local draft — no network involved, so it works
@@ -164,6 +293,19 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       longitude: _lng,
       photoPaths: _photos.map((p) => p.path).toList(),
       updatedAt: DateTime.now(),
+      activityType: _activityType,
+      linkedPhaseId: _linkedPhaseId,
+      linkedMilestoneId: _linkedMilestoneId,
+      amountSpent: _amountSpent.text.trim(),
+      expenditureNotes: _expenditureNotes.text.trim(),
+      beneficiariesReached: _count(_reached),
+      beneficiariesMale: _count(_male),
+      beneficiariesFemale: _count(_female),
+      beneficiariesYouth: _count(_youth),
+      impactDescription: _impact.text.trim(),
+      challengesFaced: _challenges.text.trim(),
+      recommendations: _recommendations.text.trim(),
+      nextSteps: _nextSteps.text.trim(),
     ));
     if (!mounted) return;
     showSuccessSnackBar(context, 'Draft saved on this device.');
@@ -184,6 +326,19 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         description: _description.text.trim(),
         latitude: _lat,
         longitude: _lng,
+        activityType: _activityType,
+        linkedPhaseId: _linkedPhaseId,
+        linkedMilestoneId: _linkedMilestoneId,
+        amountSpent: _amountSpent.text.trim(),
+        expenditureNotes: _expenditureNotes.text.trim(),
+        beneficiariesReached: _count(_reached),
+        beneficiariesMale: _count(_male),
+        beneficiariesFemale: _count(_female),
+        beneficiariesYouth: _count(_youth),
+        impactDescription: _impact.text.trim(),
+        challengesFaced: _challenges.text.trim(),
+        recommendations: _recommendations.text.trim(),
+        nextSteps: _nextSteps.text.trim(),
       );
       for (final photo in _photos) {
         final bytes = await photo.readAsBytes();
@@ -235,8 +390,10 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                 padding: const EdgeInsets.all(16),
                 child: switch (_step) {
                   0 => _buildDetails(),
-                  1 => _buildLocation(),
-                  2 => _buildPhotos(),
+                  1 => _buildActivity(),
+                  2 => _buildImpact(),
+                  3 => _buildLocation(),
+                  4 => _buildPhotos(),
                   _ => _buildReview(),
                 },
               ),
@@ -346,7 +503,309 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     );
   }
 
-  // ── Step 2: Location ─────────────────────────────────────────────────
+  // ── Step 2: Activity ─────────────────────────────────────────────────
+
+  Widget _buildActivity() {
+    return Form(
+      key: _activityFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionLabel(
+            'What was done',
+            hint: 'Optional — used for donor reporting.',
+          ),
+          DropdownButtonFormField<String>(
+            key: const Key('activity_type'),
+            initialValue: _activityType.isEmpty ? null : _activityType,
+            decoration: const InputDecoration(
+              labelText: 'Activity type',
+              prefixIcon: Icon(Icons.category_outlined),
+            ),
+            items: [
+              for (final type in ReportActivityType.all)
+                DropdownMenuItem(
+                  value: type.value,
+                  // No Flexible/Expanded here: a dropdown measures its items
+                  // under unbounded width, where a flexed child asserts.
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(type.icon, size: 18, color: AppColors.muted),
+                      const SizedBox(width: 8),
+                      Text(type.label),
+                    ],
+                  ),
+                ),
+            ],
+            onChanged: (v) => setState(() => _activityType = v ?? ''),
+          ),
+          const SizedBox(height: 16),
+          _linkPicker(
+            key: const Key('linked_phase'),
+            label: 'Project phase',
+            icon: Icons.timeline_outlined,
+            emptyHint: 'No phases recorded for this project',
+            value: _linkedPhaseId,
+            loading: _phases == null,
+            items: [
+              for (final phase in _phases ?? const <ProjectPhase>[])
+                DropdownMenuItem(
+                  value: phase.id,
+                  child: Text(phase.phaseName, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (v) => setState(() => _linkedPhaseId = v),
+          ),
+          const SizedBox(height: 16),
+          _linkPicker(
+            key: const Key('linked_milestone'),
+            label: 'Milestone completed',
+            icon: Icons.flag_outlined,
+            emptyHint: 'No milestones recorded for this project',
+            value: _linkedMilestoneId,
+            loading: _milestones == null,
+            items: [
+              for (final milestone in _milestones ?? const <Milestone>[])
+                DropdownMenuItem(
+                  value: milestone.id,
+                  child: Text(milestone.title, overflow: TextOverflow.ellipsis),
+                ),
+            ],
+            onChanged: (v) => setState(() => _linkedMilestoneId = v),
+          ),
+          if (_linkedMilestoneId != null)
+            _NoteLine(
+              'This milestone is marked complete when a manager approves '
+              'the report.',
+            ),
+          const SizedBox(height: 24),
+          _SectionLabel(
+            'What it cost',
+            hint: 'Counts towards the phase budget once approved.',
+          ),
+          BlurValidatedTextField(
+            key: const Key('amount_spent'),
+            controller: _amountSpent,
+            // Rebuild so the "select a phase" note appears as soon as an
+            // amount is typed.
+            onChanged: (_) => setState(() {}),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Amount spent',
+              prefixText: 'KES ',
+              prefixIcon: Icon(Icons.payments_outlined),
+            ),
+            validator: (v) {
+              final text = (v ?? '').trim();
+              if (text.isEmpty) return null;
+              final amount = double.tryParse(text);
+              if (amount == null) return 'Enter a number';
+              if (amount < 0) return 'Cannot be negative';
+              return null;
+            },
+          ),
+          // Spend is aggregated per phase, so an amount with no phase
+          // selected is recorded on the report but never reaches the
+          // project's budget figures. Say so rather than let it vanish.
+          if (_amountSpent.text.trim().isNotEmpty && _linkedPhaseId == null)
+            _NoteLine(
+              'Select a project phase above, or this spend will not count '
+              'towards the project budget.',
+            ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _expenditureNotes,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'Expenditure notes',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 24),
+          _SectionLabel(
+            'Who it reached',
+            hint: 'Male + female cannot exceed the total; youth is a subset.',
+          ),
+          BlurValidatedTextField(
+            key: const Key('beneficiaries_reached'),
+            controller: _reached,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'People reached',
+              prefixIcon: Icon(Icons.groups_outlined),
+            ),
+            validator: _countValidator,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: BlurValidatedTextField(
+                  key: const Key('beneficiaries_male'),
+                  controller: _male,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Male'),
+                  validator: _countValidator,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: BlurValidatedTextField(
+                  key: const Key('beneficiaries_female'),
+                  controller: _female,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Female'),
+                  validator: _countValidator,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: BlurValidatedTextField(
+                  key: const Key('beneficiaries_youth'),
+                  controller: _youth,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Youth'),
+                  validator: _countValidator,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String? _countValidator(String? value) {
+    final text = (value ?? '').trim();
+    if (text.isEmpty) return null;
+    final count = int.tryParse(text);
+    if (count == null) return 'Whole number';
+    if (count < 0) return 'Cannot be negative';
+    return null;
+  }
+
+  /// Dropdown that copes with the three states a link list can be in:
+  /// still loading, empty for this project, or populated.
+  Widget _linkPicker({
+    required Key key,
+    required String label,
+    required IconData icon,
+    required String emptyHint,
+    required int? value,
+    required bool loading,
+    required List<DropdownMenuItem<int>> items,
+    required ValueChanged<int?> onChanged,
+  }) {
+    if (loading) {
+      return InputDecorator(
+        decoration:
+            InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+        child: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text('Loading…'),
+          ],
+        ),
+      );
+    }
+    if (items.isEmpty) {
+      return InputDecorator(
+        decoration:
+            InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+        child: Text(emptyHint,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(color: AppColors.muted)),
+      );
+    }
+    return DropdownButtonFormField<int>(
+      key: key,
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        // Nothing selected is a valid answer, so offer a way back to it.
+        suffixIcon: value == null
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                tooltip: 'Clear',
+                onPressed: () => onChanged(null),
+              ),
+      ),
+      items: items,
+      onChanged: onChanged,
+    );
+  }
+
+  // ── Step 3: Impact ───────────────────────────────────────────────────
+
+  Widget _buildImpact() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionLabel(
+          'The story behind the numbers',
+          hint: 'These sections are quoted in donor reports.',
+        ),
+        _narrativeField(
+          key: const Key('impact_description'),
+          controller: _impact,
+          label: 'Impact observed',
+          hint: 'What changed for the people you worked with?',
+        ),
+        const SizedBox(height: 16),
+        _narrativeField(
+          key: const Key('challenges_faced'),
+          controller: _challenges,
+          label: 'Challenges faced',
+          hint: 'What got in the way?',
+        ),
+        const SizedBox(height: 16),
+        _narrativeField(
+          key: const Key('recommendations'),
+          controller: _recommendations,
+          label: 'Recommendations',
+          hint: 'What should change next time?',
+        ),
+        const SizedBox(height: 16),
+        _narrativeField(
+          key: const Key('next_steps'),
+          controller: _nextSteps,
+          label: 'Next steps',
+          hint: 'What happens after this activity?',
+        ),
+      ],
+    );
+  }
+
+  Widget _narrativeField({
+    required Key key,
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+  }) {
+    return TextFormField(
+      key: key,
+      controller: controller,
+      maxLines: 3,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        alignLabelWithHint: true,
+      ),
+    );
+  }
+
+  // ── Step 4: Location ─────────────────────────────────────────────────
 
   Widget _buildLocation() {
     final hasFix = _lat != null && _lng != null;
@@ -483,6 +942,15 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                     _description.text.trim().isEmpty
                         ? '—'
                         : _description.text.trim()),
+                _reviewRow('Activity', ReportActivityType.labelFor(_activityType)),
+                if (_linkedPhaseId != null)
+                  _reviewRow('Phase', _nameOfPhase(_linkedPhaseId!)),
+                if (_linkedMilestoneId != null)
+                  _reviewRow('Milestone', _nameOfMilestone(_linkedMilestoneId!)),
+                if (_amountSpent.text.trim().isNotEmpty)
+                  _reviewRow('Spent', 'KES ${_amountSpent.text.trim()}'),
+                if (_count(_reached) > 0)
+                  _reviewRow('Reached', _reachSummary()),
                 _reviewRow(
                     'Location',
                     (_lat != null && _lng != null)
@@ -522,6 +990,31 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         ),
       ],
     );
+  }
+
+  /// "300 (140 male · 160 female · 90 youth)" — only the parts recorded.
+  String _reachSummary() {
+    final parts = <String>[
+      if (_count(_male) > 0) '${_count(_male)} male',
+      if (_count(_female) > 0) '${_count(_female)} female',
+      if (_count(_youth) > 0) '${_count(_youth)} youth',
+    ];
+    final total = '${_count(_reached)} people';
+    return parts.isEmpty ? total : '$total (${parts.join(' · ')})';
+  }
+
+  String _nameOfPhase(int id) {
+    for (final phase in _phases ?? const <ProjectPhase>[]) {
+      if (phase.id == id) return phase.phaseName;
+    }
+    return 'Phase $id';
+  }
+
+  String _nameOfMilestone(int id) {
+    for (final milestone in _milestones ?? const <Milestone>[]) {
+      if (milestone.id == id) return milestone.title;
+    }
+    return 'Milestone $id';
   }
 
   Widget _reviewRow(String label, String value) {
@@ -581,6 +1074,72 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
               onPressed: _next,
               child: const Text('Next'),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Small form furniture ──────────────────────────────────────────────────
+
+/// Heading that groups a set of related fields, with an optional hint
+/// explaining what the group is for.
+class _SectionLabel extends StatelessWidget {
+  final String title;
+  final String? hint;
+  const _SectionLabel(this.title, {this.hint});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+              color: AppColors.primary,
+            ),
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: 2),
+            Text(hint!,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.muted)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Inline consequence note, e.g. what approving the report will do.
+class _NoteLine extends StatelessWidget {
+  final String text;
+  const _NoteLine(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline, size: 14, color: AppColors.muted),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.muted)),
           ),
         ],
       ),

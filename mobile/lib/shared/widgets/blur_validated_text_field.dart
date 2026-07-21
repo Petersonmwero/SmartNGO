@@ -17,6 +17,7 @@ class BlurValidatedTextField extends StatefulWidget {
     this.obscureText = false,
     this.maxLines = 1,
     this.onFieldSubmitted,
+    this.onChanged,
   });
 
   final TextEditingController controller;
@@ -27,6 +28,10 @@ class BlurValidatedTextField extends StatefulWidget {
   final bool obscureText;
   final int maxLines;
   final ValueChanged<String>? onFieldSubmitted;
+
+  /// Called on every keystroke, for callers that need to react to the text
+  /// as it is typed (e.g. showing a conditional hint).
+  final ValueChanged<String>? onChanged;
 
   @override
   State<BlurValidatedTextField> createState() => _BlurValidatedTextFieldState();
@@ -73,6 +78,7 @@ class _BlurValidatedTextFieldState extends State<BlurValidatedTextField> {
       obscureText: widget.obscureText,
       maxLines: widget.maxLines,
       onFieldSubmitted: widget.onFieldSubmitted,
+      onChanged: widget.onChanged,
       autovalidateMode: _touched
           ? AutovalidateMode.onUserInteraction
           : AutovalidateMode.disabled,
