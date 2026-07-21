@@ -12,6 +12,161 @@ String formatKes(double value) {
   return 'KES ${value.toStringAsFixed(0)}';
 }
 
+// ── LIST PROGRESS TRACK ────────────────────────────────────────────────────
+
+/// Compact EVM track for list rows: composite fill, the physical (earned
+/// value) segment drawn over it, and a tick at planned value.
+///
+/// The tick is only meaningful against the *physical* segment — SPI is
+/// EV/PV — which is why physical is drawn as its own darker band rather than
+/// letting the composite fill stand in for delivery. Physical past the tick
+/// means ahead of the plan.
+class EvmProgressTrack extends StatelessWidget {
+  final Project project;
+
+  /// Track thickness; the tick overhangs it by [_tickOverhang] either side.
+  final double height;
+
+  static const double _tickOverhang = 3;
+  static const double _tickWidth = 2;
+
+  /// Identifies the planned-value tick, which is absent when PV is 0.
+  static const Key tickKey = Key('evm-planned-tick');
+
+  /// Identifies the earned-value (physical) band.
+  static const Key physicalBandKey = Key('evm-physical-band');
+
+  const EvmProgressTrack({super.key, required this.project, this.height = 6});
+
+  static double _fraction(double percent) => (percent / 100).clamp(0.0, 1.0);
+
+  @override
+  Widget build(BuildContext context) {
+    final composite = project.compositeFraction;
+    final physical = _fraction(project.physicalProgress);
+    final planned = _fraction(project.plannedValueProgress);
+    return Tooltip(
+      message: 'Delivered ${project.physicalProgress.toStringAsFixed(1)}% · '
+          'planned ${project.plannedValueProgress.toStringAsFixed(1)}% · '
+          'overall ${project.progressPercentage.round()}%',
+      child: SizedBox(
+        height: height + _tickOverhang * 2,
+        child: Stack(
+          alignment: Alignment.center,
+          // FractionallySizedBox + Align keep this free of LayoutBuilder,
+          // which cannot compute intrinsics and breaks inside IntrinsicHeight.
+          children: [
+            Container(height: height, color: AppColors.border),
+            _Band(widthFactor: composite, height: height, color: _compositeColor),
+            _Band(
+              key: physicalBandKey,
+              widthFactor: physical,
+              height: height,
+              color: AppColors.primary,
+            ),
+            if (planned > 0)
+              Align(
+                key: tickKey,
+                // -1 pins the tick's left edge to the track's left edge and
+                // +1 its right edge to the right, so it never spills out.
+                alignment: Alignment(planned * 2 - 1, 0),
+                child: Container(
+                  width: _tickWidth,
+                  height: height + _tickOverhang * 2,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Composite sits behind the earned-value band, so it is tinted to stay
+  /// visually subordinate to it.
+  static const Color _compositeColor = Color(0x66006633);
+}
+
+class _Band extends StatelessWidget {
+  final double widthFactor;
+  final double height;
+  final Color color;
+
+  const _Band({
+    super.key,
+    required this.widthFactor,
+    required this.height,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) => Align(
+        // The Align is load-bearing: a bare FractionallySizedBox is sized to
+        // its factor and then positioned by the Stack's own alignment, which
+        // centres the band instead of anchoring it to the left of the track.
+        alignment: Alignment.centerLeft,
+        child: FractionallySizedBox(
+          alignment: Alignment.centerLeft,
+          widthFactor: widthFactor,
+          child: Container(height: height, color: color),
+        ),
+      );
+}
+
+/// One-line key for [EvmProgressTrack], shown once under a list's column
+/// header rather than repeated on every row.
+class EvmTrackLegend extends StatelessWidget {
+  const EvmTrackLegend({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.surfaceVariant,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      child: Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 12,
+        runSpacing: 2,
+        children: const [
+          _LegendKey(color: AppColors.primary, label: 'Delivered'),
+          _LegendKey(color: EvmProgressTrack._compositeColor, label: 'Overall'),
+          _LegendKey(
+              color: AppColors.textPrimary, label: 'Planned', isTick: true),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendKey extends StatelessWidget {
+  final Color color;
+  final String label;
+  final bool isTick;
+
+  const _LegendKey({
+    required this.color,
+    required this.label,
+    this.isTick = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: isTick ? 2 : 12,
+          height: isTick ? 10 : 6,
+          color: color,
+        ),
+        const SizedBox(width: 4),
+        Text(label,
+            style: const TextStyle(fontSize: 9, color: AppColors.textMuted)),
+      ],
+    );
+  }
+}
+
 // ── PROJECT PROGRESS ───────────────────────────────────────────────────────
 
 /// Official card showing the weighted composite progress: a circular

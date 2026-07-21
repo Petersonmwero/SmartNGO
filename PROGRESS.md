@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-21 · `main` @ `f438933`
-**Backend 216 tests · Flutter 50 tests · `flutter analyze` 0 issues · Swagger 0/0**
+Last updated: 2026-07-21 · `main` @ `c431600`
+**Backend 216 tests · Flutter 54 tests · `flutter analyze` 0 issues · Swagger 0/0**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -83,7 +83,12 @@ ribbon, table-style lists.
 **EVM UI** — `ProjectProgressCard` (composite ring + three dimension bars with
 detail lines), `ProjectHealthCard` (rating badge, CPI/SPI with plain-language
 readings and an "Earned X% of budgeted work vs Y% planned" footnote),
-`PhaseBudgetTable`, `HealthDot`, `PhaseManagementScreen`, milestone weights.
+`PhaseBudgetTable`, `HealthDot`, `PhaseManagementScreen`, milestone weights,
+and `EvmProgressTrack` on the project-list rows — composite fill with the
+physical (earned value) band over it and a tick at planned value, keyed by
+`EvmTrackLegend` under the column header. Physical is drawn as its own band
+because SPI is EV/PV: a tick read against the *composite* fill would not be a
+schedule reading.
 
 **Gap** — flat repository pattern rather than data/domain/presentation layers
 (D-006).
@@ -93,7 +98,7 @@ readings and an "Earned X% of budgeted work vs Y% planned" footnote),
 ## Verification state
 
 - Backend **216 tests** pass on SQLite test settings.
-- Flutter **50 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Flutter **54 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
   reseeded demo data (15 app frames + 2 Django verify-email pages).
@@ -111,5 +116,5 @@ readings and an "Earned X% of budgeted work vs Y% planned" footnote),
 - User detail/edit screen.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.
-- Surface `plannedValueProgress` beyond the health card (e.g. a PV marker on
-  project-list progress bars).
+- Consider carrying `EvmProgressTrack` into the dashboard's Recent Projects
+  rows, which still draw a plain composite bar.

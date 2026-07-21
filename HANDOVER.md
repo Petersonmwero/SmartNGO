@@ -4,12 +4,12 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-21 · `main` @ `f438933` · working tree clean
+Last updated: 2026-07-21 · `main` @ `c431600` · working tree clean
 
 | | |
 |---|---|
 | Backend tests | **216 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **50 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **54 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — 0 warnings, 0 errors |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (50 tests)
+# Flutter (54 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -108,6 +108,11 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 - `LayoutBuilder` cannot compute intrinsics — it crashes inside
   `IntrinsicHeight`; `ProjectProgressBar` uses `AnimatedFractionallySizedBox`.
 - Fixed-height shimmer placeholders must adapt their line count to the height.
+- A bare `FractionallySizedBox` inside a `Stack` is sized to its factor and
+  then positioned by the **Stack's** alignment — its own `alignment:` only
+  places its child within itself. Left-anchored bars need an enclosing
+  `Align` (this centred every band in `EvmProgressTrack`, and a width-factor
+  unit test did not catch it — the regression test asserts geometry).
 - All failure snackbars must route through `core/feedback.dart` — the default
   theme snackbar is success-green, so a raw error `SnackBar` reads as success.
 - `/notifications` is **not** a GoRouter route; it is pushed with
@@ -168,9 +173,9 @@ look at every frame, then copy into `docs/screenshots/`.
    → scroll one screen) is the newest thing to review.
 2. Backlog: monthly report series endpoint for a real 6-month chart; donor PDF
    download button; user detail/edit screen.
-3. `Project.plannedValueProgress` is parsed in Flutter but only the health card
-   uses it — a PV marker on the project-list progress bars is the natural next
-   use.
+3. The dashboard's Recent Projects rows still draw a plain composite bar; the
+   project list now uses `EvmProgressTrack`. Carrying it over would make the
+   two consistent.
 
 ## Blockers
 

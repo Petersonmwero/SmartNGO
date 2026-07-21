@@ -180,6 +180,8 @@ class _ProjectsListScreenState extends State<ProjectsListScreen> {
               ],
             ),
           ),
+          // Legend: without it the tick on each row's track is unreadable.
+          const EvmTrackLegend(),
           Expanded(
             child: RefreshIndicator(
               color: AppColors.primary,
@@ -327,12 +329,7 @@ class _ProjectTableRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: AppColors.border,
-                      color: AppColors.primary,
-                      minHeight: 4,
-                    ),
+                    child: EvmProgressTrack(project: project),
                   ),
                 ],
               ),
