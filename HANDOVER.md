@@ -63,9 +63,16 @@ front-loaded plan: 49% planned vs 34% calendar). Zero console/API errors.
 **Restart the runserver process after backend edits** — it will not reload
 itself.
 
-> `docs/screenshots/app-project-detail.png` was not retaken: it captures the
-> top of the detail screen and cuts off above the SPI rows, so the new line
-> is not in frame.
+`docs/screenshots/app-project-detail.png` **retaken** scrolled to the health
+card (Food Security: CRITICAL, CPI 0.20, SPI 0.20, "Earned 10.0% of budgeted
+work vs 49.0% planned") plus the phase budget table. Repeatable via
+`detailshot.js` in the session scratchpad — manager login, Projects, row 1,
+`mouse.wheel({deltaY: 555})`; 620 clips the card header, so re-tune the
+scroll by eye if the layout above it changes.
+
+> Trade-off: the previous frame showed the top of the detail screen
+> (date/budget tiles + `ProjectProgressCard` ring and dimension bars), which
+> is now out of frame. Add a second file if the report needs both.
 
 ---
 
