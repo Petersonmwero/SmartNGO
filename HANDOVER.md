@@ -84,15 +84,24 @@ re-navigates to the dashboard, waits 6s for the KPI fetches to settle, then
 taps the bell at (343, 40). Tapping earlier loses the route push to a
 re-render and silently captures the dashboard instead.
 
-> **Bug found while eyeballing `app-dashboard-admin.png`** (pre-existing, NOT
-> fixed — it changes RBAC behaviour and demo numbers): the admin stats strip
-> reads "3 Projects" while the Recent Projects list right below it shows
-> Community Clinic Outreach, which belongs to a *different* NGO. Cause:
-> `apps/analytics/views.py::_projects_qs` scopes admins to `user.ngo`, but
-> `/projects/` returns all 4 across NGOs (verified via the API). CLAUDE.md
-> business rule 1 says a system-wide admin sees all NGOs, so the dashboard
-> queryset is the side that is wrong. Fixing it moves the admin dashboard
-> counts and will touch the analytics tests.
+### Admin dashboard scoping bug (found via screenshot, FIXED)
+
+Eyeballing `app-dashboard-admin.png` caught the stats strip reading
+"3 Projects" while the Recent Projects list right beneath it showed Community
+Clinic Outreach — a *different* NGO's project. `_projects_qs` in
+`apps/analytics/views.py` scoped admins to `user.ngo`, while `/projects/`
+(via `ProjectScopedViewSetMixin`) returns all 4 across NGOs. CLAUDE.md
+business rule 1 makes `role=admin` system-wide, so the dashboard was wrong.
+
+- `_projects_qs` now returns `Project.objects.all()` for admins; the
+  beneficiary and report totals derive from it and widen with it.
+- `test_admin_sees_only_own_ngo_projects` → `test_admin_sees_projects_across_
+  every_ngo` (expects 2), plus a new test pinning that the derived
+  beneficiary/report counts span NGOs. **216 backend tests pass.**
+- Manager, donor and officer scoping is untouched.
+- Admin dashboard now reads **4 Projects**, agreeing with the list below it;
+  frame retaken. Server verified via the API first (4 projects, 12
+  beneficiaries) — remember the `--noreload` restart.
 
 The top of the same screen — date/budget tiles + `ProjectProgressCard`
 (27% composite ring, financial/physical/time bars) — is now a second file,

@@ -14,8 +14,8 @@ from core.responses import SuccessResponse
 class AnalyticsDashboardView(APIView):
     """Return role-filtered aggregate statistics for the dashboard.
 
-    All figures are scoped to the caller's NGO (admin/manager/donor) or to
-    the caller's assigned projects (officer).
+    Figures are scoped to the caller's NGO (manager/donor), to the caller's
+    assigned projects (officer), or system-wide across every NGO (admin).
 
     Response shape:
       {status, message, data: {projects, beneficiaries, reports, notifications}}
@@ -80,8 +80,11 @@ class AnalyticsDashboardView(APIView):
     def _projects_qs(self, user, role):
         """Return the base Project queryset scoped by role."""
         if role == Role.ADMIN:
-            # Admin sees all projects in their NGO.
-            return Project.objects.filter(ngo=user.ngo)
+            # System-wide admin: every NGO, matching /projects/ and the
+            # ProjectScopedViewSetMixin. Scoping admins to their own NGO here
+            # made the dashboard count disagree with the project list beneath
+            # it.
+            return Project.objects.all()
         if role == Role.OFFICER:
             # Officers see only the projects they are assigned to.
             return Project.objects.filter(assignments__user=user).distinct()

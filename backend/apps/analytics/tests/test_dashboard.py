@@ -46,13 +46,33 @@ class TestDashboardResponseShape:
 
 
 class TestDashboardNGOScoping:
-    def test_admin_sees_only_own_ngo_projects(
+    def test_admin_sees_projects_across_every_ngo(
         self, auth_client, admin_user, project, other_project
     ):
+        """A system-wide admin counts other NGOs' projects too.
+
+        The dashboard must agree with GET /projects/, which already returns
+        every NGO's projects to an admin — a narrower count here rendered a
+        stats card that contradicted the project list drawn beneath it.
+        """
         resp = auth_client(admin_user).get(DASHBOARD)
-        total = resp.data["data"]["projects"]["total"]
-        # admin_user is in `ngo`; should see `project` but not `other_project`.
-        assert total == 1
+        assert resp.data["data"]["projects"]["total"] == 2
+
+    def test_admin_counts_derived_from_projects_span_ngos(
+        self, auth_client, admin_user, officer_user, project, other_project
+    ):
+        """Beneficiary/report totals follow the widened admin project scope."""
+        Beneficiary.objects.create(name="Ours", gender="female", project=project)
+        Beneficiary.objects.create(
+            name="Theirs", gender="male", project=other_project
+        )
+        Report.objects.create(
+            title="Theirs", report_type="visit", project=other_project,
+            officer=officer_user, status="submitted",
+        )
+        resp = auth_client(admin_user).get(DASHBOARD)
+        assert resp.data["data"]["beneficiaries"]["total"] == 2
+        assert resp.data["data"]["reports"]["submitted"] == 1
 
     def test_manager_sees_own_ngo_projects(
         self, auth_client, manager_user, project, other_project

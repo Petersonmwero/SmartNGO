@@ -32,6 +32,12 @@ off the phase baseline.
   key is absent, so pre-PV payloads still parse) and surfaced as a footnote
   under the SPI row — "Earned 20.0% of budgeted work vs 19.7% planned", one
   decimal so the figure explains the index; 3 new tests, **50 Flutter tests**
+- [x] Backend fix (spotted in the retaken admin screenshot): the analytics
+  dashboard scoped admins to their own NGO while `/projects/` returned every
+  NGO's, so the stats card contradicted the list under it — `_projects_qs`
+  is now system-wide for `role=admin` per business rule 1; **216 tests pass**
+- [x] Full `app-*.png` screenshot set retaken against the reseeded demo data
+  (13 frames, zero console/API errors)
 - [x] Verified live in Chrome at 430×932: Girls Education SPI 1.02 healthy,
   Food Security SPI 0.20 critical (49% planned vs 34% calendar — the
   front-loaded case the fix exists for), zero console/API errors
