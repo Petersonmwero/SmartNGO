@@ -16,7 +16,9 @@ import '../models/indicator.dart';
 import '../models/milestone.dart';
 import '../models/project.dart';
 import '../project_repository.dart';
+import '../models/impact_summary.dart';
 import '../widgets/evm_cards.dart';
+import '../widgets/impact_card.dart';
 import 'create_project_screen.dart';
 import 'phase_management_screen.dart';
 
@@ -40,6 +42,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   late final TabController _tabs;
   late Future<Project> _project;
   late Future<List<Milestone>> _milestones;
+  late Future<ImpactSummary> _impact;
   late Future<List<ProjectAssignment>> _team;
   late Future<List<Indicator>> _indicators;
   late Future<int> _beneficiaryCount;
@@ -65,6 +68,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   void _loadAll() {
     _project = _repo.get(widget.projectId);
     _milestones = _repo.milestones(widget.projectId);
+    _impact = _repo.impactSummary(widget.projectId);
     _team = _repo.assignments(widget.projectId);
     _indicators = _repo.indicators(widget.projectId);
     _beneficiaryCount =
@@ -197,6 +201,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
           _OverviewTab(
             future: _project,
             milestones: _milestones,
+            impact: _impact,
             beneficiaryCount: _beneficiaryCount,
             canManage: canManage,
             onEdit: _editProject,
@@ -305,6 +310,7 @@ class _AsyncTab<T> extends StatelessWidget {
 class _OverviewTab extends StatelessWidget {
   final Future<Project> future;
   final Future<List<Milestone>> milestones;
+  final Future<ImpactSummary> impact;
   final Future<int> beneficiaryCount;
   final bool canManage;
   final VoidCallback onEdit;
@@ -313,6 +319,7 @@ class _OverviewTab extends StatelessWidget {
   const _OverviewTab({
     required this.future,
     required this.milestones,
+    required this.impact,
     required this.beneficiaryCount,
     required this.canManage,
     required this.onEdit,
@@ -365,6 +372,17 @@ class _OverviewTab extends StatelessWidget {
                 ProjectProgressCard(project: p, milestones: snap.data),
           ),
           const SizedBox(height: 12),
+          // Donor-facing reach/cost, from approved reports only. Silent on
+          // failure: it is a summary, not something to block the screen for.
+          FutureBuilder<ImpactSummary>(
+            future: impact,
+            builder: (context, snap) => snap.hasData
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: ProjectImpactCard(summary: snap.data!),
+                  )
+                : const SizedBox.shrink(),
+          ),
           ProjectHealthCard(project: p),
           const SizedBox(height: 12),
           PhaseBudgetTable(

@@ -8,6 +8,7 @@ create duplicates). Run with:
 """
 import io
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
@@ -27,6 +28,7 @@ from apps.projects.models import (
     ProjectPhase,
 )
 from apps.reports.models import Report, ReportImage
+from apps.reports.services import post_report
 
 DEMO_PASSWORD = "DemoPass123!"
 
@@ -251,6 +253,16 @@ class Command(BaseCommand):
                               "monthly", "submitted")
         pump = self._report(water, officer1, "Pump maintenance notes",
                             "daily", "draft")
+        # One fully structured, approved report so the demo shows donor
+        # reporting end to end: its spend posts to the Drilling phase and its
+        # reach feeds the project's impact card.
+        self._structured_report(
+            water,
+            officer1,
+            title="Borehole 12 handover",
+            phase_name="Drilling",
+            milestone_title="Phase 1 Borehole Drilling",
+        )
 
         # ── Report photos (generated evidence images) ────────────────────
         self._report_photo(borehole, "Drilling rig on site — Borehole 12",
@@ -369,6 +381,45 @@ class Command(BaseCommand):
         if created and status == "approved":
             report.status = Report.Status.APPROVED
             report.save(update_fields=["status"])
+        return report
+
+    def _structured_report(self, project, officer, *, title, phase_name,
+                           milestone_title):
+        """Seed an approved report carrying the full structured payload.
+
+        Posted through `post_report` rather than by setting fields directly,
+        so the demo data goes through exactly the path the app uses.
+        """
+        report, created = Report.objects.get_or_create(
+            title=title, project=project, officer=officer,
+            defaults={
+                "report_type": "monthly",
+                "description": "Commissioning visit and handover to the "
+                               "water committee.",
+                "gps_latitude": "-0.1022000",
+                "gps_longitude": "34.7617000",
+                "status": Report.Status.SUBMITTED,
+                "date_submitted": timezone.now(),
+                "activity_type": Report.ActivityType.CONSTRUCTION,
+                "linked_phase": project.phases.filter(
+                    phase_name=phase_name).first(),
+                "linked_milestone": project.milestones.filter(
+                    title=milestone_title).first(),
+                "amount_spent": Decimal("180000.00"),
+                "expenditure_notes": "Pump, casing and apron works.",
+                "beneficiaries_reached": 420,
+                "beneficiaries_male": 190,
+                "beneficiaries_female": 230,
+                "beneficiaries_youth": 150,
+                "impact_description": "Walking time to safe water cut from "
+                                      "90 minutes to 15.",
+                "challenges_faced": "Heavy rain delayed casing by a week.",
+                "recommendations": "Fence the site before the next rains.",
+                "next_steps": "Train the water committee on maintenance.",
+            },
+        )
+        if created:
+            post_report(report)
         return report
 
     def _report_photo(self, report, caption, gradient):

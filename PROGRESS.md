@@ -3,7 +3,7 @@
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
 Last updated: 2026-07-22 · `main` @ local commit (unpushed)
-**Backend 232 tests · Flutter 61 tests · `flutter analyze` 0 issues · Swagger 0/0**
+**Backend 243 tests · Flutter 67 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -51,7 +51,7 @@ fraction of its own window), falling back to `time_progress` when a project has
 no phases or no budget; `health_status` from the two indices. All computed
 properties — no migrations, no caching.
 
-**Structured donor reporting (2026-07-22, commits 1-2 of 3)**
+**Structured donor reporting (2026-07-22, complete — 3 commits)**
 - [x] `Report`: activity type, optional `linked_phase` / `linked_milestone`,
   `amount_spent` + notes, beneficiary breakdown (reached/male/female/youth),
   impact / challenges / recommendations / next steps, `posted_at`. All
@@ -74,10 +74,23 @@ properties — no migrations, no caching.
   degrade when a project has no phases/milestones.
 - [x] Offline drafts carry the structured payload — `report_drafts` schema v2
   via additive ALTER TABLEs, so drafts saved by the previous build survive.
-- [x] 16 new backend tests (`apps/reports/tests/test_structured_reporting.py`)
-  and 6 new widget tests; **232 backend / 61 Flutter tests pass**. Demo figures verified byte-identical before and
-  after (no report carries spend yet), and the shipped Flutter build still
-  works unchanged against the new API.
+- [x] Donor output (commit 3): `project_impact_summary` rolls approved reports
+  into reach / spend / cost-per-beneficiary / activity breakdown / narratives,
+  served as JSON (`/projects/{id}/impact-summary/`) and as a ReportLab PDF
+  (`/projects/{id}/impact-report/`) from the same function.
+- [x] Flutter: Report Detail shows the recorded results and impact narrative;
+  Project Overview gained `ProjectImpactCard` (reach, cost per person, gender
+  bar, activity rows) with an explicit empty state.
+- [x] Legacy `spent_budget` write shim removed — the phase editor sends
+  `opening_spend` and is labelled "Baseline spend".
+- [x] `seed_demo` seeds one fully structured approved report via `post_report`,
+  so the demo shows the whole chain (spend posts to the Drilling phase, its
+  milestone completes, the impact card fills).
+- [x] 27 new backend tests and 12 new widget tests across the three commits;
+  **243 backend / 67 Flutter tests pass**. Commit 1 was verified invisible to
+  the shipped app (demo figures byte-identical, old build still working);
+  commit 3 deliberately moves them, because the seeded structured report now
+  posts real spend and completes a milestone.
 
 **Gaps vs the CLAUDE.md spec** (all deliberate, see DECISIONS.md)
 - No `services.py` layer — logic sits in views/serializers.
@@ -127,8 +140,8 @@ schedule reading.
 
 ## Verification state
 
-- Backend **232 tests** pass on SQLite test settings.
-- Flutter **61 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Backend **243 tests** pass on SQLite test settings.
+- Flutter **67 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
   reseeded demo data (15 app frames + 2 Django verify-email pages); every frame
@@ -143,6 +156,9 @@ schedule reading.
 
 - Monthly report series endpoint → real 6-month trend chart (today the bar
   chart shows counts by status).
+- Download button for the impact PDF (needs an authenticated file fetch).
+- Clear the 12 pre-existing Swagger errors / 21 warnings (APIViews without a
+  serializer_class; untyped ReadOnlyFields on ProjectSerializer).
 - Donor PDF download button (PDFs exist, no UI entry point).
 - User detail/edit screen.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named

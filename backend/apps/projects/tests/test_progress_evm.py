@@ -258,7 +258,7 @@ def _phase_payload(**over):
         "phase_name": "Drilling",
         "phase_type": "implementation",
         "allocated_budget": "1200000.00",
-        "spent_budget": "928000.00",
+        "opening_spend": "928000.00",
         "start_date": str(TODAY - timedelta(days=30)),
         "end_date": str(TODAY + timedelta(days=30)),
         "status": "in_progress",
@@ -273,9 +273,9 @@ def test_manager_creates_and_updates_phase(auth_client, manager_user, ngo):
     resp = client.post(_phases_url(project.id), _phase_payload(), format="json")
     assert resp.status_code == 201
     phase_id = resp.data["data"]["id"] if "data" in resp.data else resp.data["id"]
-    # Updating spent_budget immediately moves the computed progress.
+    # Updating the baseline spend immediately moves the computed progress.
     resp = client.patch(
-        _phases_url(project.id, phase_id), {"spent_budget": "1200000.00"},
+        _phases_url(project.id, phase_id), {"opening_spend": "1200000.00"},
         format="json",
     )
     assert resp.status_code == 200
@@ -314,7 +314,7 @@ def test_phase_rejects_bad_dates_and_negative_spend(auth_client, manager_user,
     assert client.post(
         _phases_url(project.id), bad_dates, format="json"
     ).status_code == 400
-    negative = _phase_payload(spent_budget="-5.00")
+    negative = _phase_payload(opening_spend="-5.00")
     assert client.post(
         _phases_url(project.id), negative, format="json"
     ).status_code == 400

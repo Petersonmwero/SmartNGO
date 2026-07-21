@@ -2,6 +2,7 @@ import '../../core/api_client.dart';
 import '../../core/api_exception.dart';
 import '../../core/paginated.dart';
 import 'models/assignment.dart';
+import 'models/impact_summary.dart';
 import 'models/indicator.dart';
 import 'models/milestone.dart';
 import 'models/phase.dart';
@@ -130,6 +131,17 @@ class ProjectRepository {
         'description': description,
         'weight': weight,
       });
+    });
+  }
+
+  /// Donor-facing roll-up of the project's approved reports.
+  Future<ImpactSummary> impactSummary(int projectId) {
+    return apiGuard(() async {
+      final res = await _api.dio.get('/projects/$projectId/impact-summary/');
+      final body = res.data as Map<String, dynamic>;
+      // Newer endpoints wrap payloads in the {status, data} envelope.
+      final data = (body['data'] ?? body) as Map<String, dynamic>;
+      return ImpactSummary.fromJson(data);
     });
   }
 

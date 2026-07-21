@@ -34,6 +34,26 @@ class Report {
   final double? gpsLongitude;
   final List<ReportImage> images;
 
+  // ── Structured donor reporting ──────────────────────────────────────────
+  // Defaulted throughout: reports filed before these fields existed, and
+  // narrative-only reports, parse to empty values rather than failing.
+  final String activityType;
+  final int? linkedPhase;
+  final int? linkedMilestone;
+  final double amountSpent;
+  final String expenditureNotes;
+  final int beneficiariesReached;
+  final int beneficiariesMale;
+  final int beneficiariesFemale;
+  final int beneficiariesYouth;
+  final String impactDescription;
+  final String challengesFaced;
+  final String recommendations;
+  final String nextSteps;
+
+  /// Set when an approved report's figures posted to the project ledger.
+  final String? postedAt;
+
   const Report({
     required this.id,
     required this.title,
@@ -47,6 +67,20 @@ class Report {
     this.gpsLatitude,
     this.gpsLongitude,
     this.images = const [],
+    this.activityType = '',
+    this.linkedPhase,
+    this.linkedMilestone,
+    this.amountSpent = 0,
+    this.expenditureNotes = '',
+    this.beneficiariesReached = 0,
+    this.beneficiariesMale = 0,
+    this.beneficiariesFemale = 0,
+    this.beneficiariesYouth = 0,
+    this.impactDescription = '',
+    this.challengesFaced = '',
+    this.recommendations = '',
+    this.nextSteps = '',
+    this.postedAt,
   });
 
   factory Report.fromJson(Map<String, dynamic> json) => Report(
@@ -64,6 +98,20 @@ class Report {
         images: (json['images'] as List<dynamic>? ?? [])
             .map((e) => ReportImage.fromJson(e as Map<String, dynamic>))
             .toList(),
+        activityType: (json['activity_type'] ?? '') as String,
+        linkedPhase: json['linked_phase'] as int?,
+        linkedMilestone: json['linked_milestone'] as int?,
+        amountSpent: _asDouble(json['amount_spent']) ?? 0,
+        expenditureNotes: (json['expenditure_notes'] ?? '') as String,
+        beneficiariesReached: (json['beneficiaries_reached'] ?? 0) as int,
+        beneficiariesMale: (json['beneficiaries_male'] ?? 0) as int,
+        beneficiariesFemale: (json['beneficiaries_female'] ?? 0) as int,
+        beneficiariesYouth: (json['beneficiaries_youth'] ?? 0) as int,
+        impactDescription: (json['impact_description'] ?? '') as String,
+        challengesFaced: (json['challenges_faced'] ?? '') as String,
+        recommendations: (json['recommendations'] ?? '') as String,
+        nextSteps: (json['next_steps'] ?? '') as String,
+        postedAt: json['posted_at'] as String?,
       );
 
   String get statusLabel {
@@ -79,4 +127,18 @@ class Report {
 
   String get typeLabel =>
       reportType[0].toUpperCase() + reportType.substring(1);
+
+  /// True when the report carries any structured donor-reporting content,
+  /// i.e. there is something for the detail screen to show.
+  bool get hasStructuredData =>
+      activityType.isNotEmpty ||
+      amountSpent > 0 ||
+      beneficiariesReached > 0 ||
+      hasNarrative;
+
+  bool get hasNarrative =>
+      impactDescription.isNotEmpty ||
+      challengesFaced.isNotEmpty ||
+      recommendations.isNotEmpty ||
+      nextSteps.isNotEmpty;
 }

@@ -39,22 +39,6 @@ class ProjectPhaseSerializer(serializers.ModelSerializer):
         # project comes from the URL, not the request body.
         read_only_fields = ["id", "project", "created_at"]
 
-    def to_internal_value(self, data):
-        """Accept a legacy `spent_budget` write as `opening_spend`.
-
-        Clients written before spend became report-driven still PUT/PATCH
-        `spent_budget`. Silently dropping it (it is read-only now) would make
-        their edits vanish, so it is mapped to the baseline field instead.
-        Remove once every client sends `opening_spend`.
-        """
-        if (
-            isinstance(data, dict)
-            and "spent_budget" in data
-            and "opening_spend" not in data
-        ):
-            data = {**data, "opening_spend": data["spent_budget"]}
-        return super().to_internal_value(data)
-
     def validate(self, attrs):
         """Cross-field checks: dates ordered, spending non-negative."""
         start = attrs.get("start_date", getattr(self.instance, "start_date", None))
@@ -70,6 +54,55 @@ class ProjectPhaseSerializer(serializers.ModelSerializer):
                     {field: "Must be zero or a positive amount."}
                 )
         return attrs
+
+
+class _ReachSerializer(serializers.Serializer):
+    """Beneficiary reach totals across a project's approved reports."""
+
+    total = serializers.IntegerField()
+    male = serializers.IntegerField()
+    female = serializers.IntegerField()
+    youth = serializers.IntegerField()
+    unspecified = serializers.IntegerField()
+
+
+class _ActivityBreakdownSerializer(serializers.Serializer):
+    """One activity type's share of the reporting."""
+
+    activity_type = serializers.CharField()
+    label = serializers.CharField()
+    reports = serializers.IntegerField()
+    beneficiaries_reached = serializers.IntegerField()
+    amount_spent = serializers.DecimalField(max_digits=15, decimal_places=2)
+
+
+class _NarrativeSerializer(serializers.Serializer):
+    """Narrative extract quoted in donor reporting."""
+
+    report_id = serializers.IntegerField()
+    title = serializers.CharField()
+    date = serializers.DateTimeField()
+    activity_label = serializers.CharField()
+    impact_description = serializers.CharField()
+    challenges_faced = serializers.CharField()
+    recommendations = serializers.CharField()
+    next_steps = serializers.CharField()
+
+
+class ProjectImpactSummarySerializer(serializers.Serializer):
+    """Shape of `reports.services.project_impact_summary` for the API.
+
+    Read-only throughout: this is a roll-up of approved reports, never an
+    input.
+    """
+
+    approved_reports = serializers.IntegerField()
+    reach = _ReachSerializer()
+    reported_spend = serializers.DecimalField(max_digits=15, decimal_places=2)
+    total_spent = serializers.DecimalField(max_digits=15, decimal_places=2)
+    cost_per_beneficiary = serializers.FloatField(allow_null=True)
+    by_activity = _ActivityBreakdownSerializer(many=True)
+    narratives = _NarrativeSerializer(many=True)
 
 
 class ProjectSerializer(serializers.ModelSerializer):

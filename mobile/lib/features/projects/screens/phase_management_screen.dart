@@ -294,8 +294,10 @@ class _PhaseFormSheetState extends State<_PhaseFormSheet> {
     _name = TextEditingController(text: p?.phaseName ?? '');
     _allocated = TextEditingController(
         text: p == null ? '' : p.allocatedBudget.toStringAsFixed(0));
+    // The editable figure is the baseline only; approved report spend is
+    // added on top server-side and cannot be typed over.
     _spent = TextEditingController(
-        text: p == null ? '' : p.spentBudget.toStringAsFixed(0));
+        text: p == null ? '' : p.openingSpend.toStringAsFixed(0));
     _type = p?.phaseType ?? 'implementation';
     _status = p?.status ?? 'not_started';
     _start = DateTime.tryParse(p?.startDate ?? '');
@@ -326,7 +328,7 @@ class _PhaseFormSheetState extends State<_PhaseFormSheet> {
       'phase_name': _name.text.trim(),
       'phase_type': _type,
       'allocated_budget': _allocated.text.trim(),
-      'spent_budget': _spent.text.trim(),
+      'opening_spend': _spent.text.trim(),
       'start_date': fmt.format(_start!),
       'end_date': fmt.format(_end!),
       'status': _status,
@@ -438,7 +440,9 @@ class _PhaseFormSheetState extends State<_PhaseFormSheet> {
                       controller: _spent,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(
-                          labelText: 'Spent budget (KES)'),
+                          labelText: 'Baseline spend (KES)',
+                          helperText: 'Approved report spend is added to this',
+                          helperMaxLines: 2),
                       validator: _validateAmount,
                     ),
                     const SizedBox(height: 12),

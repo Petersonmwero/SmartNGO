@@ -12,13 +12,20 @@ from rest_framework.permissions import IsAuthenticated
 from apps.accounts.models import Role
 from apps.accounts.permissions import IsProjectManager, IsSystemAdmin
 from apps.common.mixins import ProjectScopedViewSetMixin
-from apps.common.pdf import monthly_report_pdf, project_summary_pdf
+from apps.common.pdf import (
+    donor_impact_pdf,
+    monthly_report_pdf,
+    project_summary_pdf,
+)
+from apps.reports.services import project_impact_summary
+from core.responses import SuccessResponse
 
 from .filters import MilestoneFilter, ProjectFilter
 from .models import Milestone, Project, ProjectAssignment, ProjectPhase
 from .serializers import (
     MilestoneSerializer,
     ProjectAssignmentSerializer,
+    ProjectImpactSummarySerializer,
     ProjectPhaseSerializer,
     ProjectSerializer,
 )
@@ -106,6 +113,27 @@ class ProjectViewSet(viewsets.ModelViewSet):
         response = HttpResponse(pdf, content_type="application/pdf")
         response["Content-Disposition"] = (
             f'attachment; filename="project_{project.id}_{year}_{month:02d}.pdf"'
+        )
+        return response
+
+    # --- Donor impact (structured reporting roll-up) ----------------------
+    @extend_schema(responses=ProjectImpactSummarySerializer)
+    @action(detail=True, methods=["get"], url_path="impact-summary")
+    def impact_summary(self, request, pk=None):
+        """Approved-report roll-up: reach, spend, activities, narratives."""
+        project = self.get_object()
+        summary = project_impact_summary(project)
+        return SuccessResponse(data=ProjectImpactSummarySerializer(summary).data)
+
+    @extend_schema(responses={(200, "application/pdf"): OpenApiTypes.BINARY})
+    @action(detail=True, methods=["get"], url_path="impact-report")
+    def impact_report(self, request, pk=None):
+        """The same roll-up as a donor-facing PDF."""
+        project = self.get_object()
+        pdf = donor_impact_pdf(project, project_impact_summary(project))
+        response = HttpResponse(pdf, content_type="application/pdf")
+        response["Content-Disposition"] = (
+            f'attachment; filename="project_{project.id}_impact.pdf"'
         )
         return response
 

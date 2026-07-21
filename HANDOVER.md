@@ -8,9 +8,9 @@ Last updated: 2026-07-22 · `main` @ local commit (unpushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **232 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **61 pass**, `flutter analyze` 0 issues |
-| Swagger | `/api/v1/docs/` — 0 warnings, 0 errors |
+| Backend tests | **243 pass** (`pytest`, test_sqlite settings) |
+| Flutter tests | **67 pass**, `flutter analyze` 0 issues |
+| Swagger | `/api/v1/docs/` — 12 errors / 21 warnings, all pre-existing (see backlog) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
 ---
@@ -18,7 +18,7 @@ Last updated: 2026-07-22 · `main` @ local commit (unpushed) · tree clean
 ## Running it
 
 ```bash
-# Backend (232 tests)
+# Backend (243 tests)
 cd /Users/admin/Desktop/SmartNGO/backend && source venv/bin/activate
 DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (61 tests)
+# Flutter (67 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -57,7 +57,7 @@ indicators, milestones, reports (+ images, draft→submitted→approved workflow
 notifications (signal-driven), users, analytics dashboard, ReportLab PDFs, CSV
 export, email verification, password reset.
 
-**Structured donor reporting** (commits 1-2 of 3) — `Report` gained
+**Structured donor reporting** (complete — commits 1-3) — `Report` gained
 an activity type, optional links to a phase and a milestone, `amount_spent`,
 a beneficiary breakdown (reached / male / female / youth), four narrative
 fields, and `posted_at`. Every field is optional or defaulted, so older
@@ -98,6 +98,27 @@ Details → **Activity** → **Impact** → GPS → Photos → Review.
 - `linked_phase`/`linked_milestone` options come from the project's own
   phases and milestones; the pickers degrade to "No phases recorded" rather
   than blocking the report when a project has none or the fetch fails.
+
+**Donor output (commit 3)**
+
+- `reports.services.project_impact_summary(project)` rolls approved reports
+  into reach totals (incl. an "unspecified" remainder where no gender split
+  was given), spend, cost per beneficiary, a per-activity breakdown and the
+  narrative extracts. Both new endpoints read it, so JSON and PDF can never
+  disagree: `GET /projects/{id}/impact-summary/` and
+  `GET /projects/{id}/impact-report/` (PDF).
+- Flutter: Report Detail shows "Results Recorded" (spend + reach, with a
+  note that spend counts only once approved) and "Impact & Learning"
+  (the four narratives). Project Overview gained `ProjectImpactCard` —
+  reach, cost per person, gender bar, activity rows — which states
+  "no approved field reports yet" rather than rendering a wall of zeros.
+- Cost per person is printed in full (`KES 4,543`), not via `formatKes`,
+  which would abbreviate it to a meaningless "KES 5K".
+- **The legacy `spent_budget` write shim is gone.** The phase editor now
+  sends `opening_spend` and is labelled "Baseline spend", with a helper line
+  saying approved report spend is added on top.
+- `seed_demo` now seeds one fully structured approved report (Borehole 12
+  handover) through `post_report`, so the demo exercises the real path.
 
 **Progress engine (EVM, per PMBOK)** — all computed properties on `Project`,
 no caching, no stored aggregates:
@@ -203,10 +224,14 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
    is no standalone cron command for it.
 8. The dev DB has been flushed several times — manual accounts are gone; use
    the seeded demo logins.
-9. **Temporary shim**: `ProjectPhaseSerializer.to_internal_value` maps a legacy
-   `spent_budget` write onto `opening_spend`, because the shipped Flutter build
-   still PUTs that field and silently dropping it would make phase edits vanish.
-   Remove it in commit 3 once the app sends `opening_spend`.
+9. Swagger reports 12 errors / 21 warnings. All pre-existing and unrelated to
+   structured reporting (APIViews without a serializer_class, and untyped
+   `ReadOnlyField`s on ProjectSerializer). Verified identical before and after
+   this work; the "0/0" claim in older notes was stale.
+10. **Demo figures moved** with the seeded structured report: Clean Water is
+   now 68% composite (was 49%), spend 1.91M (was 1.73M), physical 58.3% (was
+   25%) because the report completed the Borehole Drilling milestone. Health
+   variety is unchanged (healthy / critical / not_started).
 
 ---
 
@@ -235,10 +260,10 @@ Two capture lessons from this session:
 
 ## Next steps
 
-0. Structured donor reporting, commit 3: donor-facing output — the impact PDF
-   and roll-ups driven by approved structured reports, plus showing the
-   captured data back on Report Detail. Also drop the legacy `spent_budget`
-   write shim (known issue 9) once nothing sends it.
+0. Structured donor reporting is complete. Optional follow-ups: a download
+   button for the impact PDF (needs an authenticated file fetch, which the
+   app has never done), and clearing the pre-existing Swagger warnings by
+   typing the ProjectSerializer read-only fields.
 1. Peterson: click through the app at http://localhost:58569 with the demo
    accounts and flag visual issues. Newest to review: the health card's
    earned-vs-planned line (project detail → Overview → scroll one screen) and

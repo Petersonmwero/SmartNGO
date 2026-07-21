@@ -7,10 +7,13 @@ import '../../../core/theme.dart';
 import '../../../shared/widgets/info_chip.dart';
 import '../../../shared/widgets/status_badge.dart';
 import '../../auth/auth_provider.dart';
+import '../../projects/widgets/evm_cards.dart' show formatKes;
+import '../models/activity_type.dart';
 import '../models/report.dart';
 import '../report_repository.dart';
 
-/// Full report detail: title, GPS, description, photo gallery, approve action.
+/// Full report detail: title, structured results (spend and reach), impact
+/// narrative, GPS, description, photo gallery, and the approve action.
 class ReportDetailScreen extends StatefulWidget {
   final int reportId;
   const ReportDetailScreen({super.key, required this.reportId});
@@ -148,9 +151,86 @@ class _ReportBody extends StatelessWidget {
             if (report.dateSubmitted != null)
               InfoChip(Icons.access_time,
                   report.dateSubmitted!.substring(0, 10)),
+            if (report.activityType.isNotEmpty)
+              InfoChip(Icons.category_outlined,
+                  ReportActivityType.labelFor(report.activityType)),
           ],
         ),
         const SizedBox(height: 20),
+
+        // Structured donor reporting: what it cost and who it reached.
+        if (report.amountSpent > 0 || report.beneficiariesReached > 0) ...[
+          Text('Results Recorded',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (report.amountSpent > 0) ...[
+                    _MetricRow(
+                      icon: Icons.payments_outlined,
+                      label: 'Amount spent',
+                      value: formatKes(report.amountSpent),
+                      // Until a manager approves, nothing has posted to the
+                      // project ledger — say so rather than imply it counted.
+                      note: report.postedAt == null
+                          ? 'Counts towards the project budget once approved'
+                          : null,
+                    ),
+                    if (report.expenditureNotes.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6, left: 34),
+                        child: Text(report.expenditureNotes,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: AppColors.textSecondary)),
+                      ),
+                  ],
+                  if (report.amountSpent > 0 &&
+                      report.beneficiariesReached > 0)
+                    const Divider(height: 22),
+                  if (report.beneficiariesReached > 0)
+                    _MetricRow(
+                      icon: Icons.groups_outlined,
+                      label: 'People reached',
+                      value: '${report.beneficiariesReached}',
+                      note: _reachBreakdown(report),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        if (report.hasNarrative) ...[
+          Text('Impact & Learning',
+              style: Theme.of(context).textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _narrative(context, 'Impact observed',
+                      report.impactDescription, Icons.trending_up),
+                  _narrative(context, 'Challenges faced',
+                      report.challengesFaced, Icons.warning_amber_outlined),
+                  _narrative(context, 'Recommendations',
+                      report.recommendations, Icons.lightbulb_outline),
+                  _narrative(context, 'Next steps', report.nextSteps,
+                      Icons.arrow_forward),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
 
         // GPS location
         if (report.gpsLatitude != null && report.gpsLongitude != null) ...[
@@ -234,9 +314,99 @@ class _ReportBody extends StatelessWidget {
     );
   }
 
+  /// "140 male · 160 female · 90 youth" — only the parts recorded.
+  static String? _reachBreakdown(Report report) {
+    final parts = <String>[
+      if (report.beneficiariesMale > 0) '${report.beneficiariesMale} male',
+      if (report.beneficiariesFemale > 0)
+        '${report.beneficiariesFemale} female',
+      if (report.beneficiariesYouth > 0) '${report.beneficiariesYouth} youth',
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
+  Widget _narrative(
+      BuildContext context, String label, String body, IconData icon) {
+    if (body.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 15, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: AppColors.primary,
+                  )),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(body, style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openMaps(double lat, double lng) async {
     final uri = Uri.parse('https://www.google.com/maps?q=$lat,$lng');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+}
+
+/// Icon + label + figure, with an optional muted note underneath.
+class _MetricRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? note;
+
+  const _MetricRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.note,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(label,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyMedium
+                      ?.copyWith(color: AppColors.textSecondary)),
+            ),
+            Text(value,
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
+          ],
+        ),
+        if (note != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 28),
+            child: Text(note!,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: AppColors.textMuted)),
+          ),
+      ],
+    );
   }
 }
 

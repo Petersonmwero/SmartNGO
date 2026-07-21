@@ -148,3 +148,112 @@ def monthly_report_pdf(project, year, month):
 
     doc.build(elements)
     return buffer.getvalue()
+
+
+def donor_impact_pdf(project, summary):
+    """Donor impact report: what the money bought, per approved reports only.
+
+    `summary` is the dict from
+    `apps.reports.services.project_impact_summary`, so the PDF and the JSON
+    endpoint can never disagree about the figures.
+    """
+    buffer = io.BytesIO()
+    doc = _new_doc(buffer, f"Impact Report - {project.project_name}")
+    reach = summary["reach"]
+
+    elements = [
+        Paragraph(f"Impact Report: {project.project_name}", _STYLES["Title"]),
+        Paragraph(f"NGO: {project.ngo.name}", _STYLES["Normal"]),
+        Paragraph(
+            "Figures below come from field reports approved by a project "
+            "manager. Draft and unapproved reports are excluded.",
+            _STYLES["Italic"],
+        ),
+        Spacer(1, 0.5 * cm),
+    ]
+
+    headline = [
+        ["Measure", "Value"],
+        ["People reached", f"{reach['total']:,}"],
+        ["Women / girls", f"{reach['female']:,}"],
+        ["Men / boys", f"{reach['male']:,}"],
+        ["Youth", f"{reach['youth']:,}"],
+        ["Approved reports", str(summary["approved_reports"])],
+        ["Budget", f"{project.budget:,.2f}"],
+        ["Spent to date", f"{summary['total_spent']:,.2f}"],
+        [
+            "Cost per person reached",
+            f"{summary['cost_per_beneficiary']:,.2f}"
+            if summary["cost_per_beneficiary"] is not None
+            else "-",
+        ],
+    ]
+    headline_table = Table(headline, colWidths=[8 * cm, 8 * cm])
+    headline_table.setStyle(_TABLE_STYLE)
+    elements += [headline_table, Spacer(1, 0.6 * cm)]
+
+    elements.append(Paragraph("Activity breakdown", _STYLES["Heading2"]))
+    activity_rows = [["Activity", "Reports", "People reached", "Spend"]]
+    for row in summary["by_activity"]:
+        activity_rows.append(
+            [
+                row["label"],
+                str(row["reports"]),
+                f"{row['beneficiaries_reached']:,}",
+                f"{row['amount_spent']:,.2f}",
+            ]
+        )
+    if len(activity_rows) == 1:
+        activity_rows.append(["No approved reports yet", "", "", ""])
+    activity_table = Table(
+        activity_rows, colWidths=[7 * cm, 2.5 * cm, 3.5 * cm, 3 * cm]
+    )
+    activity_table.setStyle(_TABLE_STYLE)
+    elements += [activity_table, Spacer(1, 0.6 * cm)]
+
+    elements.append(Paragraph("Spend by phase", _STYLES["Heading2"]))
+    phase_rows = [["Phase", "Allocated", "Baseline", "From reports", "Spent"]]
+    for phase in project.phases.all():
+        phase_rows.append(
+            [
+                phase.phase_name,
+                f"{phase.allocated_budget:,.2f}",
+                f"{phase.opening_spend:,.2f}",
+                f"{phase.reported_spend:,.2f}",
+                f"{phase.spent_budget:,.2f}",
+            ]
+        )
+    if len(phase_rows) == 1:
+        phase_rows.append(["No phases recorded", "", "", "", ""])
+    phase_table = Table(
+        phase_rows, colWidths=[5 * cm, 3 * cm, 2.7 * cm, 2.8 * cm, 2.5 * cm]
+    )
+    phase_table.setStyle(_TABLE_STYLE)
+    elements += [phase_table, Spacer(1, 0.6 * cm)]
+
+    elements.append(Paragraph("In the field", _STYLES["Heading2"]))
+    if not summary["narratives"]:
+        elements.append(
+            Paragraph("No narrative reports approved yet.", _STYLES["Normal"])
+        )
+    for entry in summary["narratives"]:
+        elements.append(
+            Paragraph(
+                f"<b>{entry['title']}</b> — {entry['activity_label']}",
+                _STYLES["Normal"],
+            )
+        )
+        for label, key in (
+            ("Impact", "impact_description"),
+            ("Challenges", "challenges_faced"),
+            ("Recommendations", "recommendations"),
+            ("Next steps", "next_steps"),
+        ):
+            if entry[key]:
+                elements.append(
+                    Paragraph(f"<i>{label}:</i> {entry[key]}", _STYLES["Normal"])
+                )
+        elements.append(Spacer(1, 0.35 * cm))
+
+    doc.build(elements)
+    return buffer.getvalue()
