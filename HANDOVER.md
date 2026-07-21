@@ -4,7 +4,7 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-21 · `main` @ `c431600` · working tree clean
+Last updated: 2026-07-21 · `main` @ `231cbac` · working tree clean
 
 | | |
 |---|---|
@@ -162,21 +162,30 @@ spans two files: `app-project-progress.png` (composite ring + dimension bars)
 and `app-project-detail.png` (health card + phase table).
 
 Regenerate with the puppeteer scripts in the session scratchpad
-(`docshots.js <out-dir> [subset]`, `detailshot.js <out-dir> <scroll> <name>`),
-against a fresh `flutter build web` served on `:58569`. Write to a temp dir,
-look at every frame, then copy into `docs/screenshots/`.
+(`docshots.js <out-dir> [subset]`, `detailshot.js <out-dir> <scroll> <name>`,
+`zoom.js` for a magnified crop), against a fresh `flutter build web` served on
+`:58569`. Write to a temp dir, look at every frame, then copy into
+`docs/screenshots/`.
+
+Two capture lessons from this session:
+- Allow ~12s after `goto` before typing. A fresh bundle boots slowly, and
+  keystrokes sent early land nowhere — the run then screenshots the login
+  screen and still reports no errors.
+- Small UI details do not survive review at 430px. The EVM bands looked
+  plausible in a full frame and were all centred instead of left-anchored;
+  only the 4× `zoom.js` crop showed it.
 
 ---
 
 ## Next steps
 
 1. Peterson: click through the app at http://localhost:58569 with the demo
-   accounts and flag visual issues. The health card (project detail → Overview
-   → scroll one screen) is the newest thing to review.
+   accounts and flag visual issues. Newest to review: the health card's
+   earned-vs-planned line (project detail → Overview → scroll one screen) and
+   the EVM tracks on the project register and dashboard rows.
 2. Backlog: monthly report series endpoint for a real 6-month chart; donor PDF
-   download button; user detail/edit screen.
-3. Nothing queued — the EVM track now covers both the project register and the
-   dashboard's Recent Projects rows.
+   download button; user detail/edit screen; key the Kenya ward/location dicts
+   by (constituency, ward).
 
 ## Blockers
 

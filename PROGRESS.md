@@ -2,7 +2,7 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-21 · `main` @ `c431600`
+Last updated: 2026-07-21 · `main` @ `231cbac`
 **Backend 216 tests · Flutter 55 tests · `flutter analyze` 0 issues · Swagger 0/0**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
@@ -103,7 +103,8 @@ schedule reading.
 - Flutter **55 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
-  reseeded demo data (15 app frames + 2 Django verify-email pages).
+  reseeded demo data (15 app frames + 2 Django verify-email pages); every frame
+  checked by eye, and the EVM tracks additionally at 4× magnification.
 - Demo data shows deliberate health variety: Girls Education healthy
   (SPI 1.02), Clean Water and Food Security critical, Community Clinic
   not_started.
