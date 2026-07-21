@@ -1,5 +1,19 @@
 # Session Handover — 2026-07-21 | True PV-based SPI
 
+**State**: all work committed and pushed, `main` @ `f3e0780`, tree clean.
+**Suites**: 216 backend tests, 50 Flutter tests, `flutter analyze` 0 issues.
+
+This session's commits (oldest first):
+
+| Commit | What |
+|---|---|
+| `d2fe958` | SPI reworked to EV/PV with PV from the phase baseline (backend) |
+| `18406c6` | PV parsed in Flutter + earned-vs-planned footnote on the health card |
+| `a7ef250` | `app-project-detail.png` retaken, scrolled to the health card |
+| `b35a8e2` | `app-project-progress.png` added (top of the detail screen) |
+| `ce86eb6` | Whole `app-*.png` set retaken against the reseeded data |
+| `f3e0780` | Admin analytics dashboard counts every NGO (bug found in a screenshot) |
+
 ---
 
 ## True PV-based SPI (2026-07-21)
@@ -727,9 +741,13 @@ Every screen redesigned to the design-system spec. See PROGRESS.md
   (headless Chrome screenshot).
 
 ## Servers Left Running
-- Django API: `http://localhost:8000` (local_sqlite settings, background)
-- Flutter web (built): `http://localhost:58569` (python http.server)
-- Demo login: `manager@demo.ngo` / `DemoPass123!`
+- Django API: `http://localhost:8000` (local_sqlite settings, background,
+  `--noreload`; restarted at the end of this session so it serves the admin
+  scoping fix)
+- Flutter web (built): `http://localhost:58569` (python http.server; the
+  bundle was rebuilt this session and includes the health-card footnote)
+- Demo login: `manager@demo.ngo` / `DemoPass123!` (also `admin@`, `officer1@`,
+  `donor@`)
 
 ## Known Issues / Warnings
 1. The dev DB was **flushed** — previous manual accounts
@@ -742,30 +760,55 @@ Every screen redesigned to the design-system spec. See PROGRESS.md
    a 6-month trend — the analytics endpoint doesn't expose monthly series.
 4. "Member since" row omitted from Profile (not in the /auth/me/ payload).
 5. Web drafts remain in-memory (sqflite has no web implementation, D-010).
+6. `seed_demo` generates dates relative to today, so every reseed shifts
+   every project/milestone date. Screenshots taken before a reseed will
+   disagree with the DB by a few days — regenerate the set after reseeding
+   rather than treating the drift as a bug.
+7. Admin's demo project count changed 3 → 4 with the `f3e0780` scoping fix;
+   any older write-up quoting 3 is stale.
 
 ## Exact Next Steps (in order)
 1. Peterson: click through the app at http://localhost:58569 with the demo
    accounts (each role renders a different dashboard) and flag any visual
-   issues.
-2. Optional: retake docs/screenshots with the new UI for the report.
-3. Optional backlog: monthly report series endpoint for a real 6-month bar
+   issues. The health card is the thing to look at this session — project
+   detail → Overview → scroll one screen.
+2. Optional backlog: monthly report series endpoint for a real 6-month bar
    chart; donor PDF download button; user detail/edit screen.
+3. Optional: the Flutter `Project` model now carries `plannedValueProgress`
+   but only the health card uses it — a PV marker on the progress bars in the
+   project list is the natural next use, if wanted.
+
+~~Retake docs/screenshots with the new UI~~ — done this session; all 13
+`app-*.png` plus the two project-detail frames match the current build and
+the reseeded data.
 
 ## Commands to Re-run on Resume
 ```bash
-# Backend tests (176 expected)
+# Backend tests (216 expected)
 cd /Users/admin/Desktop/SmartNGO/backend && source venv/bin/activate
 DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 
 # Dev server + demo data
+# NOTE: runs with --noreload; RESTART IT after any backend edit or the
+# browser will keep showing the old behaviour (this bit twice this session).
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (42 tests expected)
+# Flutter (50 tests expected)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
+
+# Screenshots (needs the built web app served on :58569 + puppeteer-core)
+flutter build web --dart-define=API_BASE_URL=http://localhost:8000/api/v1
+python3 -m http.server 58569 -d mobile/build/web
+node docshots.js <out-dir> [app-dashboard-admin,app-login]  # subset optional
+node detailshot.js <out-dir> 555 app-project-detail          # 0 = unscrolled
 ```
+Both scripts live in this session's scratchpad
+(`/private/tmp/claude-501/-Users-admin-Desktop-SmartNGO/e053ce5f-*/scratchpad/`);
+copy them into the repo if they are wanted permanently. Always write to a temp
+dir first and look at every frame before copying into `docs/screenshots/`.
 
 ## Blockers
 None.

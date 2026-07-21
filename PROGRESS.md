@@ -42,6 +42,12 @@ off the phase baseline.
   Food Security SPI 0.20 critical (49% planned vs 34% calendar — the
   front-loaded case the fix exists for), zero console/API errors
 
+**End state**: `main` @ `f3e0780` (6 commits, all pushed), working tree clean.
+**216 backend tests, 50 Flutter tests, `flutter analyze` 0 issues.**
+Docs screenshots regenerated against the current build and seed — including
+two project-detail frames (`app-project-progress.png` for the composite ring,
+`app-project-detail.png` for the health card + phase table).
+
 ---
 
 ## Weighted Composite Progress — EVM (2026-07-18) ✅
