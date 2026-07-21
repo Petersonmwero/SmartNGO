@@ -161,5 +161,70 @@ void main() {
           findsOneWidget);
       expect(find.text('People reached'), findsNothing);
     });
+
+    testWidgets('the PDF action is absent without a download callback',
+        (tester) async {
+      // Officers file reports; they do not export them.
+      await pumpCard(tester, const ImpactSummary(approvedReports: 1));
+      expect(find.byKey(const Key('download_impact_pdf')), findsNothing);
+    });
+
+    testWidgets('the PDF action fires and disables while downloading',
+        (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ProjectImpactCard(
+              summary: const ImpactSummary(approvedReports: 1, reached: 10),
+              onDownload: () => taps++,
+            ),
+          ),
+        ),
+      ));
+
+      await tester.tap(find.byKey(const Key('download_impact_pdf')));
+      await tester.pump();
+      expect(taps, 1);
+
+      // Mid-download the action is disabled, so a second tap is impossible.
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ProjectImpactCard(
+              summary: const ImpactSummary(approvedReports: 1, reached: 10),
+              onDownload: () => taps++,
+              downloading: true,
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      expect(find.text('Preparing PDF…'), findsOneWidget);
+      final button = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Preparing PDF…'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+    });
+
+    testWidgets('the PDF action shows even when nothing is approved yet',
+        (tester) async {
+      // A donor should still be able to pull an (empty) report rather than
+      // wonder whether the button is missing or the data is.
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ProjectImpactCard(
+              summary: const ImpactSummary(),
+              onDownload: () {},
+            ),
+          ),
+        ),
+      ));
+      expect(find.byKey(const Key('download_impact_pdf')), findsOneWidget);
+    });
   });
 }

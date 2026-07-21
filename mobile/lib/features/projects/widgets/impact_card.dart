@@ -14,7 +14,19 @@ import 'evm_cards.dart' show formatKes;
 class ProjectImpactCard extends StatelessWidget {
   final ImpactSummary summary;
 
-  const ProjectImpactCard({super.key, required this.summary});
+  /// Downloads the same roll-up as a PDF. Omitted when the viewer has no
+  /// business exporting it.
+  final VoidCallback? onDownload;
+
+  /// True while the PDF is being fetched, so the action can show progress.
+  final bool downloading;
+
+  const ProjectImpactCard({
+    super.key,
+    required this.summary,
+    this.onDownload,
+    this.downloading = false,
+  });
 
   /// Whole shillings with thousands separators, e.g. 4542.86 -> "4,543".
   static String _withSeparators(double value) {
@@ -31,7 +43,34 @@ class ProjectImpactCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return OfficialCard(
       title: 'Impact Reported',
-      child: summary.isEmpty ? _empty(context) : _content(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          summary.isEmpty ? _empty(context) : _content(context),
+          if (onDownload != null) ...[
+            const Divider(height: 22),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: const Key('download_impact_pdf'),
+                // Disabled mid-download so a double tap cannot start a
+                // second fetch of the same PDF.
+                onPressed: downloading ? null : onDownload,
+                icon: downloading
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download_outlined, size: 18),
+                label: Text(downloading
+                    ? 'Preparing PDF…'
+                    : 'Download impact report (PDF)'),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 

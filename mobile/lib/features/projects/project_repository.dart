@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
+
 import '../../core/api_client.dart';
 import '../../core/api_exception.dart';
 import '../../core/paginated.dart';
@@ -142,6 +146,20 @@ class ProjectRepository {
       // Newer endpoints wrap payloads in the {status, data} envelope.
       final data = (body['data'] ?? body) as Map<String, dynamic>;
       return ImpactSummary.fromJson(data);
+    });
+  }
+
+  /// The impact roll-up as a PDF.
+  ///
+  /// Returns raw bytes rather than a URL: the endpoint needs the JWT the Dio
+  /// interceptor attaches, so the browser cannot fetch it from a plain link.
+  Future<Uint8List> impactReportPdf(int projectId) {
+    return apiGuard(() async {
+      final res = await _api.dio.get<List<int>>(
+        '/projects/$projectId/impact-report/',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Uint8List.fromList(res.data ?? const []);
     });
   }
 

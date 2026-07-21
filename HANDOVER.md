@@ -9,7 +9,7 @@ Last updated: 2026-07-22 · `main` @ local commit (unpushed) · tree clean
 | | |
 |---|---|
 | Backend tests | **243 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **67 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **70 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — 12 errors / 21 warnings, all pre-existing (see backlog) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (67 tests)
+# Flutter (70 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -119,6 +119,14 @@ Details → **Activity** → **Impact** → GPS → Photos → Review.
   saying approved report spend is added on top.
 - `seed_demo` now seeds one fully structured approved report (Borehole 12
   handover) through `post_report`, so the demo exercises the real path.
+- **Impact PDF download**: the card carries a download action for everyone
+  except officers. The endpoint needs the JWT, so a plain link cannot fetch
+  it — `ProjectRepository.impactReportPdf` pulls the bytes through Dio and
+  `core/file_download.dart` hands them to the platform behind a conditional
+  import: `file_download_web.dart` (Blob + temporary anchor click, object URL
+  revoked straight after) and `file_download_io.dart` (writes into the
+  documents directory and reports the path). `path_provider` and `web` are
+  now direct dependencies; both were already present transitively.
 
 **Progress engine (EVM, per PMBOK)** — all computed properties on `Project`,
 no caching, no stored aggregates:
@@ -196,6 +204,10 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 **Driving the web app with puppeteer**
 - **Verify every screenshot by eye.** A missed tap is a silent no-op, so a run
   can report "no console/API errors" and still capture the wrong screen.
+- A download can be verified for real: `Page.setDownloadBehavior` over CDP
+  drops the file in a directory you choose, and `qlmanage -t -s 1200 -o .
+  file.pdf` renders page 1 to PNG so the PDF itself can be read by eye.
+  Text-extracting a ReportLab PDF by regex is not worth the fight.
 - The notification bell must be tapped from a *settled* dashboard (~6s after
   the KPI fetches); earlier taps lose the route push to a re-render. Bell at
   (343, 40); officer "Submit Report" tile at (87, 467); back arrow at (24, 28).
@@ -260,10 +272,9 @@ Two capture lessons from this session:
 
 ## Next steps
 
-0. Structured donor reporting is complete. Optional follow-ups: a download
-   button for the impact PDF (needs an authenticated file fetch, which the
-   app has never done), and clearing the pre-existing Swagger warnings by
-   typing the ProjectSerializer read-only fields.
+0. Structured donor reporting is complete, download button included. Optional
+   follow-up: clear the pre-existing Swagger warnings by typing the
+   ProjectSerializer read-only fields.
 1. Peterson: click through the app at http://localhost:58569 with the demo
    accounts and flag visual issues. Newest to review: the health card's
    earned-vs-planned line (project detail → Overview → scroll one screen) and

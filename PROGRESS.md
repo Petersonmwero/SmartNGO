@@ -3,7 +3,7 @@
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
 Last updated: 2026-07-22 · `main` @ local commit (unpushed)
-**Backend 243 tests · Flutter 67 tests · `flutter analyze` 0 issues**
+**Backend 243 tests · Flutter 70 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -86,7 +86,12 @@ properties — no migrations, no caching.
 - [x] `seed_demo` seeds one fully structured approved report via `post_report`,
   so the demo shows the whole chain (spend posts to the Drilling phase, its
   milestone completes, the impact card fills).
-- [x] 27 new backend tests and 12 new widget tests across the three commits;
+- [x] Impact PDF download button on the card (hidden from officers): bytes
+  fetched through Dio with the JWT, then handed to the platform via a
+  conditionally-imported saver — browser download on web, documents directory
+  elsewhere. Verified by capturing the real download in Chrome and rendering
+  the PDF to check its contents.
+- [x] 27 new backend tests and 15 new widget tests across the three commits;
   **243 backend / 67 Flutter tests pass**. Commit 1 was verified invisible to
   the shipped app (demo figures byte-identical, old build still working);
   commit 3 deliberately moves them, because the seeded structured report now
@@ -141,7 +146,7 @@ schedule reading.
 ## Verification state
 
 - Backend **243 tests** pass on SQLite test settings.
-- Flutter **67 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Flutter **70 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
   reseeded demo data (15 app frames + 2 Django verify-email pages); every frame
@@ -156,7 +161,6 @@ schedule reading.
 
 - Monthly report series endpoint → real 6-month trend chart (today the bar
   chart shows counts by status).
-- Download button for the impact PDF (needs an authenticated file fetch).
 - Clear the 12 pre-existing Swagger errors / 21 warnings (APIViews without a
   serializer_class; untyped ReadOnlyFields on ProjectSerializer).
 - Donor PDF download button (PDFs exist, no UI entry point).

@@ -16,6 +16,7 @@ import '../models/indicator.dart';
 import '../models/milestone.dart';
 import '../models/project.dart';
 import '../project_repository.dart';
+import '../../../core/file_download.dart';
 import '../models/impact_summary.dart';
 import '../widgets/evm_cards.dart';
 import '../widgets/impact_card.dart';
@@ -46,6 +47,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   late Future<List<ProjectAssignment>> _team;
   late Future<List<Indicator>> _indicators;
   late Future<int> _beneficiaryCount;
+  bool _downloadingPdf = false;
 
   @override
   void initState() {
@@ -76,6 +78,23 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
   }
 
   void _reload() => setState(_loadAll);
+
+  /// Fetch the impact PDF and hand it to the platform (browser download on
+  /// web, documents directory elsewhere).
+  Future<void> _downloadImpactReport() async {
+    setState(() => _downloadingPdf = true);
+    try {
+      final bytes = await _repo.impactReportPdf(widget.projectId);
+      final result =
+          await saveFile(bytes, 'project_${widget.projectId}_impact.pdf');
+      if (!mounted) return;
+      showSuccessSnackBar(context, result.message);
+    } on ApiException catch (e) {
+      if (mounted) showErrorSnackBar(context, e.message);
+    } finally {
+      if (mounted) setState(() => _downloadingPdf = false);
+    }
+  }
 
   Future<void> _openSubmitReport() async {
     await Navigator.of(context).push(
@@ -202,6 +221,12 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
             future: _project,
             milestones: _milestones,
             impact: _impact,
+            // Donors are the audience for the PDF; managers and admins
+            // export it on their behalf. Officers file reports, they do not
+            // publish them.
+            onDownloadImpact:
+                role == 'officer' ? null : _downloadImpactReport,
+            downloadingImpact: _downloadingPdf,
             beneficiaryCount: _beneficiaryCount,
             canManage: canManage,
             onEdit: _editProject,
@@ -311,6 +336,8 @@ class _OverviewTab extends StatelessWidget {
   final Future<Project> future;
   final Future<List<Milestone>> milestones;
   final Future<ImpactSummary> impact;
+  final VoidCallback? onDownloadImpact;
+  final bool downloadingImpact;
   final Future<int> beneficiaryCount;
   final bool canManage;
   final VoidCallback onEdit;
@@ -320,6 +347,8 @@ class _OverviewTab extends StatelessWidget {
     required this.future,
     required this.milestones,
     required this.impact,
+    required this.onDownloadImpact,
+    required this.downloadingImpact,
     required this.beneficiaryCount,
     required this.canManage,
     required this.onEdit,
@@ -379,7 +408,11 @@ class _OverviewTab extends StatelessWidget {
             builder: (context, snap) => snap.hasData
                 ? Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: ProjectImpactCard(summary: snap.data!),
+                    child: ProjectImpactCard(
+                      summary: snap.data!,
+                      onDownload: onDownloadImpact,
+                      downloading: downloadingImpact,
+                    ),
                   )
                 : const SizedBox.shrink(),
           ),

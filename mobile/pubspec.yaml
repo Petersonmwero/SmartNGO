@@ -59,6 +59,10 @@ dependencies:
   path: ^1.9.0
   # Open GPS coordinates in the platform maps app / browser
   url_launcher: ^6.3.0
+  # Where to save a downloaded PDF on mobile/desktop
+  path_provider: ^2.1.4
+  # Browser APIs for the web download path (Blob + anchor click)
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
