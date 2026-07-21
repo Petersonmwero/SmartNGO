@@ -70,9 +70,11 @@ work vs 49.0% planned") plus the phase budget table. Repeatable via
 `mouse.wheel({deltaY: 555})`; 620 clips the card header, so re-tune the
 scroll by eye if the layout above it changes.
 
-> Trade-off: the previous frame showed the top of the detail screen
-> (date/budget tiles + `ProjectProgressCard` ring and dimension bars), which
-> is now out of frame. Add a second file if the report needs both.
+The top of the same screen — date/budget tiles + `ProjectProgressCard`
+(27% composite ring, financial/physical/time bars) — is now a second file,
+`docs/screenshots/app-project-progress.png` (same script, scroll `0`), so the
+detail screen is documented top-to-bottom across the two frames. No markdown
+references either filename yet; they are used directly in the report.
 
 ---
 
