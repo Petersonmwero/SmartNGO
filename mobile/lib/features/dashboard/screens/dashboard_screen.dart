@@ -746,7 +746,12 @@ class _RecentProjects extends StatelessWidget {
       );
     }
     return Column(
-      children: [for (final p in projects!) _ProjectRow(project: p)],
+      children: [
+        for (final p in projects!) _ProjectRow(project: p),
+        // Same key as the project register, so the tracks read identically
+        // on both screens.
+        const EvmTrackLegend(),
+      ],
     );
   }
 }
@@ -871,12 +876,7 @@ class _ProjectRow extends StatelessWidget {
                 const SizedBox(height: 4),
                 SizedBox(
                   width: 60,
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: AppColors.border,
-                    valueColor: AlwaysStoppedAnimation(accent),
-                    minHeight: 4,
-                  ),
+                  child: EvmProgressTrack(project: project, height: 5),
                 ),
               ],
             ),

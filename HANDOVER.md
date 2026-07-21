@@ -108,6 +108,8 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 - `LayoutBuilder` cannot compute intrinsics — it crashes inside
   `IntrinsicHeight`; `ProjectProgressBar` uses `AnimatedFractionallySizedBox`.
 - Fixed-height shimmer placeholders must adapt their line count to the height.
+- A `Container` with no width shrink-wraps in a centred `Column` (the legend
+  strip floated mid-card on the dashboard until given `width: double.infinity`).
 - A bare `FractionallySizedBox` inside a `Stack` is sized to its factor and
   then positioned by the **Stack's** alignment — its own `alignment:` only
   places its child within itself. Left-anchored bars need an enclosing
@@ -173,9 +175,8 @@ look at every frame, then copy into `docs/screenshots/`.
    → scroll one screen) is the newest thing to review.
 2. Backlog: monthly report series endpoint for a real 6-month chart; donor PDF
    download button; user detail/edit screen.
-3. The dashboard's Recent Projects rows still draw a plain composite bar; the
-   project list now uses `EvmProgressTrack`. Carrying it over would make the
-   two consistent.
+3. Nothing queued — the EVM track now covers both the project register and the
+   dashboard's Recent Projects rows.
 
 ## Blockers
 

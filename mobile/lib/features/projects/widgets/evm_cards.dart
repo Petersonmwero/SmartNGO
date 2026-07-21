@@ -121,6 +121,9 @@ class EvmTrackLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      // Explicit width: in a centred Column (the dashboard card) the strip
+      // would otherwise shrink-wrap its keys and float mid-card.
+      width: double.infinity,
       color: AppColors.surfaceVariant,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Wrap(

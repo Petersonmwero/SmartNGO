@@ -84,9 +84,9 @@ ribbon, table-style lists.
 detail lines), `ProjectHealthCard` (rating badge, CPI/SPI with plain-language
 readings and an "Earned X% of budgeted work vs Y% planned" footnote),
 `PhaseBudgetTable`, `HealthDot`, `PhaseManagementScreen`, milestone weights,
-and `EvmProgressTrack` on the project-list rows — composite fill with the
-physical (earned value) band over it and a tick at planned value, keyed by
-`EvmTrackLegend` under the column header. Physical is drawn as its own band
+and `EvmProgressTrack` on the project-list **and dashboard** rows — composite
+fill with the physical (earned value) band over it and a tick at planned
+value, keyed by a shared `EvmTrackLegend`. Physical is drawn as its own band
 because SPI is EV/PV: a tick read against the *composite* fill would not be a
 schedule reading.
 
@@ -116,5 +116,3 @@ schedule reading.
 - User detail/edit screen.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.
-- Consider carrying `EvmProgressTrack` into the dashboard's Recent Projects
-  rows, which still draw a plain composite bar.
