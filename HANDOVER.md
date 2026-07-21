@@ -70,6 +70,30 @@ work vs 49.0% planned") plus the phase budget table. Repeatable via
 `mouse.wheel({deltaY: 555})`; 620 clips the card header, so re-tune the
 scroll by eye if the layout above it changes.
 
+### Full screenshot set retaken against the reseeded data
+
+All 13 `app-*.png` recaptured in one run (`docshots.js` in the session
+scratchpad; takes an output dir + an optional comma-separated subset, so a
+single frame can be redone without the whole set). Zero console/API errors.
+Only 8 files actually changed — `app-login`, `app-beneficiaries`,
+`app-analytics`, `app-profile` and `app-submit-report` came out
+byte-identical, since nothing in them depends on the shifted seed dates.
+
+The notification-bell race from `afbfa73` is handled in the script: it
+re-navigates to the dashboard, waits 6s for the KPI fetches to settle, then
+taps the bell at (343, 40). Tapping earlier loses the route push to a
+re-render and silently captures the dashboard instead.
+
+> **Bug found while eyeballing `app-dashboard-admin.png`** (pre-existing, NOT
+> fixed — it changes RBAC behaviour and demo numbers): the admin stats strip
+> reads "3 Projects" while the Recent Projects list right below it shows
+> Community Clinic Outreach, which belongs to a *different* NGO. Cause:
+> `apps/analytics/views.py::_projects_qs` scopes admins to `user.ngo`, but
+> `/projects/` returns all 4 across NGOs (verified via the API). CLAUDE.md
+> business rule 1 says a system-wide admin sees all NGOs, so the dashboard
+> queryset is the side that is wrong. Fixing it moves the admin dashboard
+> counts and will touch the analytics tests.
+
 The top of the same screen — date/budget tiles + `ProjectProgressCard`
 (27% composite ring, financial/physical/time bars) — is now a second file,
 `docs/screenshots/app-project-progress.png` (same script, scroll `0`), so the
