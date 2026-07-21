@@ -44,9 +44,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user = self.request.user
         # phases/milestones feed the computed progress properties on every
         # serialized row — prefetch them to avoid N+1 queries on list views.
+        # phases__reports and reports are needed too: phase spend and
+        # cost_per_beneficiary now read the approved-report ledger.
         qs = (
             Project.objects.select_related("ngo")
-            .prefetch_related("phases", "milestones")
+            .prefetch_related("phases__reports", "milestones", "reports")
             .order_by("-created_at")
         )
         if user.role == Role.ADMIN:

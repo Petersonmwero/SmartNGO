@@ -4,11 +4,11 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-21 · `main` @ `231cbac` · working tree clean
+Last updated: 2026-07-22 · `main` @ local commit (unpushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **216 pass** (`pytest`, test_sqlite settings) |
+| Backend tests | **232 pass** (`pytest`, test_sqlite settings) |
 | Flutter tests | **55 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — 0 warnings, 0 errors |
 | Phases | All 5 complete; work since then is post-phase improvement |
@@ -18,7 +18,7 @@ Last updated: 2026-07-21 · `main` @ `231cbac` · working tree clean
 ## Running it
 
 ```bash
-# Backend (216 tests)
+# Backend (232 tests)
 cd /Users/admin/Desktop/SmartNGO/backend && source venv/bin/activate
 DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 
@@ -57,6 +57,29 @@ indicators, milestones, reports (+ images, draft→submitted→approved workflow
 notifications (signal-driven), users, analytics dashboard, ReportLab PDFs, CSV
 export, email verification, password reset.
 
+**Structured donor reporting** (commit 1 of 3 — backend only) — `Report` gained
+an activity type, optional links to a phase and a milestone, `amount_spent`,
+a beneficiary breakdown (reached / male / female / youth), four narrative
+fields, and `posted_at`. Every field is optional or defaulted, so older
+reports stay valid.
+
+- **Approval is what posts.** `apps/reports/services.py` holds `post_report` /
+  `unpost_report`, both `transaction.atomic`. `posted_at` — not `status` — is
+  the ledger flag, which makes both idempotent: approving twice cannot
+  double-count, and un-approving something unposted is a no-op.
+- Un-approving reverts a linked milestone **only** when
+  `milestone.completed_by_report` is this report; a milestone ticked off by
+  hand is left alone. New `POST /reports/{id}/unapprove/` (manager/admin)
+  makes that reachable.
+- `ProjectPhase.spent_budget` is now a **property**: `opening_spend`
+  (the writable baseline, still the `spent_budget` DB column) plus
+  `reported_spend` (approved reports). `Project` gained `reported_spend`,
+  `beneficiaries_reached` and `cost_per_beneficiary`.
+- Approved reports are **frozen** — editing any structured field returns 400,
+  so the donor ledger stays append-only. Corrections mean a new report.
+- Because spend is derived, `ProjectViewSet` prefetches `phases__reports` and
+  `reports`; without it every serialized project re-queries per phase.
+
 **Progress engine (EVM, per PMBOK)** — all computed properties on `Project`,
 no caching, no stored aggregates:
 - Composite progress = Financial×30% + Physical×50% + Time×20%.
@@ -91,6 +114,13 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
   differ from the CLAUDE.md spec).
 
 **Backend**
+- `makemigrations` cannot detect a field rename non-interactively — it offers
+  RemoveField + AddField, which would **drop the column and its data**. The
+  `opening_spend` rename is hand-written, and because `db_column` pins it to
+  the existing column the whole thing is wrapped in
+  `SeparateDatabaseAndState(database_operations=[])`: state-only, so
+  `sqlmigrate` shows a no-op instead of two renames that cancel out (real
+  churn on MySQL). Check `sqlmigrate` on any future rename.
 - DRF serialises `DecimalField` as JSON **strings** — clients must parse
   tolerantly (`ProjectPhase.asDouble`, `Report._asDouble`).
 - `DecimalField(max_digits=…)` validation fires **before** `validate_*`, so
@@ -151,6 +181,10 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
    is no standalone cron command for it.
 8. The dev DB has been flushed several times — manual accounts are gone; use
    the seeded demo logins.
+9. **Temporary shim**: `ProjectPhaseSerializer.to_internal_value` maps a legacy
+   `spent_budget` write onto `opening_spend`, because the shipped Flutter build
+   still PUTs that field and silently dropping it would make phase edits vanish.
+   Remove it in commit 3 once the app sends `opening_spend`.
 
 ---
 
@@ -179,6 +213,9 @@ Two capture lessons from this session:
 
 ## Next steps
 
+0. Structured donor reporting, commits 2 and 3: the Flutter reporting form
+   (structured fields, phase/milestone pickers) and the donor-facing report
+   views. Commit 1 (backend) is done and deliberately invisible to the app.
 1. Peterson: click through the app at http://localhost:58569 with the demo
    accounts and flag visual issues. Newest to review: the health card's
    earned-vs-planned line (project detail → Overview → scroll one screen) and

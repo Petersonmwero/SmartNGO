@@ -30,7 +30,7 @@ class ProjectPhaseAdmin(admin.ModelAdmin):
         "project",
         "phase_type",
         "allocated_budget",
-        "spent_budget",
+        "opening_spend",
         "status",
     )
     list_filter = ("phase_type", "status")

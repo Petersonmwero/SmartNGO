@@ -349,7 +349,7 @@ class Command(BaseCommand):
         ProjectPhase.objects.get_or_create(
             phase_name=name, project=project,
             defaults={"phase_type": phase_type,
-                      "allocated_budget": allocated, "spent_budget": spent,
+                      "allocated_budget": allocated, "opening_spend": spent,
                       "start_date": start, "end_date": end,
                       "status": status,
                       "description": f"{name} phase — {project.project_name}."})

@@ -20,6 +20,7 @@ from apps.common.mixins import ProjectScopedViewSetMixin
 from .filters import ReportFilter
 from .models import Report, ReportImage
 from .serializers import ReportImageSerializer, ReportSerializer
+from .services import post_report, unpost_report
 
 AUTHOR_ROLES = IsSystemAdmin | IsProjectManager | IsFieldOfficer  # may create/edit
 APPROVER_ROLES = IsSystemAdmin | IsProjectManager  # may approve
@@ -39,7 +40,7 @@ class ReportViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy", "submit"):
             return [AUTHOR_ROLES()]
-        if self.action == "approve":
+        if self.action in ("approve", "unapprove"):
             return [APPROVER_ROLES()]
         return [IsAuthenticated()]
 
@@ -78,8 +79,22 @@ class ReportViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
         report = self.get_object()  # queryset already scopes managers to own NGO
         if report.status != Report.Status.SUBMITTED:
             raise ValidationError("Only submitted reports can be approved.")
-        report.status = Report.Status.APPROVED
-        report.save(update_fields=["status"])
+        # Posting sets status as well as posted_at, and is a no-op if this
+        # report has somehow already posted.
+        post_report(report)
+        return Response(self.get_serializer(report).data)
+
+    @action(detail=True, methods=["post"])
+    def unapprove(self, request, pk=None):
+        """Send an approved report back for revision, reversing its posting.
+
+        Its spend leaves the phase ledger and a milestone it completed
+        reverts to pending; a milestone completed by hand is untouched.
+        """
+        report = self.get_object()
+        if report.status != Report.Status.APPROVED:
+            raise ValidationError("Only approved reports can be un-approved.")
+        unpost_report(report)
         return Response(self.get_serializer(report).data)
 
 

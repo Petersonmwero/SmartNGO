@@ -68,6 +68,32 @@ class Project(models.Model):
         return sum((p.spent_budget for p in self.phases.all()), Decimal("0"))
 
     @property
+    def reported_spend(self):
+        """Spend posted by approved reports, across every phase."""
+        return sum((p.reported_spend for p in self.phases.all()), Decimal("0"))
+
+    @property
+    def beneficiaries_reached(self):
+        """People reached according to approved reports.
+
+        A headcount of reporting, not of distinct individuals — the same
+        person attending two activities is counted by both reports.
+        """
+        return sum(
+            r.beneficiaries_reached
+            for r in self.reports.all()
+            if r.status == "approved" and r.posted_at is not None
+        )
+
+    @property
+    def cost_per_beneficiary(self):
+        """Total spend divided by people reached; None when none reached."""
+        reached = self.beneficiaries_reached
+        if reached <= 0:
+            return None
+        return round(float(self.total_spent) / reached, 2)
+
+    @property
     def budget_remaining(self):
         """Unspent budget (may be negative if phases overran)."""
         return self.budget - self.total_spent
@@ -217,7 +243,19 @@ class ProjectPhase(models.Model):
     phase_name = models.CharField(max_length=255)
     phase_type = models.CharField(max_length=50, choices=PhaseType.choices)
     allocated_budget = models.DecimalField(max_digits=15, decimal_places=2)
-    spent_budget = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    # Renamed from spent_budget; db_column keeps the existing column so no
+    # data moves. Actual spend is now this baseline plus the approved-report
+    # ledger — see the spent_budget property below.
+    opening_spend = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0,
+        db_column="spent_budget",
+        help_text=(
+            "Expenditure recorded at baseline, before report-based tracking. "
+            "Actual spend = this plus approved report spend."
+        ),
+    )
     start_date = models.DateField()
     end_date = models.DateField()
     status = models.CharField(
@@ -232,6 +270,27 @@ class ProjectPhase(models.Model):
 
     def __str__(self):
         return f"{self.phase_name} ({self.project_id})"
+
+    @property
+    def reported_spend(self):
+        """Spend from approved reports linked to this phase.
+
+        Filtered in Python rather than by queryset so a prefetched
+        `phases__reports` serves every phase from one query.
+        """
+        return sum(
+            (
+                r.amount_spent
+                for r in self.reports.all()
+                if r.status == "approved" and r.posted_at is not None
+            ),
+            Decimal("0"),
+        )
+
+    @property
+    def spent_budget(self):
+        """Actual spend: baseline opening figure + approved report ledger."""
+        return self.opening_spend + self.reported_spend
 
     @property
     def utilization_percentage(self):
@@ -303,6 +362,16 @@ class Milestone(models.Model):
             "Relative importance weight (e.g. major milestone = 5, minor = 1). "
             "Used in physical progress calculation."
         ),
+    )
+    # Set when an approved report completed this milestone. Null for
+    # milestones ticked off by hand, which un-approving a report must not
+    # revert.
+    completed_by_report = models.ForeignKey(
+        "reports.Report",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="completed_milestones",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

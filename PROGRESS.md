@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-21 · `main` @ `231cbac`
-**Backend 216 tests · Flutter 55 tests · `flutter analyze` 0 issues · Swagger 0/0**
+Last updated: 2026-07-22 · `main` @ local commit (unpushed)
+**Backend 232 tests · Flutter 55 tests · `flutter analyze` 0 issues · Swagger 0/0**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -50,6 +50,26 @@ built from the phase baseline (each phase's allocated budget × the elapsed
 fraction of its own window), falling back to `time_progress` when a project has
 no phases or no budget; `health_status` from the two indices. All computed
 properties — no migrations, no caching.
+
+**Structured donor reporting (2026-07-22, commit 1 of 3 — backend only)**
+- [x] `Report`: activity type, optional `linked_phase` / `linked_milestone`,
+  `amount_spent` + notes, beneficiary breakdown (reached/male/female/youth),
+  impact / challenges / recommendations / next steps, `posted_at`. All
+  optional or defaulted — pre-existing reports stay valid.
+- [x] Spend is now approval-driven: `ProjectPhase.spent_budget` = writable
+  `opening_spend` baseline + `reported_spend` from approved reports.
+  Migration is a state-only rename (`db_column` unchanged), so no data moved.
+- [x] `post_report` / `unpost_report` services, atomic and idempotent, keyed on
+  `posted_at`; approving completes a linked milestone, un-approving reverts it
+  only if that report completed it. New `/reports/{id}/unapprove/` endpoint.
+- [x] Validation: cross-project links rejected, `amount_spent >= 0`, gender
+  split and youth bounded by total reached, approved reports frozen.
+- [x] `Project.reported_spend`, `.beneficiaries_reached`, `.cost_per_beneficiary`
+  exposed read-only; `phases__reports` prefetched against N+1.
+- [x] 16 new tests (`apps/reports/tests/test_structured_reporting.py`);
+  **232 backend tests pass**. Demo figures verified byte-identical before and
+  after (no report carries spend yet), and the shipped Flutter build still
+  works unchanged against the new API.
 
 **Gaps vs the CLAUDE.md spec** (all deliberate, see DECISIONS.md)
 - No `services.py` layer — logic sits in views/serializers.
@@ -99,7 +119,7 @@ schedule reading.
 
 ## Verification state
 
-- Backend **216 tests** pass on SQLite test settings.
+- Backend **232 tests** pass on SQLite test settings.
 - Flutter **55 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the

@@ -9,6 +9,14 @@ MILESTONE_WEIGHT_MAX = 10
 
 class ProjectPhaseSerializer(serializers.ModelSerializer):
     utilization_percentage = serializers.ReadOnlyField()
+    # Actual spend is now derived: the writable baseline plus whatever
+    # approved reports have posted against this phase.
+    reported_spend = serializers.DecimalField(
+        max_digits=15, decimal_places=2, read_only=True
+    )
+    spent_budget = serializers.DecimalField(
+        max_digits=15, decimal_places=2, read_only=True
+    )
 
     class Meta:
         model = ProjectPhase
@@ -18,6 +26,8 @@ class ProjectPhaseSerializer(serializers.ModelSerializer):
             "phase_name",
             "phase_type",
             "allocated_budget",
+            "opening_spend",
+            "reported_spend",
             "spent_budget",
             "start_date",
             "end_date",
@@ -29,6 +39,22 @@ class ProjectPhaseSerializer(serializers.ModelSerializer):
         # project comes from the URL, not the request body.
         read_only_fields = ["id", "project", "created_at"]
 
+    def to_internal_value(self, data):
+        """Accept a legacy `spent_budget` write as `opening_spend`.
+
+        Clients written before spend became report-driven still PUT/PATCH
+        `spent_budget`. Silently dropping it (it is read-only now) would make
+        their edits vanish, so it is mapped to the baseline field instead.
+        Remove once every client sends `opening_spend`.
+        """
+        if (
+            isinstance(data, dict)
+            and "spent_budget" in data
+            and "opening_spend" not in data
+        ):
+            data = {**data, "opening_spend": data["spent_budget"]}
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         """Cross-field checks: dates ordered, spending non-negative."""
         start = attrs.get("start_date", getattr(self.instance, "start_date", None))
@@ -37,7 +63,7 @@ class ProjectPhaseSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"end_date": "End date must be on or after the start date."}
             )
-        for field in ("allocated_budget", "spent_budget"):
+        for field in ("allocated_budget", "opening_spend"):
             value = attrs.get(field)
             if value is not None and value < 0:
                 raise serializers.ValidationError(
@@ -56,6 +82,10 @@ class ProjectSerializer(serializers.ModelSerializer):
     cost_performance_index = serializers.ReadOnlyField()
     schedule_performance_index = serializers.ReadOnlyField()
     health_status = serializers.ReadOnlyField()
+    reported_spend = serializers.DecimalField(
+        max_digits=15, decimal_places=2, read_only=True
+    )
+    cost_per_beneficiary = serializers.ReadOnlyField()
     total_spent = serializers.DecimalField(
         max_digits=15, decimal_places=2, read_only=True
     )
@@ -84,6 +114,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             "schedule_performance_index",
             "health_status",
             "total_spent",
+            "reported_spend",
+            "cost_per_beneficiary",
             "budget_remaining",
             "phases",
             "created_at",

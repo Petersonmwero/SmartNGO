@@ -32,7 +32,7 @@ def _phase(project, allocated, spent, name="Phase"):
         phase_name=name,
         phase_type="implementation",
         allocated_budget=Decimal(allocated),
-        spent_budget=Decimal(spent),
+        opening_spend=Decimal(spent),
         start_date=project.start_date,
         end_date=project.end_date,
     )
@@ -170,7 +170,7 @@ def test_no_milestones_edge_case(ngo):
 def _dated_phase(project, allocated, start_offset, end_offset, name="P"):
     return ProjectPhase.objects.create(
         project=project, phase_name=name, phase_type="implementation",
-        allocated_budget=Decimal(allocated), spent_budget=Decimal("0"),
+        allocated_budget=Decimal(allocated), opening_spend=Decimal("0"),
         start_date=TODAY + timedelta(days=start_offset),
         end_date=TODAY + timedelta(days=end_offset),
     )
