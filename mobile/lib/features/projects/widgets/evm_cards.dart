@@ -212,10 +212,12 @@ class ProjectHealthCard extends StatelessWidget {
 
   (String, Color) get _spiReading {
     final spi = project.schedulePerformanceIndex;
-    if (spi == null) return ('Timeline not started yet', AppColors.textMuted);
-    if (spi >= 1.0) return ('Ahead of schedule ✓', AppColors.success);
-    if (spi >= 0.8) return ('Slightly behind schedule', AppColors.warning);
-    return ('Behind schedule ⚠', AppColors.danger);
+    // SPI is earned value over planned value, so the reading compares
+    // delivery against the work the plan scheduled — not calendar elapsed.
+    if (spi == null) return ('No work scheduled yet', AppColors.textMuted);
+    if (spi >= 1.0) return ('Ahead of planned work ✓', AppColors.success);
+    if (spi >= 0.8) return ('Slightly behind planned work', AppColors.warning);
+    return ('Behind planned work ⚠', AppColors.danger);
   }
 
   @override

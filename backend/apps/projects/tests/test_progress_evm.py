@@ -97,7 +97,12 @@ def test_composite_progress_formula(ngo):
 
 
 def test_cpi_spi_calculations(ngo):
-    """CPI = physical/financial, SPI = physical/time; None when undefined."""
+    """CPI = EV/AC (physical/financial); SPI = EV/PV; None when undefined.
+
+    The single phase here spans the whole project with allocation equal to
+    the budget, so PV coincides with time elapsed (50%) — the values are
+    unchanged from the linear model in exactly this symmetric case.
+    """
     project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
     _phase(project, "1000000", "400000")  # financial 40%
     _milestone(project, 1, "completed")
@@ -159,6 +164,87 @@ def test_no_milestones_edge_case(ngo):
     assert project.progress_percentage == round(
         50.0 * 0.30 + 0.0 * 0.50 + 50.0 * 0.20, 1
     )
+
+
+# ── Planned Value (PV) and true EV/PV schedule performance ───────────────
+def _dated_phase(project, allocated, start_offset, end_offset, name="P"):
+    return ProjectPhase.objects.create(
+        project=project, phase_name=name, phase_type="implementation",
+        allocated_budget=Decimal(allocated), spent_budget=Decimal("0"),
+        start_date=TODAY + timedelta(days=start_offset),
+        end_date=TODAY + timedelta(days=end_offset),
+    )
+
+
+def test_planned_value_follows_phase_baseline_not_calendar(ngo):
+    """A front-loaded plan accrues PV faster than the calendar elapses."""
+    project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
+    _dated_phase(project, "800000", -50, -10, "Front-loaded")
+    _dated_phase(project, "200000", 10, 50, "Tail")
+    # Half the calendar has passed, but 80% of the budgeted work was due.
+    assert project.time_progress == 50.0
+    assert project.planned_value_progress == 80.0
+    _milestone(project, 4, "completed")
+    _milestone(project, 6, "pending")
+    project = Project.objects.get(pk=project.pk)
+    assert project.physical_progress == 40.0
+    # EV/PV = 40/80. The old physical/time formula would have said 0.8.
+    assert project.schedule_performance_index == 0.5
+
+
+def test_planned_value_partial_phase_elapsed(ngo):
+    """A phase spanning the project accrues PV pro rata within itself."""
+    project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
+    _dated_phase(project, "1000000", -50, 50)
+    assert project.planned_value_progress == 50.0
+
+
+def test_planned_value_caps_at_100_when_overallocated(ngo):
+    """Phase allocations exceeding the budget cannot push PV past 100."""
+    project = _project(ngo, budget="1000000.00", start_offset=-100, end_offset=-1)
+    _dated_phase(project, "900000", -100, -50, "A")
+    _dated_phase(project, "600000", -50, -1, "B")
+    assert project.planned_value_progress == 100.0
+
+
+def test_planned_value_zero_length_phase(ngo):
+    """Single-day phases count as fully elapsed or not at all — never NaN."""
+    project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
+    _dated_phase(project, "500000", -1, -1, "Past milestone-day")
+    _dated_phase(project, "500000", 1, 1, "Future milestone-day")
+    assert project.planned_value_progress == 50.0
+
+
+def test_planned_value_falls_back_to_linear_without_phases(ngo):
+    """No phase baseline (or no budget) degrades to linear accrual."""
+    project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
+    assert project.planned_value_progress == project.time_progress == 50.0
+    _milestone(project, 1, "completed")
+    _milestone(project, 3, "pending")
+    project = Project.objects.get(pk=project.pk)
+    assert project.schedule_performance_index == round(25.0 / 50.0, 2)
+    # A zero-budget project cannot express PV as a share of budget either.
+    zero_budget = _project(ngo, budget="0.00", start_offset=-50, end_offset=50)
+    _dated_phase(zero_budget, "500000", -50, 50)
+    assert zero_budget.planned_value_progress == zero_budget.time_progress
+
+
+def test_spi_none_before_any_planned_work(ngo):
+    """PV of zero means nothing was due yet — SPI is undefined, not 0."""
+    project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
+    _dated_phase(project, "1000000", 10, 50, "All future")
+    assert project.planned_value_progress == 0.0
+    assert project.schedule_performance_index is None
+
+
+def test_planned_value_exposed_on_api(auth_client, manager_user, ngo):
+    """Clients read PV off the project detail payload."""
+    project = _project(ngo, budget="1000000.00", start_offset=-50, end_offset=50)
+    _dated_phase(project, "1000000", -50, 50)
+    resp = auth_client(manager_user).get(f"/api/v1/projects/{project.id}/")
+    assert resp.status_code == 200
+    body = resp.data["data"] if "data" in resp.data else resp.data
+    assert body["planned_value_progress"] == 50.0
 
 
 # ── Phase API (nested under /projects/<id>/phases/) ──────────────────────

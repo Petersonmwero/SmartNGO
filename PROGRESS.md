@@ -1,5 +1,33 @@
 # PROGRESS.md — Smart NGO M&E Application
-### Last updated: 2026-07-18
+### Last updated: 2026-07-21
+
+---
+
+## True PV-based SPI (2026-07-21) ✅
+
+SPI was `physical / time` — a straight-line plan assumption that misreads
+any front- or back-loaded project. Now `EV / PV` per PMBOK, with PV read
+off the phase baseline.
+
+- [x] Backend: `Project.planned_value_progress` — each phase contributes its
+  allocated budget × the elapsed fraction of that phase's own window
+  (module-level `_elapsed_fraction`, zero-length windows safe), as a % of
+  budget, capped at 100
+- [x] Backend: `schedule_performance_index` = physical / PV (budget cancels
+  since both are % of the same budget); `None` when PV is 0, i.e. before
+  any work was *scheduled* to start — no longer tied to the calendar
+- [x] Documented fallback: no phase plan or non-positive budget → PV degrades
+  to `time_progress` (the entire old model becomes just the fallback)
+- [x] `planned_value_progress` exposed read-only on `ProjectSerializer`;
+  no migration needed (all computed properties)
+- [x] 7 new tests in `test_progress_evm.py` (front-loaded baseline, partial
+  phase, over-allocation cap, zero-length phase, linear fallback, PV=0 →
+  SPI None, API exposure); **215 backend tests pass** (was 208)
+- [x] Seed check: reseeded and printed PV/SPI/health per project — demo still
+  shows variety (Girls Education healthy, SPI 1.11 → 1.02; Clean Water and
+  Food Security critical; Clinic not_started). No seed retune needed.
+- [x] Flutter: `ProjectHealthCard` SPI readings reworded from schedule
+  language to "ahead of / behind planned work"; analyze 0, 47/47 tests
 
 ---
 

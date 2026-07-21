@@ -6,6 +6,20 @@ from django.conf import settings
 from django.db import models
 
 
+def _elapsed_fraction(start, end, today):
+    """Fraction of the [start, end] window elapsed as of today, clamped 0-1.
+
+    The `today >= end` check comes first so a zero-length window in the
+    past counts as fully elapsed and the division below can never see a
+    zero-day span.
+    """
+    if today >= end:
+        return 1.0
+    if today <= start:
+        return 0.0
+    return (today - start).days / (end - start).days
+
+
 class Project(models.Model):
     class Status(models.TextChoices):
         PLANNING = "planning", "Planning"
@@ -14,9 +28,12 @@ class Project(models.Model):
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
 
-    # Weighted Composite Progress Model (Earned Value Management, per PMBOK).
-    # Physical delivery carries the highest weight because donors care most
-    # about deliverables, not money consumed or calendar time elapsed.
+    # Weighted Composite Progress Model built on Earned Value Management.
+    # CPI = EV/AC and SPI = EV/PV follow PMBOK; the headline composite is a
+    # weighted blend of the three dimensions (a reporting choice, not a
+    # PMBOK formula). Physical delivery carries the highest weight because
+    # donors care most about deliverables, not money consumed or calendar
+    # time elapsed.
     FINANCIAL_WEIGHT = Decimal("0.30")
     PHYSICAL_WEIGHT = Decimal("0.50")
     TIME_WEIGHT = Decimal("0.20")
@@ -117,15 +134,47 @@ class Project(models.Model):
         return round(self.physical_progress / self.financial_progress, 2)
 
     @property
-    def schedule_performance_index(self):
-        """SPI = physical / time progress.
+    def planned_value_progress(self):
+        """Planned Value (PV) as a percentage of the project budget (0-100).
 
-        > 1.0 means ahead of schedule; < 1.0 behind. None before the
-        project timeline starts.
+        PV per PMBOK: the budgeted cost of the work *scheduled* to be done
+        by today. Computed from the phase baseline — each phase contributes
+        its allocated budget multiplied by the elapsed fraction of that
+        phase's own timeline — so a front-loaded plan yields a front-loaded
+        PV curve instead of a straight line.
+
+        Degenerate case (documented): a project with no phase plan, or a
+        zero/negative budget, falls back to linear accrual over the project
+        timeline, i.e. time_progress. That linear assumption was the entire
+        old SPI model; here it is only the fallback.
         """
-        if self.time_progress <= 0:
+        phases = list(self.phases.all())
+        if not phases or self.budget <= 0:
+            return self.time_progress
+        today = date.today()
+        planned = sum(
+            float(phase.allocated_budget)
+            * _elapsed_fraction(phase.start_date, phase.end_date, today)
+            for phase in phases
+        )
+        return min(round(planned / float(self.budget) * 100, 1), 100.0)
+
+    @property
+    def schedule_performance_index(self):
+        """SPI = EV / PV (Earned Value over Planned Value, per PMBOK).
+
+        EV is physical progress expressed against the budget; PV accrues
+        per the phase baseline (see planned_value_progress). Because both
+        are percentages of the same budget, the budget cancels and
+        SPI = physical_progress / planned_value_progress.
+
+        > 1.0 means ahead of the plan; < 1.0 behind. None before any work
+        was planned to have started.
+        """
+        pv = self.planned_value_progress
+        if pv <= 0:
             return None
-        return round(self.physical_progress / self.time_progress, 2)
+        return round(self.physical_progress / pv, 2)
 
     @property
     def health_status(self):

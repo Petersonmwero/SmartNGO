@@ -52,6 +52,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     financial_progress = serializers.ReadOnlyField()
     physical_progress = serializers.ReadOnlyField()
     time_progress = serializers.ReadOnlyField()
+    planned_value_progress = serializers.ReadOnlyField()
     cost_performance_index = serializers.ReadOnlyField()
     schedule_performance_index = serializers.ReadOnlyField()
     health_status = serializers.ReadOnlyField()
@@ -78,6 +79,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "financial_progress",
             "physical_progress",
             "time_progress",
+            "planned_value_progress",
             "cost_performance_index",
             "schedule_performance_index",
             "health_status",

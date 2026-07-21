@@ -1,4 +1,48 @@
-# Session Handover — 2026-07-18 | EVM Weighted Composite Progress
+# Session Handover — 2026-07-21 | True PV-based SPI
+
+---
+
+## True PV-based SPI (2026-07-21)
+
+The old `schedule_performance_index = physical / time` silently assumed a
+straight-line plan. SPI is now **EV / PV** per PMBOK, with Planned Value
+derived from the phase baseline:
+
+- `Project.planned_value_progress` — Σ(phase.allocated_budget ×
+  elapsed fraction of that phase's own window) / budget × 100, capped at
+  100. Helper `_elapsed_fraction(start, end, today)` is module-level in
+  `apps/projects/models.py`; its `today >= end` check comes first so a
+  zero-length phase window can never divide by zero.
+- `schedule_performance_index = physical_progress / planned_value_progress`
+  (the budget cancels — both are percentages of it). `None` when PV is 0,
+  meaning no work was *scheduled* to have started yet; previously `None`
+  keyed off the project start date.
+- **Documented fallback**: a project with no phases, or a non-positive
+  budget, falls back to `time_progress`. The whole old model survives only
+  as this degenerate case.
+- `planned_value_progress` is read-only on `ProjectSerializer`. **No
+  migration** — everything is a computed property.
+- Untouched on purpose: `cost_performance_index`, `progress_percentage`,
+  the 30/50/20 weights, `health_status`.
+
+**Why this matters for the demo**: Food Security is front-loaded (PV 49%
+vs 34% calendar), so its SPI now reflects the plan it was actually given.
+
+**Verification**
+- `215 backend tests pass` (was 208; 7 new PV tests in
+  `apps/projects/tests/test_progress_evm.py`).
+- Dev DB flushed + reseeded, then PV/T/CPI/SPI/health printed per project:
+  Girls Education healthy (SPI 1.11 → **1.02**), Clean Water critical
+  (0.36), Food Security critical (0.20), Community Clinic not_started.
+  Variety intact — **seed data was not retuned**.
+- Flutter: `ProjectHealthCard` SPI wording changed from schedule language
+  to "Ahead of / Behind planned work" (+ "No work scheduled yet" for null),
+  since the formula no longer measures calendar elapsed. `flutter analyze`
+  0 issues, 47/47 tests.
+
+> Note: the Flutter `Project` model still does not parse
+> `planned_value_progress`; nothing renders it yet. Wire it into the health
+> card if a "planned vs earned" line is wanted.
 
 ---
 
