@@ -219,10 +219,10 @@ See the live Swagger UI for full request/response schemas.
 ## Testing
 
 ```bash
-# Backend (155 tests) — locally on in-memory SQLite, no MySQL needed
+# Backend (254 tests) — locally on in-memory SQLite, no MySQL needed
 cd backend && ./venv/bin/python -m pytest --ds=config.settings.test_sqlite
 
-# Mobile (31 tests) + static analysis (0 issues)
+# Mobile (74 tests) + static analysis (0 issues)
 cd mobile && flutter test && flutter analyze
 ```
 
