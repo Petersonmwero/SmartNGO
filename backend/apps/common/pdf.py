@@ -10,13 +10,21 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
+    Image,
+    KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
 )
+
+# Uploaded photos are scaled to fit within this box (aspect ratio preserved,
+# never upscaled) so several sit on a page rather than one filling each.
+_PHOTO_MAX_W = 9 * cm
+_PHOTO_MAX_H = 7 * cm
 
 _STYLES = getSampleStyleSheet()
 
@@ -164,6 +172,11 @@ def donor_impact_pdf(project, summary):
     elements = [
         Paragraph(f"Impact Report: {project.project_name}", _STYLES["Title"]),
         Paragraph(f"NGO: {project.ngo.name}", _STYLES["Normal"]),
+        Paragraph(f"Status: {project.get_status_display()}", _STYLES["Normal"]),
+        Paragraph(
+            f"Dates: {project.start_date or '-'} to {project.end_date or '-'}",
+            _STYLES["Normal"],
+        ),
         Paragraph(
             "Figures below come from field reports approved by a project "
             "manager. Draft and unapproved reports are excluded.",
@@ -191,6 +204,27 @@ def donor_impact_pdf(project, summary):
     headline_table = Table(headline, colWidths=[8 * cm, 8 * cm])
     headline_table.setStyle(_TABLE_STYLE)
     elements += [headline_table, Spacer(1, 0.6 * cm)]
+
+    # Progress & performance (earned-value): the same figures the app shows on
+    # the project dashboard, so the donor PDF and the app agree.
+    elements.append(Paragraph("Progress & performance", _STYLES["Heading2"]))
+
+    def _idx(value):
+        return f"{value:.2f}" if value is not None else "-"
+
+    evm_rows = [
+        ["Measure", "Value"],
+        ["Financial progress", f"{project.financial_progress}%"],
+        ["Physical progress", f"{project.physical_progress}%"],
+        ["Time progress", f"{project.time_progress}%"],
+        ["Overall progress", f"{project.progress_percentage}%"],
+        ["Cost performance index (CPI)", _idx(project.cost_performance_index)],
+        ["Schedule performance index (SPI)", _idx(project.schedule_performance_index)],
+        ["Health", project.health_status.replace("_", " ").title()],
+    ]
+    evm_table = Table(evm_rows, colWidths=[8 * cm, 8 * cm])
+    evm_table.setStyle(_TABLE_STYLE)
+    elements += [evm_table, Spacer(1, 0.6 * cm)]
 
     elements.append(Paragraph("Activity breakdown", _STYLES["Heading2"]))
     activity_rows = [["Activity", "Reports", "People reached", "Spend"]]
@@ -255,5 +289,67 @@ def donor_impact_pdf(project, summary):
                 )
         elements.append(Spacer(1, 0.35 * cm))
 
+    # Field photos from the approved reports (same approved+posted rule as the
+    # figures above). Each is scaled to fit and kept with its caption.
+    elements += _photo_flowables(project)
+
     doc.build(elements)
     return buffer.getvalue()
+
+
+def _approved_reports(project):
+    """Approved, posted reports — the same set the impact figures roll up."""
+    from apps.reports.models import Report
+
+    return [
+        r
+        for r in project.reports.all()
+        if r.status == Report.Status.APPROVED and r.posted_at is not None
+    ]
+
+
+def _photo_flowables(project):
+    """Build the 'Field photos' section: every image on an approved report,
+    scaled to fit within the photo box and kept together with its caption.
+
+    Images whose files are missing or unreadable are skipped rather than
+    breaking the whole PDF.
+    """
+    flowables = [Paragraph("Field photos", _STYLES["Heading2"])]
+    shown = 0
+    for report in _approved_reports(project):
+        for img in report.images.all():
+            sized = _sized_image(img)
+            if sized is None:
+                continue
+            caption = img.caption or report.title
+            flowables.append(
+                KeepTogether(
+                    [
+                        sized,
+                        Paragraph(f"<i>{caption}</i>", _STYLES["Normal"]),
+                        Spacer(1, 0.4 * cm),
+                    ]
+                )
+            )
+            shown += 1
+    if shown == 0:
+        return [
+            Paragraph("Field photos", _STYLES["Heading2"]),
+            Paragraph("No photos attached to approved reports.", _STYLES["Normal"]),
+        ]
+    return flowables
+
+
+def _sized_image(report_image):
+    """A ReportLab Image scaled to fit the photo box (aspect ratio kept, never
+    upscaled), or None if the file cannot be read."""
+    try:
+        path = report_image.image.path
+        width, height = ImageReader(path).getSize()
+    except Exception:
+        return None
+    if not width or not height:
+        return None
+    scale = min(_PHOTO_MAX_W / width, _PHOTO_MAX_H / height, 1.0)
+    return Image(path, width=width * scale, height=height * scale)

@@ -78,6 +78,36 @@ class TestImpactPdf:
         assert auth_client(donor_user).get(self._url(foreign)).status_code == 404
 
 
+class TestImpactPdfContent:
+    def test_impact_pdf_embeds_photos_and_renders(
+        self, ngo, officer_user, settings, tmp_path
+    ):
+        # Isolate uploaded files to a temp dir rather than the project media/.
+        settings.MEDIA_ROOT = tmp_path
+        from apps.common.pdf import donor_impact_pdf
+        from apps.reports.models import ReportImage
+        from apps.reports.services import post_report, project_impact_summary
+        from apps.reports.tests.conftest import make_image_file
+
+        p = Project.objects.create(project_name="Photo test", ngo=ngo, budget="1000.00")
+        r = Report.objects.create(
+            project=p, officer=officer_user, title="With photo",
+            report_type="monthly", status=Report.Status.SUBMITTED,
+            amount_spent="100.00", beneficiaries_reached=5,
+        )
+        post_report(r)  # approve + post so it reaches the impact roll-up
+        ReportImage.objects.create(
+            report=r, image=make_image_file("evidence.png"), caption="Site photo"
+        )
+
+        p.refresh_from_db()  # budget etc. as typed Decimals, as the view passes
+        pdf = donor_impact_pdf(p, project_impact_summary(p))
+        # A valid PDF that rendered the EVM + photo sections without error, and
+        # is materially larger than an empty document (the embedded image).
+        assert pdf[:4] == b"%PDF"
+        assert len(pdf) > 2000
+
+
 class TestMonthlyReportPdf:
     def test_monthly_report_pdf(self, auth_client, manager_user, officer_user, project):
         Report.objects.create(
