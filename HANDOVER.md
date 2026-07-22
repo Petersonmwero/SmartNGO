@@ -4,12 +4,12 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `5246b7e` (pushed) · tree clean
+Last updated: 2026-07-22 · `main` @ local commit (unpushed) · tree clean
 
 | | |
 |---|---|
 | Backend tests | **254 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **70 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **74 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — 12 errors / 21 warnings, all pre-existing (see backlog) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -136,8 +136,17 @@ approved, posted reports, matching every other donor-facing figure. Role scoping
 is **delegated** to `AnalyticsDashboardView` (`_projects_qs` / `_reports_qs`
 reused, not restated), so the series and the dashboard can never disagree about
 what a caller may see. Response shapes are declared as read-only serializers for
-drf-spectacular. **Backend only — the Flutter bar chart does not yet consume it**
-(still shows counts by status). 11 tests.
+drf-spectacular. 11 tests.
+
+The Flutter analytics dashboard now consumes it: the old "Reports Overview"
+status-count bars are replaced by a **"Reporting Trend (Last 6 Months)"** card
+(`AnalyticsRepository.reportsSeries`, its own `FutureBuilder` so a series failure
+shows an inline message instead of blanking the screen) — grouped submitted /
+approved bars per month, oldest left, month labels, whole-number axis, legend,
+tap tooltips, and a "no reports in this period" empty state. The status totals
+still live in the green summary bar up top. Verified in Chrome against the demo
+data (July: submitted 3 / approved 1 — approved counts only the posted report —
+with Feb–Jun zero-filled). 4 new widget tests.
 
 **Progress engine (EVM, per PMBOK)** — all computed properties on `Project`,
 no caching, no stored aggregates:
@@ -235,9 +244,10 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 1. Flat Flutter repo pattern instead of data/domain/presentation layers —
    accepted, DECISIONS.md D-006.
 2. Web report drafts are in-memory; sqflite has no web implementation (D-010).
-3. Reports bar chart still shows counts by status, not a 6-month trend. The
-   backend series endpoint now exists (`5246b7e`); the Flutter chart is not yet
-   wired to it.
+3. (Resolved) The analytics reports chart is now a 6-month submitted/approved
+   trend, wired to `analytics/reports-series/`. Status totals remain in the
+   summary bar. Demo data only populates the current month, so the trend looks
+   sparse until reports with older `date_submitted` values exist.
 4. Donor quick actions substitute View Analytics/Notifications for the spec's
    "Download PDF"; project PDFs are API-reachable but have no button.
 5. "Member since" omitted from Profile — not in the `/auth/me/` payload.
@@ -291,10 +301,9 @@ Two capture lessons from this session:
    accounts and flag visual issues. Newest to review: the health card's
    earned-vs-planned line (project detail → Overview → scroll one screen) and
    the EVM tracks on the project register and dashboard rows.
-2. Backlog: wire the Flutter reports bar chart to the new
-   `analytics/reports-series/` endpoint for a real 6-month trend (backend done);
-   user detail/edit screen; key the Kenya ward/location dicts by
-   (constituency, ward).
+2. Backlog: user detail/edit screen; key the Kenya ward/location dicts by
+   (constituency, ward); optionally back-date some seeded reports so the new
+   reporting-trend chart shows more than the current month in the demo.
 
 ## Blockers
 

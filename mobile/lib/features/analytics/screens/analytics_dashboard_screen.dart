@@ -22,7 +22,11 @@ class AnalyticsDashboardScreen extends StatefulWidget {
 }
 
 class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
+  /// Months of history the trend chart requests (spec calls for a 6-month view).
+  static const int _trendMonths = 6;
+
   late Future<DashboardStats> _future;
+  late Future<ReportSeries> _seriesFuture;
   int? _femaleCount;
   int? _maleCount;
   String? _ngoName;
@@ -35,7 +39,9 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   }
 
   void _load() {
-    _future = context.read<AnalyticsRepository>().dashboard();
+    final repo = context.read<AnalyticsRepository>();
+    _future = repo.dashboard();
+    _seriesFuture = repo.reportsSeries(months: _trendMonths);
     _loadDemographics();
   }
 
@@ -114,6 +120,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
           }
           return _Dashboard(
             stats: snap.data!,
+            seriesFuture: _seriesFuture,
             femaleCount: _femaleCount,
             maleCount: _maleCount,
             onRefresh: () async => setState(_load),
@@ -126,12 +133,14 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
 
 class _Dashboard extends StatelessWidget {
   final DashboardStats stats;
+  final Future<ReportSeries> seriesFuture;
   final int? femaleCount;
   final int? maleCount;
   final Future<void> Function() onRefresh;
 
   const _Dashboard({
     required this.stats,
+    required this.seriesFuture,
     required this.femaleCount,
     required this.maleCount,
     required this.onRefresh,
@@ -170,8 +179,27 @@ class _Dashboard extends StatelessWidget {
             child: _ProjectsPieChart(byStatus: stats.projects.byStatus),
           ),
           OfficialCard(
-            title: 'Reports Overview',
-            child: _ReportsBarChart(reports: stats.reports),
+            title: 'Reporting Trend (Last 6 Months)',
+            child: FutureBuilder<ReportSeries>(
+              future: seriesFuture,
+              builder: (context, snap) {
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
+                    ),
+                  );
+                }
+                if (snap.hasError || !snap.hasData) {
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: Text('Could not load the trend.')),
+                  );
+                }
+                return _ReportsTrendChart(series: snap.data!);
+              },
+            ),
           ),
           OfficialCard(
             title: 'Beneficiary Demographics',
@@ -411,81 +439,140 @@ class _ProjectsPieChartState extends State<_ProjectsPieChart> {
   }
 }
 
-/// Bar chart showing reports by status.
-class _ReportsBarChart extends StatelessWidget {
-  final ReportStats reports;
-  const _ReportsBarChart({required this.reports});
+/// Grouped bar chart of monthly reporting activity: submitted reports next to
+/// the subset since approved, one pair per month, oldest on the left.
+class _ReportsTrendChart extends StatelessWidget {
+  final ReportSeries series;
+  const _ReportsTrendChart({required this.series});
+
+  static const Color _submittedColor = AppColors.warning;
+  static const Color _approvedColor = AppColors.primary;
+  static const double _rodWidth = 11;
 
   @override
   Widget build(BuildContext context) {
-    final groups = [
-      BarChartGroupData(x: 0, barRods: [
-        BarChartRodData(
-            toY: reports.draft.toDouble(),
-            color: AppColors.neutral,
-            width: 28,
-            borderRadius: BorderRadius.circular(2)),
-      ]),
-      BarChartGroupData(x: 1, barRods: [
-        BarChartRodData(
-            toY: reports.submitted.toDouble(),
-            color: AppColors.warning,
-            width: 28,
-            borderRadius: BorderRadius.circular(2)),
-      ]),
-      BarChartGroupData(x: 2, barRods: [
-        BarChartRodData(
-            toY: reports.approved.toDouble(),
-            color: AppColors.primary,
-            width: 28,
-            borderRadius: BorderRadius.circular(2)),
-      ]),
+    final points = series.series;
+    if (series.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: Text('No reports submitted in this period.')),
+      );
+    }
+
+    // Tallest bar in the window sets the axis; keep at least 4 so a single
+    // report does not fill the whole chart.
+    final peak = points.fold<int>(
+        0, (m, p) => [m, p.submitted, p.approved].reduce((a, b) => a > b ? a : b));
+    final maxY = (peak < 4 ? 4 : peak) + 1;
+
+    final groups = <BarChartGroupData>[
+      for (var i = 0; i < points.length; i++)
+        BarChartGroupData(
+          x: i,
+          barsSpace: 3,
+          barRods: [
+            BarChartRodData(
+              toY: points[i].submitted.toDouble(),
+              color: _submittedColor,
+              width: _rodWidth,
+              borderRadius: BorderRadius.circular(2),
+            ),
+            BarChartRodData(
+              toY: points[i].approved.toDouble(),
+              color: _approvedColor,
+              width: _rodWidth,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ],
+        ),
     ];
 
-    final maxY = [reports.draft, reports.submitted, reports.approved]
-        .fold<double>(0, (m, v) => m < v ? v.toDouble() : m);
-
-    return SizedBox(
-      height: 180,
-      child: BarChart(
-        BarChartData(
-          barGroups: groups,
-          maxY: maxY + 2,
-          titlesData: FlTitlesData(
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 28,
-                getTitlesWidget: (v, _) => Text(
-                  v.toInt().toString(),
-                  style: Theme.of(context).textTheme.labelSmall,
+    return Column(
+      children: [
+        SizedBox(
+          height: 190,
+          child: BarChart(
+            BarChartData(
+              barGroups: groups,
+              maxY: maxY.toDouble(),
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, _, rod, rodIndex) {
+                    final p = points[group.x];
+                    final isSubmitted = rodIndex == 0;
+                    return BarTooltipItem(
+                      '${p.label}\n${isSubmitted ? 'Submitted' : 'Approved'}: '
+                      '${rod.toY.toInt()}',
+                      const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600),
+                    );
+                  },
                 ),
               ),
-            ),
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (v, _) {
-                  const labels = ['Draft', 'Submitted', 'Approved'];
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                      labels[v.toInt()],
-                      style: Theme.of(context).textTheme.labelSmall,
-                    ),
-                  );
-                },
+              titlesData: FlTitlesData(
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 28,
+                    // Only whole-number counts on the axis.
+                    getTitlesWidget: (v, meta) => v == v.roundToDouble()
+                        ? Text(v.toInt().toString(),
+                            style: Theme.of(context).textTheme.labelSmall)
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 24,
+                    getTitlesWidget: (v, _) {
+                      final i = v.toInt();
+                      if (i < 0 || i >= points.length) {
+                        return const SizedBox.shrink();
+                      }
+                      // "Jul 2026" → "Jul"; the year lives in the tooltip.
+                      final month = points[i].label.split(' ').first;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(month,
+                            style: Theme.of(context).textTheme.labelSmall),
+                      );
+                    },
+                  ),
+                ),
+                rightTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles:
+                    const AxisTitles(sideTitles: SideTitles(showTitles: false)),
               ),
+              borderData: FlBorderData(show: false),
+              gridData: const FlGridData(show: true, drawVerticalLine: false),
             ),
-            rightTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles:
-                const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          borderData: FlBorderData(show: false),
-          gridData: const FlGridData(show: true, drawVerticalLine: false),
         ),
-      ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _legendSwatch(context, _submittedColor, 'Submitted'),
+            const SizedBox(width: 20),
+            _legendSwatch(context, _approvedColor, 'Approved'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _legendSwatch(BuildContext context, Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 12, height: 12, color: color),
+        const SizedBox(width: 6),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
     );
   }
 }

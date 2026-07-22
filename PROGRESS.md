@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `5246b7e` (pushed)
-**Backend 254 tests · Flutter 70 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-22 · `main` @ local commit (unpushed)
+**Backend 254 tests · Flutter 74 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -104,7 +104,11 @@ properties — no migrations, no caching.
 - [x] Role scoping delegated to `AnalyticsDashboardView` so the series and the
   dashboard can never disagree; response shapes declared as read-only
   serializers for drf-spectacular. 11 new backend tests.
-- [ ] Flutter bar chart not yet wired to it — still shows counts by status.
+- [x] Flutter analytics dashboard wired to it: the status-count "Reports
+  Overview" bars are replaced by a "Reporting Trend (Last 6 Months)" card —
+  grouped submitted/approved bars per month, oldest left, legend, tooltips and
+  an empty state, on its own `FutureBuilder`. Status totals stay in the summary
+  bar. Verified in Chrome against demo data. 4 new widget tests.
 
 **Gaps vs the CLAUDE.md spec** (all deliberate, see DECISIONS.md)
 - No `services.py` layer — logic sits in views/serializers.
@@ -155,7 +159,7 @@ schedule reading.
 ## Verification state
 
 - Backend **254 tests** pass on SQLite test settings.
-- Flutter **70 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Flutter **74 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
   reseeded demo data (15 app frames + 2 Django verify-email pages); every frame
@@ -168,11 +172,10 @@ schedule reading.
 
 ## Backlog
 
-- Wire the Flutter reports bar chart to the new `analytics/reports-series/`
-  endpoint for a real 6-month trend (backend done in `5246b7e`; today the chart
-  still shows counts by status).
 - Clear the 12 pre-existing Swagger errors / 21 warnings (APIViews without a
   serializer_class; untyped ReadOnlyFields on ProjectSerializer).
 - User detail/edit screen.
+- Optionally back-date some seeded reports so the reporting-trend chart shows
+  more than the current month in the demo.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.

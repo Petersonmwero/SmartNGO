@@ -45,6 +45,60 @@ class DashboardStats {
       );
 }
 
+/// One month in the reporting trend series. `submitted` is every report whose
+/// submission date falls in the month; `approved` is the subset since approved,
+/// and reach/spend come only from those approved reports — matching the
+/// server's donor-facing figures.
+class ReportSeriesPoint {
+  final int year;
+  final int month;
+  final String label; // e.g. "Jul 2026" — precomputed server-side.
+  final int submitted;
+  final int approved;
+  final int beneficiariesReached;
+  final double amountSpent;
+
+  const ReportSeriesPoint({
+    required this.year,
+    required this.month,
+    required this.label,
+    required this.submitted,
+    required this.approved,
+    required this.beneficiariesReached,
+    required this.amountSpent,
+  });
+
+  factory ReportSeriesPoint.fromJson(Map<String, dynamic> json) =>
+      ReportSeriesPoint(
+        year: json['year'] as int,
+        month: json['month'] as int,
+        label: json['label'] as String,
+        submitted: json['submitted'] as int,
+        approved: json['approved'] as int,
+        beneficiariesReached: json['beneficiaries_reached'] as int,
+        // DRF serialises DecimalField as a JSON string.
+        amountSpent: double.tryParse(json['amount_spent'].toString()) ?? 0,
+      );
+}
+
+/// A contiguous run of months, oldest first, zero-filled by the server so the
+/// chart never has to patch gaps.
+class ReportSeries {
+  final int months;
+  final List<ReportSeriesPoint> series;
+  const ReportSeries({required this.months, required this.series});
+
+  factory ReportSeries.fromJson(Map<String, dynamic> json) => ReportSeries(
+        months: json['months'] as int,
+        series: (json['series'] as List)
+            .map((e) => ReportSeriesPoint.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+
+  /// True when nothing was submitted across the whole window.
+  bool get isEmpty => series.every((p) => p.submitted == 0);
+}
+
 class AnalyticsRepository {
   final ApiClient _api;
   AnalyticsRepository(this._api);
@@ -55,6 +109,23 @@ class AnalyticsRepository {
       // Response is wrapped: {status, data, message}
       final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
       return DashboardStats.fromJson(data);
+    });
+  }
+
+  /// Monthly reporting activity for the trend chart. Scoping matches the
+  /// dashboard: the caller sees only reports they are allowed to see.
+  Future<ReportSeries> reportsSeries({int months = 6, int? projectId}) {
+    return apiGuard(() async {
+      final res = await _api.dio.get(
+        '/analytics/reports-series/',
+        queryParameters: {
+          'months': months,
+          'project_id': ?projectId,
+        },
+      );
+      final data =
+          (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>;
+      return ReportSeries.fromJson(data);
     });
   }
 }
