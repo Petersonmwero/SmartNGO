@@ -10,6 +10,19 @@ read-only progress with donors — with role-based access enforced server-side.
 
 ---
 
+## Status
+
+All five build phases are complete and the app is demo-ready. The post-phase
+enhancements are landed too: structured donor reporting (with a PDF impact
+report), a six-month reporting-trend chart, admin user editing,
+constituency-scoped Kenya location data, and a fully clean OpenAPI schema.
+
+**257 backend tests / 77 Flutter tests pass**, `flutter analyze` reports 0
+issues, and the OpenAPI schema validates with 0 warnings / 0 errors. The backlog
+is empty — remaining ideas would be new scope.
+
+---
+
 ## Architecture
 
 ```
@@ -219,10 +232,10 @@ See the live Swagger UI for full request/response schemas.
 ## Testing
 
 ```bash
-# Backend (254 tests) — locally on in-memory SQLite, no MySQL needed
+# Backend (257 tests) — locally on in-memory SQLite, no MySQL needed
 cd backend && ./venv/bin/python -m pytest --ds=config.settings.test_sqlite
 
-# Mobile (74 tests) + static analysis (0 issues)
+# Mobile (77 tests) + static analysis (0 issues)
 cd mobile && flutter test && flutter analyze
 ```
 
