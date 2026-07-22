@@ -2,7 +2,7 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `5901411` (local, unpushed)
+Last updated: 2026-07-22 · `main` @ `5901411` (pushed)
 **Backend 263 tests · Flutter 87 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
