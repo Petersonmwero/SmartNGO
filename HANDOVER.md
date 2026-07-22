@@ -37,10 +37,12 @@ flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
 Testing without MySQL uses `config.settings.test_sqlite`; the demo server uses
 `local_sqlite`. Dev/prod settings still target MySQL.
 
-**Left running**: Django on `:8000` (nohup, log `/tmp/smartngo-django.log`) and
-the built web app on `:58569` (`python3 -m http.server -d mobile/build/web`),
-both serving current code. Start background servers with `nohup … & disown` —
-harness-tracked background tasks get reaped between turns.
+**Left running**: Django on `:8000` (nohup, log `/tmp/smartngo-django.log`,
+restarted this session so it carries the reports-series route) and the current
+web build on `:58570` (`python3 -m http.server -d mobile/build/web`). An older
+build on `:58569` predates the reporting-trend work — use `:58570`. Start
+background servers with `nohup … & disown` — harness-tracked background tasks
+get reaped between turns.
 
 **Demo logins** — `admin@demo.ngo`, `manager@demo.ngo`, `officer1@demo.ngo`,
 `donor@demo.ngo`, `manager2@demo.ngo`; password `DemoPass123!` for all.
