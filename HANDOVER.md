@@ -4,12 +4,12 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `f2ce21f` (pushed) · tree clean
+Last updated: 2026-07-22 · `main` @ `d27c0f7` (local, unpushed) · tree clean
 
 | | |
 |---|---|
 | Backend tests | **257 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **77 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **79 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (70 tests)
+# Flutter (79 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -100,6 +100,17 @@ Details → **Activity** → **Impact** → GPS → Photos → Review.
 - `linked_phase`/`linked_milestone` options come from the project's own
   phases and milestones; the pickers degrade to "No phases recorded" rather
   than blocking the report when a project has none or the fetch fails.
+- Submission is idempotent across retries (`d27c0f7`). The three server calls
+  are create → upload photos → submit; a failure mid-way leaves the officer on
+  Review, and a retry **resumes** — the report is created once (`_createdReportId`)
+  and each photo uploaded once (`_uploadedPhotoPaths`), so a flaky connection
+  can't spawn a duplicate report or re-post images. A resumed draft's photo the
+  OS has since evicted throws a filesystem error (not an `ApiException`); it is
+  skipped with a count shown, not allowed to abort the submission.
+- `_PhotoSlot` reads its thumbnail bytes **once** (a `late final` future). Built
+  inline in `build()` it re-subscribed on every completion — an invisible
+  infinite rebuild loop that only surfaced when a widget test put a photo on
+  screen and `pumpAndSettle` never settled.
 
 **Donor output (commit 3)**
 

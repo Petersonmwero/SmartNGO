@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `f2ce21f` (pushed)
-**Backend 257 tests · Flutter 77 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-22 · `main` @ `d27c0f7` (local, unpushed)
+**Backend 257 tests · Flutter 79 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -96,6 +96,14 @@ properties — no migrations, no caching.
   the shipped app (demo figures byte-identical, old build still working);
   commit 3 deliberately moves them, because the seeded structured report now
   posts real spend and completes a milestone.
+- [x] Submission robustness (2026-07-22, `d27c0f7`): the wizard's three-call
+  submit (create → upload photos → submit) is now idempotent across retries —
+  the report is created once and each photo uploaded once, so a dropped
+  connection can't produce a duplicate report or re-post images. A resumed
+  draft's evicted photo is skipped (with a count shown) instead of throwing an
+  unhandled filesystem error mid-submit. Also fixed a latent infinite-rebuild
+  loop in the photo thumbnail (`readAsBytes()` future now created once). +2
+  widget tests (retry-idempotency, evicted-photo) → **79 Flutter tests**.
 
 **Reporting trend series (2026-07-22, `5246b7e`)**
 - [x] `GET /analytics/reports-series/` — a contiguous run of months (`months`
@@ -164,7 +172,7 @@ schedule reading.
 - Backend **257 tests** pass on SQLite test settings.
 - OpenAPI schema is clean: `spectacular --validate` → **0 errors / 0 warnings**
   (was 12 / 21); `/api/v1/schema/` and `/api/v1/docs/` both serve 200.
-- Flutter **77 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Flutter **79 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - User edit flow verified live in Chrome (tap card → pre-filled sheet → PATCH
   persists → list refreshes); demo data restored afterward.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
