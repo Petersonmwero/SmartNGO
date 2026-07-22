@@ -9,7 +9,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.views import UserManagementViewSet
-from apps.analytics.views import AnalyticsDashboardView
+from apps.analytics.views import AnalyticsDashboardView, ReportSeriesView
 from apps.beneficiaries.views import BeneficiaryViewSet, KenyaLocationView
 from apps.indicators.views import IndicatorViewSet
 from apps.ngos.views import NGOViewSet
@@ -83,6 +83,7 @@ urlpatterns = [
         name="report-image-detail",
     ),
     path("analytics/dashboard/", AnalyticsDashboardView.as_view(), name="analytics-dashboard"),
+    path("analytics/reports-series/", ReportSeriesView.as_view(), name="analytics-reports-series"),
     path("locations/kenya/", KenyaLocationView.as_view(), name="kenya-locations"),
     *router.urls,
 ]
