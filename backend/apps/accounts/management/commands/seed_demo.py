@@ -256,7 +256,7 @@ class Command(BaseCommand):
         # One fully structured, approved report so the demo shows donor
         # reporting end to end: its spend posts to the Drilling phase and its
         # reach feeds the project's impact card.
-        self._structured_report(
+        handover = self._structured_report(
             water,
             officer1,
             title="Borehole 12 handover",
@@ -296,6 +296,12 @@ class Command(BaseCommand):
                            ((21, 101, 192), (144, 202, 249)))
         self._report_photo(pump, "Worn impeller before replacement",
                            ((146, 64, 14), (232, 160, 32)))
+        # On the one approved+posted report, so the donor impact PDF shows
+        # embedded field photos rather than an empty section.
+        self._report_photo(handover, "Completed borehole handed to the committee",
+                           ((30, 74, 47), (255, 200, 74)))
+        self._report_photo(handover, "Community collecting safe water",
+                           ((21, 101, 192), (123, 175, 122)))
 
         # ── Notifications for the manager (demo activity feed) ───────────
         for title, message in [
