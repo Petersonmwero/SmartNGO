@@ -108,7 +108,10 @@ properties — no migrations, no caching.
   Overview" bars are replaced by a "Reporting Trend (Last 6 Months)" card —
   grouped submitted/approved bars per month, oldest left, legend, tooltips and
   an empty state, on its own `FutureBuilder`. Status totals stay in the summary
-  bar. Verified in Chrome against demo data. 4 new widget tests.
+  bar. Verified in Chrome across a full six-month spread. 4 new widget tests.
+- [x] `seed_demo` back-dates ~14 plain reports across the last five months so
+  the trend spans months instead of one bar; they carry no phase/milestone,
+  reach or spend, so posting the approved ones moves no EVM or impact figure.
 
 **Gaps vs the CLAUDE.md spec** (all deliberate, see DECISIONS.md)
 - No `services.py` layer — logic sits in views/serializers.
@@ -175,7 +178,5 @@ schedule reading.
 - Clear the 12 pre-existing Swagger errors / 21 warnings (APIViews without a
   serializer_class; untyped ReadOnlyFields on ProjectSerializer).
 - User detail/edit screen.
-- Optionally back-date some seeded reports so the reporting-trend chart shows
-  more than the current month in the demo.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.

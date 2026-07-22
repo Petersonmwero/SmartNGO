@@ -145,8 +145,15 @@ shows an inline message instead of blanking the screen) — grouped submitted /
 approved bars per month, oldest left, month labels, whole-number axis, legend,
 tap tooltips, and a "no reports in this period" empty state. The status totals
 still live in the green summary bar up top. Verified in Chrome against the demo
-data (July: submitted 3 / approved 1 — approved counts only the posted report —
-with Feb–Jun zero-filled). 4 new widget tests.
+data across a full six-month spread. 4 new widget tests.
+
+`seed_demo` back-dates ~14 plain reports across the last five months
+(`_historical_report` / `_months_back`, `date_submitted` on the 15th of each
+month) so the chart shows a real trend rather than one current-month bar. They
+carry no phase/milestone link, reach or spend, so posting the approved ones only
+sets `posted_at` — no EVM or impact figure moves. The trend's approved bar
+counts only posted reports, so it can sit below the dashboard's status-based
+"approved" total (which counts any `status=approved`, posted or not).
 
 **Progress engine (EVM, per PMBOK)** — all computed properties on `Project`,
 no caching, no stored aggregates:
@@ -245,9 +252,8 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
    accepted, DECISIONS.md D-006.
 2. Web report drafts are in-memory; sqflite has no web implementation (D-010).
 3. (Resolved) The analytics reports chart is now a 6-month submitted/approved
-   trend, wired to `analytics/reports-series/`. Status totals remain in the
-   summary bar. Demo data only populates the current month, so the trend looks
-   sparse until reports with older `date_submitted` values exist.
+   trend, wired to `analytics/reports-series/`; status totals remain in the
+   summary bar, and `seed_demo` back-dates reports so the demo spans months.
 4. Donor quick actions substitute View Analytics/Notifications for the spec's
    "Download PDF"; project PDFs are API-reachable but have no button.
 5. "Member since" omitted from Profile — not in the `/auth/me/` payload.
@@ -302,8 +308,7 @@ Two capture lessons from this session:
    earned-vs-planned line (project detail → Overview → scroll one screen) and
    the EVM tracks on the project register and dashboard rows.
 2. Backlog: user detail/edit screen; key the Kenya ward/location dicts by
-   (constituency, ward); optionally back-date some seeded reports so the new
-   reporting-trend chart shows more than the current month in the demo.
+   (constituency, ward).
 
 ## Blockers
 

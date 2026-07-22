@@ -7,7 +7,7 @@ create duplicates). Run with:
     python manage.py seed_demo
 """
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.core.files.base import ContentFile
@@ -264,6 +264,27 @@ class Command(BaseCommand):
             milestone_title="Phase 1 Borehole Drilling",
         )
 
+        # ── Back-dated reports so the reporting-trend chart spans months ──
+        # Without these, every seeded report lands in the current month and the
+        # 6-month trend shows a single bar. Each tuple is
+        # (months_ago, submitted_total, approved_count); the approved ones are
+        # posted with no linked phase/milestone and zero spend, so they fill the
+        # trend's approved bars without moving any EVM or impact figure.
+        for months_ago, submitted_total, approved_count in [
+            (5, 2, 1),
+            (4, 3, 2),
+            (3, 2, 1),
+            (2, 4, 3),
+            (1, 3, 2),
+        ]:
+            for i in range(submitted_total):
+                self._historical_report(
+                    water, officer1,
+                    title=f"Monthly field report {months_ago}m-{i + 1}",
+                    months_ago=months_ago,
+                    approved=i < approved_count,
+                )
+
         # ── Report photos (generated evidence images) ────────────────────
         self._report_photo(borehole, "Drilling rig on site — Borehole 12",
                            ((30, 74, 47), (123, 175, 122)))
@@ -419,6 +440,40 @@ class Command(BaseCommand):
             },
         )
         if created:
+            post_report(report)
+        return report
+
+    def _months_back(self, months_ago):
+        """A timezone-aware datetime at midday on the 15th, `months_ago` back.
+
+        Anchored on the 15th so it always lands squarely inside the target
+        month, avoiding the drift a fixed 30-day subtraction would cause.
+        """
+        today = timezone.localdate()
+        total = today.year * 12 + (today.month - 1) - months_ago
+        year, month = divmod(total, 12)
+        return timezone.make_aware(datetime(year, month + 1, 15, 12, 0))
+
+    def _historical_report(self, project, officer, title, months_ago, *,
+                           approved):
+        """Seed a plain report dated `months_ago` back, for the trend chart.
+
+        Carries no phase/milestone link, reach or spend, so approving it (via
+        `post_report`) only sets `posted_at` — the approved trend fills without
+        any EVM or donor-impact figure shifting. Buckets by `date_submitted`,
+        so the back-date is what places it in an earlier month even though the
+        approval timestamp is now.
+        """
+        report, created = Report.objects.get_or_create(
+            title=title, project=project, officer=officer,
+            defaults={"report_type": "monthly",
+                      "description": f"{title} — demo report.",
+                      "gps_latitude": "-0.1022000",
+                      "gps_longitude": "34.7617000",
+                      "status": Report.Status.SUBMITTED,
+                      "date_submitted": self._months_back(months_ago)},
+        )
+        if created and approved:
             post_report(report)
         return report
 
