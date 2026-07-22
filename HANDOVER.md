@@ -4,7 +4,7 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `ba82975` (local, unpushed) · tree clean
+Last updated: 2026-07-22 · `main` @ `ba82975` (pushed) · tree clean
 
 | | |
 |---|---|
