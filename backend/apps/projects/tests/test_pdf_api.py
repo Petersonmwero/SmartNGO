@@ -50,6 +50,34 @@ class TestSummaryPdf:
         assert _is_pdf(auth_client(officer_user).get(f"/api/v1/projects/{project.id}/summary-pdf/"))
 
 
+class TestImpactPdf:
+    """The donor impact PDF is downloadable by all four roles, NGO-scoped."""
+
+    def _url(self, project):
+        return f"/api/v1/projects/{project.id}/impact-report/"
+
+    def test_admin_gets_impact_pdf(self, auth_client, admin_user, project):
+        assert _is_pdf(auth_client(admin_user).get(self._url(project)))
+
+    def test_manager_gets_impact_pdf(self, auth_client, manager_user, project):
+        assert _is_pdf(auth_client(manager_user).get(self._url(project)))
+
+    def test_donor_gets_impact_pdf(self, auth_client, donor_user, project):
+        assert _is_pdf(auth_client(donor_user).get(self._url(project)))
+
+    def test_assigned_officer_gets_impact_pdf(self, auth_client, officer_user, project):
+        ProjectAssignment.objects.create(project=project, user=officer_user, role="officer")
+        assert _is_pdf(auth_client(officer_user).get(self._url(project)))
+
+    def test_officer_needs_assignment(self, auth_client, officer_user, project):
+        # Same rule as everywhere else: unassigned -> not in queryset -> 404.
+        assert auth_client(officer_user).get(self._url(project)).status_code == 404
+
+    def test_no_cross_ngo_access(self, auth_client, donor_user, other_ngo):
+        foreign = Project.objects.create(project_name="Foreign", ngo=other_ngo)
+        assert auth_client(donor_user).get(self._url(foreign)).status_code == 404
+
+
 class TestMonthlyReportPdf:
     def test_monthly_report_pdf(self, auth_client, manager_user, officer_user, project):
         Report.objects.create(
