@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ local commit (unpushed)
-**Backend 243 tests · Flutter 70 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-22 · `main` @ `5246b7e` (pushed)
+**Backend 254 tests · Flutter 70 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -97,6 +97,15 @@ properties — no migrations, no caching.
   commit 3 deliberately moves them, because the seeded structured report now
   posts real spend and completes a milestone.
 
+**Reporting trend series (2026-07-22, `5246b7e`)**
+- [x] `GET /analytics/reports-series/` — a contiguous run of months (`months`
+  1–24, default 6), oldest first, zero-filled. Buckets by `date_submitted`;
+  approved count, reach and spend come only from approved, posted reports.
+- [x] Role scoping delegated to `AnalyticsDashboardView` so the series and the
+  dashboard can never disagree; response shapes declared as read-only
+  serializers for drf-spectacular. 11 new backend tests.
+- [ ] Flutter bar chart not yet wired to it — still shows counts by status.
+
 **Gaps vs the CLAUDE.md spec** (all deliberate, see DECISIONS.md)
 - No `services.py` layer — logic sits in views/serializers.
 - Python 3.9 / Django 4.2 LTS instead of 3.12 / 5.x.
@@ -145,7 +154,7 @@ schedule reading.
 
 ## Verification state
 
-- Backend **243 tests** pass on SQLite test settings.
+- Backend **254 tests** pass on SQLite test settings.
 - Flutter **70 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
@@ -159,11 +168,11 @@ schedule reading.
 
 ## Backlog
 
-- Monthly report series endpoint → real 6-month trend chart (today the bar
-  chart shows counts by status).
+- Wire the Flutter reports bar chart to the new `analytics/reports-series/`
+  endpoint for a real 6-month trend (backend done in `5246b7e`; today the chart
+  still shows counts by status).
 - Clear the 12 pre-existing Swagger errors / 21 warnings (APIViews without a
   serializer_class; untyped ReadOnlyFields on ProjectSerializer).
-- Donor PDF download button (PDFs exist, no UI entry point).
 - User detail/edit screen.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.
