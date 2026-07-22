@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `d27c0f7` (local, unpushed)
-**Backend 257 tests · Flutter 79 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-22 · `main` @ `312925c` (local, unpushed)
+**Backend 261 tests · Flutter 86 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -104,6 +104,17 @@ properties — no migrations, no caching.
   unhandled filesystem error mid-submit. Also fixed a latent infinite-rebuild
   loop in the photo thumbnail (`readAsBytes()` future now created once). +2
   widget tests (retry-idempotency, evicted-photo) → **79 Flutter tests**.
+- [x] Edit an existing report (2026-07-22, `312925c`): `perform_update` now
+  enforces the workflow edit matrix (approved frozen; submitted = manager/admin
+  only; draft = author or manager/admin) instead of freezing every non-draft
+  edit — aligning the code with business rule #3. The Submit Report wizard
+  doubles as an editor (`editing:` arg): pre-filled, project fixed, PATCH via
+  `updateReport` with explicit clears, existing photos shown as a count and new
+  ones appended (≤5 total). Report Detail gained a status/role-gated Edit
+  button. Create-mode "Save as Draft" now persists a **server-side** draft
+  (offline → local fallback), so drafts are reachable to edit. `project_name`
+  added read-only to `ReportSerializer`. +7 backend / +7 Flutter tests →
+  **261 backend / 86 Flutter**.
 
 **Reporting trend series (2026-07-22, `5246b7e`)**
 - [x] `GET /analytics/reports-series/` — a contiguous run of months (`months`
@@ -172,7 +183,8 @@ schedule reading.
 - Backend **257 tests** pass on SQLite test settings.
 - OpenAPI schema is clean: `spectacular --validate` → **0 errors / 0 warnings**
   (was 12 / 21); `/api/v1/schema/` and `/api/v1/docs/` both serve 200.
-- Flutter **79 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Backend **261 tests** and Flutter **86 tests** pass; `flutter analyze` 0
+  issues; `flutter build web` OK.
 - User edit flow verified live in Chrome (tap card → pre-filled sheet → PATCH
   persists → list refreshes); demo data restored afterward.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
