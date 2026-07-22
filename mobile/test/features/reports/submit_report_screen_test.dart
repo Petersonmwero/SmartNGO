@@ -356,8 +356,16 @@ void main() {
     await tester.tap(find.byKey(const Key('next_button')));
     await tester.pumpAndSettle();
 
+    // Linking a phase makes this substantive, so all narrative fields are
+    // required before submit is allowed.
     await tester.enterText(
         find.byKey(const Key('impact_description')), 'Walking time halved.');
+    await tester.enterText(
+        find.byKey(const Key('challenges_faced')), 'Rain delayed casing.');
+    await tester.enterText(
+        find.byKey(const Key('recommendations')), 'Fence the site.');
+    await tester.enterText(
+        find.byKey(const Key('next_steps')), 'Train the committee.');
     for (var i = 0; i < 3; i++) {
       await tester.tap(find.byKey(const Key('next_button')));
       await tester.pumpAndSettle();
@@ -372,6 +380,36 @@ void main() {
     expect(fake.lastCreate['beneficiaries_female'], 160);
     expect(fake.lastCreate['impact_description'], 'Walking time halved.');
     expect(fake.submitted, isTrue);
+  });
+
+  testWidgets('linking a phase blocks submit until donor-grade fields filled',
+      (tester) async {
+    await tester.pumpWidget(_harness(fake, store,
+        projects: FakeProjectRepository(projectPhases: [_phase(7, 'Drilling')])));
+    await tester.enterText(
+        find.byKey(const Key('report_title')), 'Water point');
+    await tester.tap(find.byKey(const Key('next_button')));
+    await tester.pumpAndSettle();
+
+    // Link a phase -> substantive. Required (*) markers appear.
+    await tester.tap(find.byKey(const Key('linked_phase')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drilling').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Activity type *'), findsOneWidget);
+
+    // Walk to Review with the donor-grade fields empty.
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const Key('next_button')));
+      await tester.pumpAndSettle();
+    }
+    // Submit is disabled; saving a draft is still allowed.
+    final submit = tester.widget<FilledButton>(
+        find.byKey(const Key('submit_button')));
+    expect(submit.onPressed, isNull);
+    final draft = tester.widget<OutlinedButton>(
+        find.byKey(const Key('save_draft_button')));
+    expect(draft.onPressed, isNotNull);
   });
 
   testWidgets('a gender split wider than the total blocks the step',

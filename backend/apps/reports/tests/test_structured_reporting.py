@@ -377,3 +377,70 @@ def test_phase_api_exposes_the_spend_breakdown(auth_client, manager_user, ngo,
     assert Decimal(row["opening_spend"]) == Decimal("200000")
     assert Decimal(row["reported_spend"]) == Decimal("100000")
     assert Decimal(row["spent_budget"]) == Decimal("300000")
+
+
+# ── Donor-grade completeness at submit ─────────────────────────────────────
+def test_substantive_report_blocked_when_narrative_missing(
+    auth_client, officer_user, assigned_project
+):
+    """A phase/milestone-linked report can't be submitted with gaps."""
+    phase = _phase(assigned_project)
+    report = _report(
+        assigned_project, officer_user, status=Report.Status.DRAFT,
+        linked_phase=phase, activity_type="construction",
+        beneficiaries_reached=50, beneficiaries_male=20, beneficiaries_female=30,
+        # impact_description and the other narrative fields left empty.
+    )
+    resp = auth_client(officer_user).post(f"{REPORTS}{report.id}/submit/")
+    assert resp.status_code == 400
+    report.refresh_from_db()
+    assert report.status == Report.Status.DRAFT
+
+
+def test_unlinked_report_submits_with_minimal_fields(
+    auth_client, officer_user, assigned_project
+):
+    """A report with no phase/milestone link keeps the light rules."""
+    report = _report(
+        assigned_project, officer_user, status=Report.Status.DRAFT,
+        activity_type="training",
+    )
+    resp = auth_client(officer_user).post(f"{REPORTS}{report.id}/submit/")
+    assert resp.status_code == 200
+    assert resp.data["status"] == "submitted"
+
+
+def test_draft_with_gaps_still_saves(auth_client, officer_user, assigned_project):
+    """Saving a linked draft with gaps is fine — the gate is only at submit."""
+    phase = _phase(assigned_project)
+    resp = auth_client(officer_user).post(
+        REPORTS,
+        {
+            "project": assigned_project.id,
+            "title": "Work in progress",
+            "report_type": "weekly",
+            "linked_phase": phase.id,
+        },
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert resp.data["status"] == "draft"
+
+
+def test_complete_substantive_report_submits(
+    auth_client, officer_user, assigned_project
+):
+    """A fully filled substantive report submits — mirrors seeded data."""
+    phase = _phase(assigned_project)
+    report = _report(
+        assigned_project, officer_user, status=Report.Status.DRAFT,
+        linked_phase=phase, activity_type="construction",
+        beneficiaries_reached=50, beneficiaries_male=20, beneficiaries_female=30,
+        impact_description="Walking time halved.",
+        challenges_faced="Rain delayed casing.",
+        recommendations="Fence the site.",
+        next_steps="Train the committee.",
+    )
+    resp = auth_client(officer_user).post(f"{REPORTS}{report.id}/submit/")
+    assert resp.status_code == 200
+    assert resp.data["status"] == "submitted"

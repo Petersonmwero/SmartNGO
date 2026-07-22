@@ -25,6 +25,55 @@ STRUCTURED_FIELDS = [
     "next_steps",
 ]
 
+# Text fields a "substantive" report must fill before it can be submitted.
+_SUBSTANTIVE_REQUIRED_TEXT = (
+    "activity_type",
+    "impact_description",
+    "challenges_faced",
+    "recommendations",
+    "next_steps",
+)
+
+
+def report_is_substantive(report):
+    """A report is substantive if it drives the donor ledger — i.e. it links a
+    phase or a milestone. That is the same signal the impact PDF selects on
+    (approved + posted), so mandatory-ness tracks contribution, not report_type.
+    """
+    return report.linked_phase_id is not None or report.linked_milestone_id is not None
+
+
+def substantive_submit_errors(report):
+    """Field errors for a substantive report missing donor-grade data, or an
+    empty dict when it is complete (or not substantive).
+
+    Enforced at SUBMIT — a draft may be incomplete, but submitting a report
+    that will feed a donor report requires the full picture: what was done,
+    what it cost, who it reached (with a gender split), and the four narrative
+    fields. Non-substantive reports keep the light rules (title + type).
+    """
+    if not report_is_substantive(report):
+        return {}
+
+    required_msg = "Required before submitting a report linked to a phase or milestone."
+    errors = {}
+    for field in _SUBSTANTIVE_REQUIRED_TEXT:
+        if not (getattr(report, field) or "").strip():
+            errors[field] = required_msg
+    if report.amount_spent is None:
+        errors["amount_spent"] = required_msg
+    if report.beneficiaries_reached <= 0:
+        errors["beneficiaries_reached"] = (
+            "Record how many people were reached before submitting."
+        )
+    # A gender split must be recorded; male/female are validated as a pair so a
+    # single-gender programme (e.g. girls' education) stays valid with one at 0.
+    elif report.beneficiaries_male + report.beneficiaries_female <= 0:
+        errors["beneficiaries_male"] = (
+            "Record the gender split (male/female) before submitting."
+        )
+    return errors
+
 
 class ReportImageSerializer(serializers.ModelSerializer):
     class Meta:

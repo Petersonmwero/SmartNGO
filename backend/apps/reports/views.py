@@ -19,7 +19,11 @@ from apps.common.mixins import ProjectScopedViewSetMixin
 
 from .filters import ReportFilter
 from .models import Report, ReportImage
-from .serializers import ReportImageSerializer, ReportSerializer
+from .serializers import (
+    ReportImageSerializer,
+    ReportSerializer,
+    substantive_submit_errors,
+)
 from .services import post_report, unpost_report
 
 AUTHOR_ROLES = IsSystemAdmin | IsProjectManager | IsFieldOfficer  # may create/edit
@@ -92,6 +96,12 @@ class ReportViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
             raise PermissionDenied("Only the report's author can submit it.")
         if report.status != Report.Status.DRAFT:
             raise ValidationError("Only draft reports can be submitted.")
+        # A report that drives the donor ledger (links a phase/milestone) must
+        # carry the full donor-grade picture before it leaves draft. Drafts may
+        # be incomplete; this gate is only at the submit transition.
+        errors = substantive_submit_errors(report)
+        if errors:
+            raise ValidationError(errors)
         report.status = Report.Status.SUBMITTED
         report.date_submitted = timezone.now()
         report.save(update_fields=["status", "date_submitted"])

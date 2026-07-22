@@ -364,6 +364,42 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     return null;
   }
 
+  /// A report becomes "substantive" (feeds the donor ledger) once it links a
+  /// phase or milestone. The server then requires the donor-grade fields at
+  /// submit — this getter drives the required-field asterisks and the
+  /// Submit-button block; the server stays the source of truth.
+  bool get _isSubstantive =>
+      _linkedPhaseId != null || _linkedMilestoneId != null;
+
+  /// Mirrors the server's substantive-submit gate: the first missing
+  /// donor-grade field's prompt, or null when complete (or not substantive).
+  /// Drafts are never blocked by this — only submitting is.
+  String? _substantiveSubmitError() {
+    if (!_isSubstantive) return null;
+    if (_activityType.isEmpty) return 'Select an activity type.';
+    if (_count(_reached) <= 0) return 'Record how many people were reached.';
+    if (_count(_male) + _count(_female) <= 0) {
+      return 'Record the gender split (male / female).';
+    }
+    if (_impact.text.trim().isEmpty) return 'Add the impact observed.';
+    if (_challenges.text.trim().isEmpty) return 'Add the challenges faced.';
+    if (_recommendations.text.trim().isEmpty) return 'Add your recommendations.';
+    if (_nextSteps.text.trim().isEmpty) return 'Add the next steps.';
+    return null;
+  }
+
+  /// Append a required marker to a field label when the report is substantive.
+  String _req(String label) => _isSubstantive ? '$label *' : label;
+
+  /// The Review step offers a submit action in create mode and when editing a
+  /// draft; editing an already-submitted report only saves.
+  bool get _canSubmitHere => !_isEditing || _editingStatus == 'draft';
+
+  /// Submitting is blocked when a substantive report is missing a donor-grade
+  /// field. Saving a draft is never blocked.
+  bool get _submitBlocked =>
+      _canSubmitHere && _substantiveSubmitError() != null;
+
   /// Persist the form to the device's local draft store — no network, so it
   /// works offline. Used directly as the offline fallback for a server save.
   Future<void> _saveLocalDraft() async {
@@ -733,9 +769,9 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
           DropdownButtonFormField<String>(
             key: const Key('activity_type'),
             initialValue: _activityType.isEmpty ? null : _activityType,
-            decoration: const InputDecoration(
-              labelText: 'Activity type',
-              prefixIcon: Icon(Icons.category_outlined),
+            decoration: InputDecoration(
+              labelText: _req('Activity type'),
+              prefixIcon: const Icon(Icons.category_outlined),
             ),
             items: [
               for (final type in ReportActivityType.all)
@@ -846,9 +882,9 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
             key: const Key('beneficiaries_reached'),
             controller: _reached,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'People reached',
-              prefixIcon: Icon(Icons.groups_outlined),
+            decoration: InputDecoration(
+              labelText: _req('People reached'),
+              prefixIcon: const Icon(Icons.groups_outlined),
             ),
             validator: _countValidator,
           ),
@@ -860,7 +896,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                   key: const Key('beneficiaries_male'),
                   controller: _male,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Male'),
+                  decoration: InputDecoration(labelText: _req('Male')),
                   validator: _countValidator,
                 ),
               ),
@@ -870,7 +906,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                   key: const Key('beneficiaries_female'),
                   controller: _female,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Female'),
+                  decoration: InputDecoration(labelText: _req('Female')),
                   validator: _countValidator,
                 ),
               ),
@@ -974,28 +1010,28 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         _narrativeField(
           key: const Key('impact_description'),
           controller: _impact,
-          label: 'Impact observed',
+          label: _req('Impact observed'),
           hint: 'What changed for the people you worked with?',
         ),
         const SizedBox(height: 16),
         _narrativeField(
           key: const Key('challenges_faced'),
           controller: _challenges,
-          label: 'Challenges faced',
+          label: _req('Challenges faced'),
           hint: 'What got in the way?',
         ),
         const SizedBox(height: 16),
         _narrativeField(
           key: const Key('recommendations'),
           controller: _recommendations,
-          label: 'Recommendations',
+          label: _req('Recommendations'),
           hint: 'What should change next time?',
         ),
         const SizedBox(height: 16),
         _narrativeField(
           key: const Key('next_steps'),
           controller: _nextSteps,
-          label: 'Next steps',
+          label: _req('Next steps'),
           hint: 'What happens after this activity?',
         ),
       ],
@@ -1199,6 +1235,15 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
           ),
         ),
         const SizedBox(height: 20),
+        if (_submitBlocked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _NoteLine(
+              '${_substantiveSubmitError()} A report linked to a phase or '
+              'milestone needs the required (*) fields before you submit — '
+              'or save it as a draft for now.',
+            ),
+          ),
         _reviewActions(),
       ],
     );
@@ -1230,7 +1275,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
           Expanded(
             child: FilledButton(
               key: const Key('submit_button'),
-              onPressed: _busy ? null : _submit,
+              onPressed: (_busy || _submitBlocked) ? null : _submit,
               child: _primaryChild('Submit Report'),
             ),
           ),
@@ -1259,7 +1304,8 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         Expanded(
           child: FilledButton(
             key: const Key('submit_button'),
-            onPressed: _busy ? null : () => _saveEdit(thenSubmit: true),
+            onPressed:
+                (_busy || _submitBlocked) ? null : () => _saveEdit(thenSubmit: true),
             child: _primaryChild('Submit'),
           ),
         ),
