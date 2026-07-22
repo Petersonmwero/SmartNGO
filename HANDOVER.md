@@ -304,15 +304,25 @@ Two capture lessons from this session:
 
 ## Next steps
 
-0. Structured donor reporting is complete, download button included. Optional
-   follow-up: clear the pre-existing Swagger warnings by typing the
-   ProjectSerializer read-only fields.
-1. Peterson: click through the app at http://localhost:58569 with the demo
-   accounts and flag visual issues. Newest to review: the health card's
-   earned-vs-planned line (project detail → Overview → scroll one screen) and
-   the EVM tracks on the project register and dashboard rows.
-2. Backlog: user detail/edit screen; key the Kenya ward/location dicts by
-   (constituency, ward).
+0. Both recent tracks are complete end to end and verified in Chrome: structured
+   donor reporting (download button included) and the reporting-trend chart
+   (endpoint, Flutter chart, back-dated demo data, tests, refreshed
+   screenshots). Nothing outstanding on either.
+1. Peterson: click through the app with the demo accounts and flag visual
+   issues. This session the current build is served on `:58569` and the fresh
+   build with the trend chart on `:58570`; otherwise rebuild per "Running it".
+   Newest to review: the Analytics dashboard's six-month **Reporting Trend**
+   chart, the health card's earned-vs-planned line (project detail → Overview →
+   scroll one screen), and the EVM tracks on the project register and dashboard
+   rows.
+2. Open follow-ups (all optional, none blocking):
+   - Clear the 12 pre-existing Swagger errors / 21 warnings by typing the
+     ProjectSerializer read-only fields and giving the bare APIViews a
+     `serializer_class`.
+   - User detail/edit screen (admin can list/create/deactivate users but not
+     edit an existing one in the app).
+   - Key the Kenya ward/location dicts by (constituency, ward) so same-named
+     wards in different constituencies stop sharing one location list.
 
 ## Blockers
 
