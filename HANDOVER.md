@@ -4,12 +4,12 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `5901411` (pushed) · tree clean
+Last updated: 2026-07-22 · `main` @ `ba82975` (local, unpushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **263 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **87 pass**, `flutter analyze` 0 issues |
+| Backend tests | **274 pass** (`pytest`, test_sqlite settings) |
+| Flutter tests | **88 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (87 tests)
+# Flutter (88 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -170,6 +170,35 @@ Details → **Activity** → **Impact** → GPS → Photos → Review.
   revoked straight after) and `file_download_io.dart` (writes into the
   documents directory and reports the path). `path_provider` and `web` are
   now direct dependencies; both were already present transitively.
+- **Impact PDF access**: the action falls to `IsAuthenticated` + the project
+  queryset scope, so all four roles (admin/manager/officer/donor) can download
+  it for an in-scope project; cross-NGO and unassigned-officer are **404**
+  (object filtered out of the queryset — the `ProjectViewSet` convention, not
+  403). Tests in `test_pdf_api.py::TestImpactPdf`.
+- **Impact PDF content** (`donor_impact_pdf`): now also renders project
+  status + dates, a "Progress & performance" block (financial/physical/time/
+  overall %, CPI, SPI, health), and a "Field photos" section — every image on
+  an approved+posted report, scaled to fit a 9×7 cm box (aspect kept, never
+  upscaled), kept with its caption; unreadable files are skipped. NB the demo
+  shows no photos because its only *posted* report has none, while the seeded
+  photo-bearing reports are approved-but-not-posted (excluded by the same rule
+  the figures use).
+
+**Donor-grade fields required on substantive submit (Part C)**
+
+- A report is **substantive** when it links a phase or milestone — the same
+  signal the impact PDF selects on. `reports.serializers.substantive_submit_
+  errors()` lists what such a report must carry, and the **submit action**
+  calls it (not the serializer's `validate()`, which the submit transition
+  never runs): activity_type, amount_spent present, `beneficiaries_reached>0`,
+  a male/female split (validated as a pair, so single-gender programmes stay
+  valid), and all four narratives. Missing → 400, status stays draft.
+- Enforcement is **submit-only**: drafts save with gaps, and unlinked reports
+  keep the light rules (title + type). Seeded reports bypass the submit action,
+  so this never moves a progress figure.
+- Flutter mirrors it as UX only: once a phase/milestone is linked the fields
+  gain a `*` and Submit is disabled (with a note) until they're filled — Save
+  as Draft is never blocked. Server stays the source of truth.
 
 **Reporting trend series** (`5246b7e`) — `GET /api/v1/analytics/reports-series/`
 returns a contiguous run of months (`months` 1–24, default 6), oldest first and

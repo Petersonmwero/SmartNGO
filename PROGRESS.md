@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `5901411` (pushed)
-**Backend 263 tests · Flutter 87 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-22 · `main` @ `ba82975` (local, unpushed)
+**Backend 274 tests · Flutter 88 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -120,6 +120,20 @@ properties — no migrations, no caching.
   save (via new `deleteImage`, retry-safe, before new uploads so the 5-image
   cap holds). `ReportImageViewSet.perform_destroy` refuses removal from an
   approved report. +2 backend / +1 Flutter tests → **263 backend / 87 Flutter**.
+- [x] Impact-PDF access + content (2026-07-22, `d42d0a3`, `eadd103`): tests
+  lock that all four roles download the impact PDF NGO-scoped (cross-NGO /
+  unassigned → 404, the ProjectViewSet convention). `donor_impact_pdf` gained
+  project status/dates, an EVM block (financial/physical/time/overall %, CPI,
+  SPI, health) and a "Field photos" section (approved+posted images, scaled to
+  fit, captioned) — additions only, existing sections untouched.
+- [x] Donor-grade fields required on substantive submit (2026-07-22,
+  `ba82975`): a report linking a phase/milestone must carry activity_type,
+  amount_spent, `reached>0`, a gender split and all four narratives before it
+  can be submitted (enforced in the **submit action**, not `validate()`, since
+  the transition never runs the serializer). Drafts and unlinked reports keep
+  the light rules; seed bypasses submit, so no progress figure moved. Flutter
+  mirrors it (asterisks + Submit disabled until filled; Save-as-Draft never
+  blocked). +4 backend / +1 Flutter tests → **274 backend / 88 Flutter**.
 
 **Reporting trend series (2026-07-22, `5246b7e`)**
 - [x] `GET /analytics/reports-series/` — a contiguous run of months (`months`
