@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:smartngo/core/api_exception.dart';
 import 'package:smartngo/core/paginated.dart';
 import 'package:smartngo/features/projects/models/milestone.dart';
 import 'package:smartngo/features/projects/models/phase.dart';
@@ -17,6 +18,15 @@ import 'package:smartngo/features/reports/screens/submit_report_screen.dart';
 class FakeReportRepository implements ReportRepository {
   bool createCalled = false;
   bool submitted = false;
+
+  /// Call counters, for asserting the retry path stays idempotent.
+  int createCount = 0;
+  int uploadCount = 0;
+  int submitAttempts = 0;
+
+  /// Make the first [failSubmitTimes] submit() calls throw, to simulate a
+  /// connection that drops after the report was already created.
+  int failSubmitTimes = 0;
 
   /// Structured payload of the last createReport call, for assertions.
   Map<String, dynamic> lastCreate = const {};
@@ -48,6 +58,7 @@ class FakeReportRepository implements ReportRepository {
     String nextSteps = '',
   }) async {
     createCalled = true;
+    createCount++;
     lastCreate = {
       'activity_type': activityType,
       'linked_phase': linkedPhaseId,
@@ -65,10 +76,18 @@ class FakeReportRepository implements ReportRepository {
 
   @override
   Future<void> uploadImage(int reportId,
-      {required Uint8List bytes, required String filename, String caption = ''}) async {}
+      {required Uint8List bytes,
+      required String filename,
+      String caption = ''}) async {
+    uploadCount++;
+  }
 
   @override
   Future<void> submit(int reportId) async {
+    submitAttempts++;
+    if (submitAttempts <= failSubmitTimes) {
+      throw ApiException('Connection lost', code: 'network_error');
+    }
     submitted = true;
   }
 
@@ -435,6 +454,64 @@ void main() {
     await _goToReview(tester);
     await _tapKey(tester, 'submit_button');
 
+    expect(fake.submitted, isTrue);
+    expect(await store.list(), isEmpty);
+  });
+
+  testWidgets('retrying a failed submit does not create a duplicate report',
+      (tester) async {
+    // The report is created, then the connection drops before the submit
+    // transition; the officer taps Submit again.
+    fake.failSubmitTimes = 1;
+    await tester.pumpWidget(_harness(fake, store));
+    await tester.enterText(
+        find.byKey(const Key('report_title')), 'Site visit notes');
+    await _goToReview(tester);
+
+    // First attempt: report created, submit fails, still on Review.
+    await _tapKey(tester, 'submit_button');
+    expect(fake.createCount, 1);
+    expect(fake.submitted, isFalse);
+    expect(find.byKey(const Key('submit_button')), findsOneWidget);
+
+    // Retry: resumes the same report — no second create — and succeeds.
+    await _tapKey(tester, 'submit_button');
+    expect(fake.createCount, 1);
+    expect(fake.submitted, isTrue);
+  });
+
+  testWidgets('submit skips a draft photo the device can no longer read',
+      (tester) async {
+    // A resumed draft whose picked file the OS has since evicted from the
+    // picker cache: reading it throws a filesystem error, which must not
+    // abort an otherwise-valid submission.
+    final draft = await store.save(ReportDraft(
+      projectId: 3,
+      projectName: 'WASH',
+      title: 'Has a stale photo',
+      updatedAt: DateTime(2026, 7, 22),
+      photoPaths: const ['/tmp/smartngo-missing-photo.jpg'],
+    ));
+
+    await tester.pumpWidget(_harness(fake, store, draft: draft));
+    await _goToReview(tester);
+
+    // Submitting reads the evicted photo, which is real (failing) dart:io
+    // that resolves on the real event loop — runAsync drives it, where
+    // pumpAndSettle would only spin on the async gap.
+    final submit = find.byKey(const Key('submit_button'));
+    await tester.ensureVisible(submit);
+    await tester.pump();
+    await tester.runAsync(() async {
+      await tester.tap(submit);
+      // Let the create → skip-photo → submit → delete-draft chain run.
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pump();
+
+    // The unreadable photo is skipped rather than uploaded, and the report
+    // still submits and clears the local draft.
+    expect(fake.uploadCount, 0);
     expect(fake.submitted, isTrue);
     expect(await store.list(), isEmpty);
   });

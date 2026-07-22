@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -73,6 +75,14 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   double? _accuracy;
   final List<XFile> _photos = [];
   bool _busy = false;
+
+  // Submission runs in three server calls (create → upload photos → submit);
+  // on a flaky field connection any of them can fail mid-way. These two
+  // fields make a retry resume rather than restart:
+  //  - the created report's id, so we never create a second report;
+  //  - the paths of photos already uploaded, so we never re-post them.
+  int? _createdReportId;
+  final Set<String> _uploadedPhotoPaths = {};
 
   // ── Structured reporting state ────────────────────────────────────────
   String _activityType = '';
@@ -314,12 +324,21 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
   /// Send the report to the server; on success any local draft it came
   /// from is deleted.
+  ///
+  /// The three server calls (create → upload photos → submit) are made
+  /// idempotent so a retry after a mid-way failure resumes rather than
+  /// duplicates: the report is created only once ([_createdReportId]) and
+  /// each photo is uploaded only once ([_uploadedPhotoPaths]).
   Future<void> _submit() async {
     setState(() => _busy = true);
     final repo = context.read<ReportRepository>();
     final store = context.read<DraftStore>();
     try {
-      final reportId = await repo.createReport(
+      // Create the report only if a previous attempt hasn't already. The
+      // id is captured before the loop so a failed upload/submit leaves it
+      // set for the next try. (If createReport itself throws, the field
+      // stays null and a retry correctly creates the report.)
+      final reportId = _createdReportId ??= await repo.createReport(
         projectId: _projectId!,
         title: _title.text.trim(),
         reportType: _reportType,
@@ -340,20 +359,48 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         recommendations: _recommendations.text.trim(),
         nextSteps: _nextSteps.text.trim(),
       );
+      var skippedPhotos = 0;
       for (final photo in _photos) {
-        final bytes = await photo.readAsBytes();
+        // Already sent on an earlier attempt — don't post it twice.
+        if (_uploadedPhotoPaths.contains(photo.path)) continue;
+        final bytes = await _readPhotoBytes(photo);
+        // The OS can evict a resumed draft's picked files from cache; that
+        // read fails with a filesystem error, not an ApiException, so it
+        // would otherwise escape the handler and abort a valid submission.
+        // Skip the missing photo and carry on.
+        if (bytes == null) {
+          skippedPhotos++;
+          continue;
+        }
         await repo.uploadImage(reportId, bytes: bytes, filename: photo.name);
+        _uploadedPhotoPaths.add(photo.path);
       }
       await repo.submit(reportId);
       final draftId = widget.draft?.id;
       if (draftId != null) await store.delete(draftId);
       if (!mounted) return;
-      showSuccessSnackBar(context, 'Report submitted successfully!');
+      showSuccessSnackBar(
+        context,
+        skippedPhotos == 0
+            ? 'Report submitted successfully!'
+            : 'Report submitted. $skippedPhotos photo(s) were no longer '
+                'available on this device and were skipped.',
+      );
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       _toast(e.message);
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Read a picked photo's bytes, returning null if the file is no longer
+  /// readable (e.g. the OS cleared the picker cache under a resumed draft).
+  Future<Uint8List?> _readPhotoBytes(XFile photo) async {
+    try {
+      return await photo.readAsBytes();
+    } catch (_) {
+      return null;
     }
   }
 
@@ -868,7 +915,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     );
   }
 
-  // ── Step 3: Photos ───────────────────────────────────────────────────
+  // ── Step 5: Photos ───────────────────────────────────────────────────
 
   Widget _buildPhotos() {
     return Column(
@@ -922,7 +969,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     );
   }
 
-  // ── Step 4: Review ───────────────────────────────────────────────────
+  // ── Step 6: Review ───────────────────────────────────────────────────
 
   Widget _buildReview() {
     return Column(
@@ -1208,10 +1255,20 @@ class _StepIndicator extends StatelessWidget {
 
 // ── Photo grid slot ───────────────────────────────────────────────────────
 
-class _PhotoSlot extends StatelessWidget {
+class _PhotoSlot extends StatefulWidget {
   final XFile file;
   final VoidCallback onRemove;
   const _PhotoSlot({required this.file, required this.onRemove});
+
+  @override
+  State<_PhotoSlot> createState() => _PhotoSlotState();
+}
+
+class _PhotoSlotState extends State<_PhotoSlot> {
+  // Read the bytes once. Building the future inline in build() would make
+  // the FutureBuilder re-subscribe on every rebuild — an infinite rebuild
+  // loop, since each completion triggers the next rebuild.
+  late final Future<Uint8List> _bytes = widget.file.readAsBytes();
 
   @override
   Widget build(BuildContext context) {
@@ -1219,7 +1276,7 @@ class _PhotoSlot extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         FutureBuilder(
-          future: file.readAsBytes(),
+          future: _bytes,
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return Container(
@@ -1239,7 +1296,7 @@ class _PhotoSlot extends StatelessWidget {
           right: 4,
           top: 4,
           child: GestureDetector(
-            onTap: onRemove,
+            onTap: widget.onRemove,
             child: const CircleAvatar(
               radius: 12,
               backgroundColor: Colors.black54,
