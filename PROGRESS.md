@@ -162,6 +162,8 @@ schedule reading.
 ## Verification state
 
 - Backend **254 tests** pass on SQLite test settings.
+- OpenAPI schema is clean: `spectacular --validate` → **0 errors / 0 warnings**
+  (was 12 / 21); `/api/v1/schema/` and `/api/v1/docs/` both serve 200.
 - Flutter **74 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
@@ -175,8 +177,6 @@ schedule reading.
 
 ## Backlog
 
-- Clear the 12 pre-existing Swagger errors / 21 warnings (APIViews without a
-  serializer_class; untyped ReadOnlyFields on ProjectSerializer).
 - User detail/edit screen.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.

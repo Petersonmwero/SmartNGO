@@ -4,7 +4,13 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives, send_mail
 from django.shortcuts import render
-from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    inline_serializer,
+)
 from rest_framework import generics, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -147,6 +153,33 @@ class VerifyEmailView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "token",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                required=True,
+                description="The raw verification token from the emailed link.",
+            )
+        ],
+        responses={
+            200: OpenApiResponse(
+                description="Account activated; a branded HTML confirmation "
+                "page is returned."
+            ),
+            400: OpenApiResponse(
+                response=inline_serializer(
+                    "VerifyEmailError",
+                    {
+                        "error": serializers.CharField(),
+                        "code": serializers.CharField(),
+                    },
+                ),
+                description="Token missing, invalid, or expired.",
+            ),
+        },
+    )
     def get(self, request):
         raw_token = request.query_params.get("token", "").strip()
         if not raw_token:
@@ -189,6 +222,33 @@ class ResendVerificationView(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        request=inline_serializer(
+            "ResendVerificationRequest", {"email": serializers.EmailField()}
+        ),
+        responses={
+            200: OpenApiResponse(
+                response=inline_serializer(
+                    "ResendVerificationResponse",
+                    {
+                        "status": serializers.CharField(),
+                        "message": serializers.CharField(),
+                    },
+                ),
+                description="Always 200, to prevent account enumeration.",
+            ),
+            400: OpenApiResponse(
+                response=inline_serializer(
+                    "ResendVerificationError",
+                    {
+                        "error": serializers.CharField(),
+                        "code": serializers.CharField(),
+                    },
+                ),
+                description="Email missing from the request body.",
+            ),
+        },
+    )
     def post(self, request):
         email = request.data.get("email", "").strip()
         if not email:

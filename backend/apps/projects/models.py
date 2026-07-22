@@ -1,6 +1,7 @@
 """Projects, their officer/manager assignments, phases, and milestones."""
 from datetime import date
 from decimal import Decimal
+from typing import Optional
 
 from django.conf import settings
 from django.db import models
@@ -86,7 +87,7 @@ class Project(models.Model):
         )
 
     @property
-    def cost_per_beneficiary(self):
+    def cost_per_beneficiary(self) -> Optional[float]:
         """Total spend divided by people reached; None when none reached."""
         reached = self.beneficiaries_reached
         if reached <= 0:
@@ -99,14 +100,14 @@ class Project(models.Model):
         return self.budget - self.total_spent
 
     @property
-    def financial_progress(self):
+    def financial_progress(self) -> float:
         """Percentage of the total budget spent across phases (0-100)."""
         if self.budget <= 0:
             return 0.0
         return min(round(float(self.total_spent / self.budget * 100), 1), 100.0)
 
     @property
-    def physical_progress(self):
+    def physical_progress(self) -> float:
         """Weight-adjusted percentage of milestones completed (0-100)."""
         milestones = list(self.milestones.all())
         if not milestones:
@@ -120,7 +121,7 @@ class Project(models.Model):
         return round(completed_weight / total_weight * 100, 1)
 
     @property
-    def time_progress(self):
+    def time_progress(self) -> float:
         """Percentage of the project timeline elapsed (0-100)."""
         if self.start_date is None or self.end_date is None:
             return 0.0
@@ -136,7 +137,7 @@ class Project(models.Model):
         return round(elapsed / total_days * 100, 1)
 
     @property
-    def progress_percentage(self):
+    def progress_percentage(self) -> float:
         """Weighted composite progress (EVM-based).
 
         Progress = Financial x 30% + Physical x 50% + Time x 20%
@@ -149,7 +150,7 @@ class Project(models.Model):
         return min(round(float(composite), 1), 100.0)
 
     @property
-    def cost_performance_index(self):
+    def cost_performance_index(self) -> Optional[float]:
         """CPI = physical / financial progress.
 
         > 1.0 means delivering more than spending; < 1.0 means spending
@@ -160,7 +161,7 @@ class Project(models.Model):
         return round(self.physical_progress / self.financial_progress, 2)
 
     @property
-    def planned_value_progress(self):
+    def planned_value_progress(self) -> float:
         """Planned Value (PV) as a percentage of the project budget (0-100).
 
         PV per PMBOK: the budgeted cost of the work *scheduled* to be done
@@ -186,7 +187,7 @@ class Project(models.Model):
         return min(round(planned / float(self.budget) * 100, 1), 100.0)
 
     @property
-    def schedule_performance_index(self):
+    def schedule_performance_index(self) -> Optional[float]:
         """SPI = EV / PV (Earned Value over Planned Value, per PMBOK).
 
         EV is physical progress expressed against the budget; PV accrues
@@ -203,7 +204,7 @@ class Project(models.Model):
         return round(self.physical_progress / pv, 2)
 
     @property
-    def health_status(self):
+    def health_status(self) -> str:
         """Overall project health derived from CPI/SPI thresholds."""
         cpi = self.cost_performance_index
         spi = self.schedule_performance_index
@@ -293,7 +294,7 @@ class ProjectPhase(models.Model):
         return self.opening_spend + self.reported_spend
 
     @property
-    def utilization_percentage(self):
+    def utilization_percentage(self) -> float:
         """Spent as a percentage of allocated budget, capped at 100."""
         if self.allocated_budget <= 0:
             return 0

@@ -10,7 +10,7 @@ Last updated: 2026-07-22 · `main` @ `3640a59` (pushed) · tree clean
 |---|---|
 | Backend tests | **254 pass** (`pytest`, test_sqlite settings) |
 | Flutter tests | **74 pass**, `flutter analyze` 0 issues |
-| Swagger | `/api/v1/docs/` — 12 errors / 21 warnings, all pre-existing (see backlog) |
+| Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
 ---
@@ -266,10 +266,15 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
    is no standalone cron command for it.
 8. The dev DB has been flushed several times — manual accounts are gone; use
    the seeded demo logins.
-9. Swagger reports 12 errors / 21 warnings. All pre-existing and unrelated to
-   structured reporting (APIViews without a serializer_class, and untyped
-   `ReadOnlyField`s on ProjectSerializer). Verified identical before and after
-   this work; the "0/0" claim in older notes was stale.
+9. (Resolved) Swagger is now clean — 0 errors / 0 warnings, `spectacular
+   --validate` passes. Fixed by type-hinting the `Project`/`ProjectPhase`
+   computed properties (drf-spectacular reads a `ReadOnlyField`'s source
+   property return hint), giving `VerifyEmailView` / `ResendVerificationView` /
+   `AnalyticsDashboardView` an `@extend_schema`, and `ENUM_NAME_OVERRIDES` for
+   the two `role` choice sets. Gotcha for the enum override: drf-spectacular's
+   `deep_import_string` resolves at most one attribute past an importable
+   `module.attr`, so pass the `TextChoices` **class** path (it calls `.choices`
+   itself) — appending `.choices` to a nested class path fails to load.
 10. **Demo figures moved** with the seeded structured report: Clean Water is
    now 68% composite (was 49%), spend 1.91M (was 1.73M), physical 58.3% (was
    25%) because the report completed the Borehole Drilling milestone. Health
@@ -318,9 +323,6 @@ Two capture lessons from this session:
    scroll one screen), and the EVM tracks on the project register and dashboard
    rows.
 2. Open follow-ups (all optional, none blocking):
-   - Clear the 12 pre-existing Swagger errors / 21 warnings by typing the
-     ProjectSerializer read-only fields and giving the bare APIViews a
-     `serializer_class`.
    - User detail/edit screen (admin can list/create/deactivate users but not
      edit an existing one in the app).
    - Key the Kenya ward/location dicts by (constituency, ward) so same-named

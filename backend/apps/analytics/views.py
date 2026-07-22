@@ -18,7 +18,7 @@ from apps.projects.models import Project
 from apps.reports.models import Report
 from core.responses import SuccessResponse
 
-from .serializers import ReportSeriesSerializer
+from .serializers import DashboardStatsSerializer, ReportSeriesSerializer
 
 
 class AnalyticsDashboardView(APIView):
@@ -33,6 +33,7 @@ class AnalyticsDashboardView(APIView):
 
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(responses=DashboardStatsSerializer)
     def get(self, request):
         user = request.user
         role = user.role

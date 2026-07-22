@@ -207,6 +207,12 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "NGO Monitoring & Evaluation backend.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Two distinct "role" choice sets (system roles vs project-assignment
+    # roles) would otherwise collide into one auto-named enum component.
+    "ENUM_NAME_OVERRIDES": {
+        "UserRoleEnum": "apps.accounts.models.Role",
+        "AssignmentRoleEnum": "apps.projects.models.ProjectAssignment.Role",
+    },
 }
 
 # ---------------------------------------------------------------------------
