@@ -277,10 +277,14 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 
 ## Docs screenshots
 
-`docs/screenshots/` holds 15 app frames plus 2 Django verify-email pages, all
-current as of 2026-07-21 against the reseeded data. The project detail screen
-spans two files: `app-project-progress.png` (composite ring + dimension bars)
-and `app-project-detail.png` (health card + phase table).
+`docs/screenshots/` holds 15 app frames plus 2 Django verify-email pages. Most
+are as of 2026-07-21; the six touched by the reporting-trend work were refreshed
+2026-07-22 against the back-dated reseed — `app-analytics` (now the six-month
+trend chart), `app-reports-list` (18 reports on record) and the four
+`app-dashboard-*` frames (Reports 18 / Pending 6). The rest only date-drift with
+each reseed, which is expected. The project detail screen spans two files:
+`app-project-progress.png` (composite ring + dimension bars) and
+`app-project-detail.png` (health card + phase table).
 
 Regenerate with the puppeteer scripts in the session scratchpad
 (`docshots.js <out-dir> [subset]`, `detailshot.js <out-dir> <scroll> <name>`,
