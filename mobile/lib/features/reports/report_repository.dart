@@ -91,6 +91,60 @@ class ReportRepository {
     });
   }
 
+  /// Update an existing report's editable content (PATCH).
+  ///
+  /// Unlike [createReport], empty structured values are sent explicitly so an
+  /// officer can *clear* a field they previously filled — a blank amount
+  /// becomes 0, blank counts become 0, and cleared links are set to null.
+  /// GPS is only sent when re-captured, so an edit never wipes an existing fix.
+  /// `status` is read-only server-side, so this never changes the workflow
+  /// state — a draft stays a draft, a submitted report stays submitted.
+  Future<void> updateReport(
+    int reportId, {
+    required String title,
+    required String reportType,
+    String description = '',
+    double? latitude,
+    double? longitude,
+    String activityType = '',
+    int? linkedPhaseId,
+    int? linkedMilestoneId,
+    String amountSpent = '',
+    String expenditureNotes = '',
+    int beneficiariesReached = 0,
+    int beneficiariesMale = 0,
+    int beneficiariesFemale = 0,
+    int beneficiariesYouth = 0,
+    String impactDescription = '',
+    String challengesFaced = '',
+    String recommendations = '',
+    String nextSteps = '',
+  }) {
+    return apiGuard(() async {
+      final body = <String, dynamic>{
+        'title': title,
+        'report_type': reportType,
+        'description': description,
+        'activity_type': activityType,
+        'linked_phase': linkedPhaseId,
+        'linked_milestone': linkedMilestoneId,
+        'amount_spent': amountSpent.isEmpty ? '0' : amountSpent,
+        'expenditure_notes': expenditureNotes,
+        'beneficiaries_reached': beneficiariesReached,
+        'beneficiaries_male': beneficiariesMale,
+        'beneficiaries_female': beneficiariesFemale,
+        'beneficiaries_youth': beneficiariesYouth,
+        'impact_description': impactDescription,
+        'challenges_faced': challengesFaced,
+        'recommendations': recommendations,
+        'next_steps': nextSteps,
+      };
+      if (latitude != null) body['gps_latitude'] = latitude;
+      if (longitude != null) body['gps_longitude'] = longitude;
+      await _api.dio.patch('/reports/$reportId/', data: body);
+    });
+  }
+
   /// Upload one image to a report (multipart).
   Future<void> uploadImage(
     int reportId, {

@@ -67,6 +67,9 @@ def _round_coordinate(value, limit, label):
 class ReportSerializer(serializers.ModelSerializer):
     images = ReportImageSerializer(many=True, read_only=True)
     officer_name = serializers.CharField(source="officer.full_name", read_only=True)
+    project_name = serializers.CharField(
+        source="project.project_name", read_only=True
+    )
     # Declared without digit limits so raw device coordinates reach the
     # validators below (the default DecimalField would reject them with
     # "no more than 10 digits" before validate_gps_* ever ran).
@@ -142,6 +145,7 @@ class ReportSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "project",
+            "project_name",
             "officer",
             "officer_name",
             "title",

@@ -51,8 +51,31 @@ class ReportViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
         serializer.save(officer=self.request.user, status=Report.Status.DRAFT)
 
     def perform_update(self, serializer):
-        if serializer.instance.status != Report.Status.DRAFT:
-            raise ValidationError("Only draft reports can be edited.")
+        """Enforce the edit matrix from the workflow rules:
+
+        - approved  -> frozen for everyone (corrections go in a new report);
+        - submitted -> only a manager/admin may edit (e.g. fix a figure
+          before approving); the authoring officer no longer can;
+        - draft     -> the authoring officer, or any manager/admin in the NGO.
+
+        NGO/assignment scoping is already applied by the queryset, so a
+        manager here is always same-NGO.
+        """
+        report = serializer.instance
+        user = self.request.user
+        is_manager = user.role in (Role.ADMIN, Role.MANAGER)
+        if report.status == Report.Status.APPROVED:
+            raise ValidationError("Approved reports cannot be edited.")
+        if report.status == Report.Status.SUBMITTED and not is_manager:
+            raise PermissionDenied(
+                "Only a manager or admin can edit a submitted report."
+            )
+        if (
+            report.status == Report.Status.DRAFT
+            and not is_manager
+            and report.officer_id != user.id
+        ):
+            raise PermissionDenied("You can only edit your own draft reports.")
         self.validate_project_access(self._resolve_project(serializer))
         serializer.save()
 

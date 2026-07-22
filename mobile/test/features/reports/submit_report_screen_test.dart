@@ -23,10 +23,18 @@ class FakeReportRepository implements ReportRepository {
   int createCount = 0;
   int uploadCount = 0;
   int submitAttempts = 0;
+  int updateCount = 0;
+  int? lastUpdatedId;
+
+  /// Structured payload of the last updateReport (edit) call.
+  Map<String, dynamic> lastUpdate = const {};
 
   /// Make the first [failSubmitTimes] submit() calls throw, to simulate a
   /// connection that drops after the report was already created.
   int failSubmitTimes = 0;
+
+  /// Make createReport throw, to simulate an unreachable server (offline).
+  bool failCreate = false;
 
   /// Structured payload of the last createReport call, for assertions.
   Map<String, dynamic> lastCreate = const {};
@@ -57,6 +65,9 @@ class FakeReportRepository implements ReportRepository {
     String recommendations = '',
     String nextSteps = '',
   }) async {
+    if (failCreate) {
+      throw ApiException('Cannot reach the server', code: 'network_error');
+    }
     createCalled = true;
     createCount++;
     lastCreate = {
@@ -72,6 +83,39 @@ class FakeReportRepository implements ReportRepository {
       'next_steps': nextSteps,
     };
     return 1;
+  }
+
+  @override
+  Future<void> updateReport(
+    int reportId, {
+    required String title,
+    required String reportType,
+    String description = '',
+    double? latitude,
+    double? longitude,
+    String activityType = '',
+    int? linkedPhaseId,
+    int? linkedMilestoneId,
+    String amountSpent = '',
+    String expenditureNotes = '',
+    int beneficiariesReached = 0,
+    int beneficiariesMale = 0,
+    int beneficiariesFemale = 0,
+    int beneficiariesYouth = 0,
+    String impactDescription = '',
+    String challengesFaced = '',
+    String recommendations = '',
+    String nextSteps = '',
+  }) async {
+    updateCount++;
+    lastUpdatedId = reportId;
+    lastUpdate = {
+      'title': title,
+      'amount_spent': amountSpent,
+      'beneficiaries_reached': beneficiariesReached,
+      'linked_phase': linkedPhaseId,
+      'impact_description': impactDescription,
+    };
   }
 
   @override
@@ -153,25 +197,50 @@ Milestone _milestone(int id, String title) => Milestone(
       status: 'pending',
     );
 
+/// An existing server-side report, for the edit-mode tests.
+Report _existingReport({String status = 'draft', int imageCount = 0}) => Report(
+      id: 42,
+      title: 'Original title',
+      description: 'Original description',
+      status: status,
+      reportType: 'weekly',
+      projectId: 3,
+      projectName: 'WASH',
+      officerId: 1,
+      amountSpent: 5000,
+      beneficiariesReached: 40,
+      impactDescription: 'Some early impact.',
+      images: [
+        for (var i = 0; i < imageCount; i++)
+          ReportImage(id: i + 1, imageUrl: 'https://x/$i.jpg'),
+      ],
+    );
+
 Widget _harness(
   ReportRepository repo,
   DraftStore store, {
   ReportDraft? draft,
+  Report? editing,
   ProjectRepository? projects,
-}) =>
-    MultiProvider(
-      providers: [
-        Provider<ReportRepository>.value(value: repo),
-        Provider<DraftStore>.value(value: store),
-        Provider<ProjectRepository>.value(
-            value: projects ?? FakeProjectRepository()),
-      ],
-      child: MaterialApp(
-        home: draft == null
-            ? SubmitReportScreen(projectId: 3, projectName: 'WASH')
-            : SubmitReportScreen(draft: draft),
-      ),
-    );
+}) {
+  final Widget home;
+  if (editing != null) {
+    home = SubmitReportScreen(editing: editing);
+  } else if (draft != null) {
+    home = SubmitReportScreen(draft: draft);
+  } else {
+    home = SubmitReportScreen(projectId: 3, projectName: 'WASH');
+  }
+  return MultiProvider(
+    providers: [
+      Provider<ReportRepository>.value(value: repo),
+      Provider<DraftStore>.value(value: store),
+      Provider<ProjectRepository>.value(
+          value: projects ?? FakeProjectRepository()),
+    ],
+    child: MaterialApp(home: home),
+  );
+}
 
 /// Tap a widget after scrolling it into view — the Review step is taller
 /// than the default 800x600 test surface, so its buttons start off-screen.
@@ -358,7 +427,7 @@ void main() {
         find.text('No milestones recorded for this project'), findsOneWidget);
   });
 
-  testWidgets('Save draft stores the form locally without calling the API',
+  testWidgets('Save as Draft creates a server-side draft without submitting',
       (tester) async {
     await tester.pumpWidget(_harness(fake, store));
 
@@ -367,11 +436,29 @@ void main() {
     await _goToReview(tester);
     await _tapKey(tester, 'save_draft_button');
 
+    // Online: the draft is created on the server (not submitted) and no local
+    // copy is kept.
+    expect(fake.createCount, 1);
+    expect(fake.submitted, isFalse);
+    expect(fake.lastCreate['impact_description'], isNotNull);
+    expect(await store.list(), isEmpty);
+  });
+
+  testWidgets('Save as Draft falls back to a local draft when offline',
+      (tester) async {
+    // createReport throws (server unreachable) on every attempt.
+    fake.failCreate = true;
+    await tester.pumpWidget(_harness(fake, store));
+
+    await tester.enterText(
+        find.byKey(const Key('report_title')), 'Offline notes');
+    await _goToReview(tester);
+    await _tapKey(tester, 'save_draft_button');
+
     final drafts = await store.list();
     expect(drafts, hasLength(1));
-    expect(drafts.single.title, 'Site visit notes');
-    expect(drafts.single.projectId, 3);
-    expect(fake.createCalled, isFalse);
+    expect(drafts.single.title, 'Offline notes');
+    expect(fake.submitted, isFalse);
   });
 
   testWidgets('resuming a draft pre-fills the form', (tester) async {
@@ -391,8 +478,11 @@ void main() {
     expect(find.text('Weekly'), findsOneWidget);
   });
 
-  testWidgets('a draft keeps its structured data across save and resume',
+  testWidgets('a local (offline) draft keeps its structured data',
       (tester) async {
+    // Force the offline fallback so the structured payload round-trips
+    // through the local draft store.
+    fake.failCreate = true;
     await tester.pumpWidget(_harness(fake, store));
     await tester.enterText(find.byKey(const Key('report_title')), 'Clinic day');
     await tester.tap(find.byKey(const Key('next_button')));
@@ -514,5 +604,74 @@ void main() {
     expect(fake.uploadCount, 0);
     expect(fake.submitted, isTrue);
     expect(await store.list(), isEmpty);
+  });
+
+  // ── Edit mode ─────────────────────────────────────────────────────────
+
+  testWidgets('editing a report pre-fills the form and shows Edit Report',
+      (tester) async {
+    await tester.pumpWidget(
+        _harness(fake, store, editing: _existingReport()));
+
+    expect(find.text('Edit Report'), findsOneWidget);
+    expect(find.text('Original title'), findsOneWidget);
+    // Project is fixed, so no selector is shown.
+    expect(find.byKey(const Key('project_selector')), findsNothing);
+    expect(find.text('WASH'), findsOneWidget);
+  });
+
+  testWidgets('Save Changes on a draft PATCHes rather than creating',
+      (tester) async {
+    await tester.pumpWidget(
+        _harness(fake, store, editing: _existingReport(status: 'draft')));
+    await tester.enterText(
+        find.byKey(const Key('report_title')), 'Revised title');
+    await _goToReview(tester);
+    await _tapKey(tester, 'save_changes_button');
+
+    expect(fake.updateCount, 1);
+    expect(fake.lastUpdatedId, 42);
+    expect(fake.lastUpdate['title'], 'Revised title');
+    expect(fake.createCount, 0);
+    expect(fake.submitted, isFalse);
+  });
+
+  testWidgets('Submit while editing a draft PATCHes then submits',
+      (tester) async {
+    await tester.pumpWidget(
+        _harness(fake, store, editing: _existingReport(status: 'draft')));
+    await _goToReview(tester);
+    await _tapKey(tester, 'submit_button');
+
+    expect(fake.updateCount, 1);
+    expect(fake.submitted, isTrue);
+    expect(fake.createCount, 0);
+  });
+
+  testWidgets('editing a submitted report offers only Save Changes',
+      (tester) async {
+    await tester.pumpWidget(
+        _harness(fake, store, editing: _existingReport(status: 'submitted')));
+    await _goToReview(tester);
+
+    // No Submit button — status is manager-driven and stays submitted.
+    expect(find.byKey(const Key('submit_button')), findsNothing);
+    expect(find.byKey(const Key('save_changes_button')), findsOneWidget);
+
+    await _tapKey(tester, 'save_changes_button');
+    expect(fake.updateCount, 1);
+    expect(fake.submitted, isFalse);
+  });
+
+  testWidgets('editing surfaces already-attached photos as a count',
+      (tester) async {
+    await tester.pumpWidget(_harness(fake, store,
+        editing: _existingReport(status: 'draft', imageCount: 2)));
+    // Step through to the Photos step.
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const Key('next_button')));
+      await tester.pumpAndSettle();
+    }
+    expect(find.textContaining('2 already attached'), findsOneWidget);
   });
 }

@@ -28,6 +28,7 @@ class Report {
   final String reportType; // daily | weekly | monthly
   final String? dateSubmitted;
   final int projectId;
+  final String? projectName;
   final int officerId;
   final String? officerName;
   final double? gpsLatitude;
@@ -63,6 +64,7 @@ class Report {
     required this.projectId,
     required this.officerId,
     this.dateSubmitted,
+    this.projectName,
     this.officerName,
     this.gpsLatitude,
     this.gpsLongitude,
@@ -91,6 +93,7 @@ class Report {
         reportType: (json['report_type'] ?? 'daily') as String,
         dateSubmitted: json['date_submitted'] as String?,
         projectId: json['project'] as int,
+        projectName: json['project_name'] as String?,
         officerId: json['officer'] as int,
         officerName: json['officer_name'] as String?,
         gpsLatitude: _asDouble(json['gps_latitude']),

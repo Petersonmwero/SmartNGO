@@ -11,6 +11,9 @@ import 'package:smartngo/features/reports/report_repository.dart';
 class RecordingAdapter implements HttpClientAdapter {
   final List<String> calls = [];
 
+  /// Decoded JSON body of the last request that sent one (not multipart).
+  Map<String, dynamic>? lastJsonBody;
+
   ResponseBody _json(Map<String, dynamic> body, int status) =>
       ResponseBody.fromString(
         jsonEncode(body),
@@ -24,6 +27,13 @@ class RecordingAdapter implements HttpClientAdapter {
   Future<ResponseBody> fetch(RequestOptions options,
       Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async {
     calls.add('${options.method} ${options.path}');
+    final contentType = options.contentType ?? '';
+    if (requestStream != null && contentType.contains('json')) {
+      final chunks = await requestStream.toList();
+      lastJsonBody = jsonDecode(
+        utf8.decode(chunks.expand((c) => c).toList()),
+      ) as Map<String, dynamic>;
+    }
     if (options.path == '/reports/') return _json({'id': 99}, 201);
     return _json({}, 200);
   }
@@ -68,5 +78,23 @@ void main() {
   test('submit posts to the submit action', () async {
     await repo.submit(99);
     expect(rec.calls, contains('POST /reports/99/submit/'));
+  });
+
+  test('updateReport PATCHes and sends explicit clears', () async {
+    await repo.updateReport(
+      42,
+      title: 'Revised',
+      reportType: 'weekly',
+      // Left blank on purpose: an edit should clear these, not omit them.
+      amountSpent: '',
+      linkedPhaseId: null,
+      beneficiariesReached: 0,
+    );
+    expect(rec.calls, contains('PATCH /reports/42/'));
+    // Blank amount clears to '0'; a null link is sent so it is unset.
+    expect(rec.lastJsonBody!['amount_spent'], '0');
+    expect(rec.lastJsonBody!.containsKey('linked_phase'), isTrue);
+    expect(rec.lastJsonBody!['linked_phase'], isNull);
+    expect(rec.lastJsonBody!['title'], 'Revised');
   });
 }

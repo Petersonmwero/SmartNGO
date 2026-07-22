@@ -15,6 +15,7 @@ import '../../projects/models/project.dart';
 import '../../projects/project_repository.dart';
 import '../draft_store.dart';
 import '../models/activity_type.dart';
+import '../models/report.dart';
 import '../models/report_draft.dart';
 import '../report_repository.dart';
 
@@ -29,9 +30,16 @@ const int kMaxReportPhotos = 5;
 /// field there is optional: a narrative-only report is still valid, and the
 /// figures only affect project totals once a manager approves the report.
 ///
-/// Can be opened with a pre-selected project (from a project detail screen),
-/// with a local [draft] to resume, or bare (dashboard quick action) — in
-/// which case step 1 shows a project selector.
+/// Can be opened four ways:
+///  - with a pre-selected project (from a project detail screen);
+///  - with a local [draft] to resume;
+///  - with an existing server-side report to [editing] (draft or, for a
+///    manager/admin, a submitted report); or
+///  - bare (dashboard quick action) — step 1 then shows a project selector.
+///
+/// In edit mode the form is pre-filled from the report, the project is fixed,
+/// and saving PATCHes the report rather than creating a new one; already
+/// uploaded photos are shown as a count and any newly added ones are appended.
 class SubmitReportScreen extends StatefulWidget {
   final int? projectId;
   final String? projectName;
@@ -40,11 +48,16 @@ class SubmitReportScreen extends StatefulWidget {
   /// the draft row is updated on save (and removed on successful submit).
   final ReportDraft? draft;
 
+  /// When editing, the existing server-side report whose fields pre-fill the
+  /// form and which saving updates in place.
+  final Report? editing;
+
   const SubmitReportScreen({
     super.key,
     this.projectId,
     this.projectName,
     this.draft,
+    this.editing,
   });
 
   @override
@@ -84,6 +97,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   int? _createdReportId;
   final Set<String> _uploadedPhotoPaths = {};
 
+  // ── Edit mode ─────────────────────────────────────────────────────────
+  /// Photos already attached to the report being edited. They stay put; the
+  /// wizard only appends newly picked ones, so the available slots shrink by
+  /// this many.
+  int _existingImageCount = 0;
+
+  bool get _isEditing => widget.editing != null;
+
+  /// The status of the report being edited, or null when creating.
+  String? get _editingStatus => widget.editing?.status;
+
   // ── Structured reporting state ────────────────────────────────────────
   String _activityType = '';
   int? _linkedPhaseId;
@@ -109,16 +133,24 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   List<Project>? _projects;
   bool _projectsFailed = false;
 
-  /// A draft carries its own project, so resuming one never needs the
-  /// project selector either.
+  /// A draft or an edited report carries its own project, so neither needs
+  /// the project selector.
   bool get _projectPreselected =>
-      widget.projectId != null || widget.draft != null;
+      widget.projectId != null ||
+      widget.draft != null ||
+      widget.editing != null;
 
   @override
   void initState() {
     super.initState();
-    _projectId = widget.projectId ?? widget.draft?.projectId;
-    _projectName = widget.projectName ?? widget.draft?.projectName ?? '';
+    _projectId =
+        widget.projectId ?? widget.draft?.projectId ?? widget.editing?.projectId;
+    _projectName = widget.projectName ??
+        widget.draft?.projectName ??
+        widget.editing?.projectName ??
+        '';
+    final editing = widget.editing;
+    if (editing != null) _prefillFromReport(editing);
     final draft = widget.draft;
     if (draft != null) {
       _title.text = draft.title;
@@ -176,6 +208,38 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   /// Parse a count field; blank means "not recorded", i.e. zero.
   static int _count(TextEditingController controller) =>
       int.tryParse(controller.text.trim()) ?? 0;
+
+  /// Money as an editable string: drop a pointless ".0" but keep real
+  /// decimals, and show 0 as blank so it reads as "not recorded".
+  static String _amountText(double value) {
+    if (value <= 0) return '';
+    return value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toString();
+  }
+
+  /// Pre-fill the form from an existing report when editing it.
+  void _prefillFromReport(Report report) {
+    _existingImageCount = report.images.length;
+    _title.text = report.title;
+    _description.text = report.description;
+    _reportType = report.reportType;
+    _lat = report.gpsLatitude;
+    _lng = report.gpsLongitude;
+    _activityType = report.activityType;
+    _linkedPhaseId = report.linkedPhase;
+    _linkedMilestoneId = report.linkedMilestone;
+    _amountSpent.text = _amountText(report.amountSpent);
+    _expenditureNotes.text = report.expenditureNotes;
+    _reached.text = _countText(report.beneficiariesReached);
+    _male.text = _countText(report.beneficiariesMale);
+    _female.text = _countText(report.beneficiariesFemale);
+    _youth.text = _countText(report.beneficiariesYouth);
+    _impact.text = report.impactDescription;
+    _challenges.text = report.challengesFaced;
+    _recommendations.text = report.recommendations;
+    _nextSteps.text = report.nextSteps;
+  }
 
   /// Load the selected project's phases and milestones for the link
   /// pickers. Failure is silent: the links are optional, so the step
@@ -244,10 +308,15 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     }
   }
 
+  /// New photos that can still be added, given the per-report cap and any
+  /// already-attached images on the report being edited.
+  int get _photoSlotsLeft =>
+      kMaxReportPhotos - _existingImageCount - _photos.length;
+
   Future<void> _pickPhotos() async {
     final picked = await ImagePicker().pickMultiImage();
     if (picked.isEmpty) return;
-    final room = kMaxReportPhotos - _photos.length;
+    final room = _photoSlotsLeft;
     setState(() => _photos.addAll(picked.take(room)));
     if (picked.length > room) {
       _toast('A report can have at most $kMaxReportPhotos photos.');
@@ -287,10 +356,9 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     return null;
   }
 
-  /// Save the form as a local draft — no network involved, so it works
-  /// offline. Resumable from the Reports list under the Drafts filter.
-  Future<void> _saveDraft() async {
-    setState(() => _busy = true);
+  /// Persist the form to the device's local draft store — no network, so it
+  /// works offline. Used directly as the offline fallback for a server save.
+  Future<void> _saveLocalDraft() async {
     final store = context.read<DraftStore>();
     await store.save(ReportDraft(
       id: widget.draft?.id,
@@ -317,29 +385,130 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
       recommendations: _recommendations.text.trim(),
       nextSteps: _nextSteps.text.trim(),
     ));
-    if (!mounted) return;
-    showSuccessSnackBar(context, 'Draft saved on this device.');
-    Navigator.of(context).pop(true);
   }
 
-  /// Send the report to the server; on success any local draft it came
-  /// from is deleted.
-  ///
-  /// The three server calls (create → upload photos → submit) are made
-  /// idempotent so a retry after a mid-way failure resumes rather than
-  /// duplicates: the report is created only once ([_createdReportId]) and
-  /// each photo is uploaded only once ([_uploadedPhotoPaths]).
+  /// Create the server-side report once. Captured in [_createdReportId] so a
+  /// retry after a failed photo upload or submit resumes rather than creating
+  /// a second report. If the create itself throws, the field stays null and a
+  /// retry correctly creates the report.
+  Future<int> _createReportOnce(ReportRepository repo) async {
+    return _createdReportId ??= await repo.createReport(
+      projectId: _projectId!,
+      title: _title.text.trim(),
+      reportType: _reportType,
+      description: _description.text.trim(),
+      latitude: _lat,
+      longitude: _lng,
+      activityType: _activityType,
+      linkedPhaseId: _linkedPhaseId,
+      linkedMilestoneId: _linkedMilestoneId,
+      amountSpent: _amountSpent.text.trim(),
+      expenditureNotes: _expenditureNotes.text.trim(),
+      beneficiariesReached: _count(_reached),
+      beneficiariesMale: _count(_male),
+      beneficiariesFemale: _count(_female),
+      beneficiariesYouth: _count(_youth),
+      impactDescription: _impact.text.trim(),
+      challengesFaced: _challenges.text.trim(),
+      recommendations: _recommendations.text.trim(),
+      nextSteps: _nextSteps.text.trim(),
+    );
+  }
+
+  /// Upload any newly picked photos to [reportId]. Retry-safe (skips ones
+  /// already sent) and tolerant of a photo the OS has evicted from the picker
+  /// cache — reading that throws a filesystem error, not an [ApiException],
+  /// which would otherwise abort the save. Returns the count skipped as
+  /// missing so the caller can mention it.
+  Future<int> _uploadNewPhotos(ReportRepository repo, int reportId) async {
+    var skipped = 0;
+    for (final photo in _photos) {
+      if (_uploadedPhotoPaths.contains(photo.path)) continue;
+      final bytes = await _readPhotoBytes(photo);
+      if (bytes == null) {
+        skipped++;
+        continue;
+      }
+      await repo.uploadImage(reportId, bytes: bytes, filename: photo.name);
+      _uploadedPhotoPaths.add(photo.path);
+    }
+    return skipped;
+  }
+
+  static String _withSkipNote(String base, int skipped) => skipped == 0
+      ? base
+      : '$base $skipped photo(s) were no longer available on this device and '
+          'were skipped.';
+
+  /// Create the report and submit it (create mode). Idempotent across retries.
   Future<void> _submit() async {
     setState(() => _busy = true);
     final repo = context.read<ReportRepository>();
     final store = context.read<DraftStore>();
     try {
-      // Create the report only if a previous attempt hasn't already. The
-      // id is captured before the loop so a failed upload/submit leaves it
-      // set for the next try. (If createReport itself throws, the field
-      // stays null and a retry correctly creates the report.)
-      final reportId = _createdReportId ??= await repo.createReport(
-        projectId: _projectId!,
+      final reportId = await _createReportOnce(repo);
+      final skipped = await _uploadNewPhotos(repo, reportId);
+      await repo.submit(reportId);
+      final draftId = widget.draft?.id;
+      if (draftId != null) await store.delete(draftId);
+      if (!mounted) return;
+      showSuccessSnackBar(
+          context, _withSkipNote('Report submitted successfully!', skipped));
+      Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      _toast(e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Save the report as a **server-side** draft (create mode) without
+  /// submitting, so it is visible to managers, survives device loss, and can
+  /// be reopened for editing. Falls back to a local device draft when the
+  /// server is unreachable, so field work is never lost offline.
+  Future<void> _saveDraft() async {
+    setState(() => _busy = true);
+    final repo = context.read<ReportRepository>();
+    final store = context.read<DraftStore>();
+    try {
+      final reportId = await _createReportOnce(repo);
+      // The report is now safe on the server as a draft; a photo upload that
+      // fails from here is non-fatal rather than a reason to lose the draft.
+      String message = 'Draft saved.';
+      try {
+        final skipped = await _uploadNewPhotos(repo, reportId);
+        message = _withSkipNote('Draft saved.', skipped);
+      } on ApiException catch (e) {
+        message = 'Draft saved, but a photo did not upload: ${e.message}';
+      }
+      final draftId = widget.draft?.id;
+      if (draftId != null) await store.delete(draftId);
+      if (!mounted) return;
+      showSuccessSnackBar(context, message);
+      Navigator.of(context).pop(true);
+    } on ApiException {
+      // Couldn't reach the server — keep the work on the device instead.
+      await _saveLocalDraft();
+      if (!mounted) return;
+      showSuccessSnackBar(
+          context, 'Saved on this device — sync when you are back online.');
+      Navigator.of(context).pop(true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Save an edit to an existing report (edit mode): PATCH the content, append
+  /// any new photos, and optionally submit (only offered for a draft). The
+  /// report's workflow status is server-controlled, so a submitted report
+  /// stays submitted.
+  Future<void> _saveEdit({required bool thenSubmit}) async {
+    setState(() => _busy = true);
+    final repo = context.read<ReportRepository>();
+    final reportId = widget.editing!.id;
+    try {
+      await repo.updateReport(
+        reportId,
         title: _title.text.trim(),
         reportType: _reportType,
         description: _description.text.trim(),
@@ -359,33 +528,11 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         recommendations: _recommendations.text.trim(),
         nextSteps: _nextSteps.text.trim(),
       );
-      var skippedPhotos = 0;
-      for (final photo in _photos) {
-        // Already sent on an earlier attempt — don't post it twice.
-        if (_uploadedPhotoPaths.contains(photo.path)) continue;
-        final bytes = await _readPhotoBytes(photo);
-        // The OS can evict a resumed draft's picked files from cache; that
-        // read fails with a filesystem error, not an ApiException, so it
-        // would otherwise escape the handler and abort a valid submission.
-        // Skip the missing photo and carry on.
-        if (bytes == null) {
-          skippedPhotos++;
-          continue;
-        }
-        await repo.uploadImage(reportId, bytes: bytes, filename: photo.name);
-        _uploadedPhotoPaths.add(photo.path);
-      }
-      await repo.submit(reportId);
-      final draftId = widget.draft?.id;
-      if (draftId != null) await store.delete(draftId);
+      final skipped = await _uploadNewPhotos(repo, reportId);
+      if (thenSubmit) await repo.submit(reportId);
       if (!mounted) return;
-      showSuccessSnackBar(
-        context,
-        skippedPhotos == 0
-            ? 'Report submitted successfully!'
-            : 'Report submitted. $skippedPhotos photo(s) were no longer '
-                'available on this device and were skipped.',
-      );
+      final base = thenSubmit ? 'Report submitted successfully!' : 'Changes saved.';
+      showSuccessSnackBar(context, _withSkipNote(base, skipped));
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       _toast(e.message);
@@ -417,7 +564,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Submit Report'),
+            Text(_isEditing ? 'Edit Report' : 'Submit Report'),
             Text(
               'Step ${_step + 1} of ${_stepLabels.length}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -928,6 +1075,18 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
               .labelMedium
               ?.copyWith(color: AppColors.muted),
         ),
+        if (_existingImageCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              '$_existingImageCount already attached · these stay on the '
+              'report',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.muted),
+            ),
+          ),
         const SizedBox(height: 12),
         GridView.count(
           crossAxisCount: 3,
@@ -941,7 +1100,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                 file: _photos[i],
                 onRemove: () => setState(() => _photos.removeAt(i)),
               ),
-            if (_photos.length < kMaxReportPhotos)
+            if (_photoSlotsLeft > 0)
               InkWell(
                 onTap: _pickPhotos,
                 borderRadius: BorderRadius.circular(10),
@@ -1003,41 +1162,88 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
                     (_lat != null && _lng != null)
                         ? '${_lat!.toStringAsFixed(5)}, ${_lng!.toStringAsFixed(5)}'
                         : 'Not captured'),
-                _reviewRow('Photos', '${_photos.length}'),
+                _reviewRow('Photos', _photosSummary()),
               ],
             ),
           ),
         ),
         const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                key: const Key('save_draft_button'),
-                onPressed: _busy ? null : _saveDraft,
-                child: const Text('Save as Draft'),
-              ),
+        _reviewActions(),
+      ],
+    );
+  }
+
+  String _photosSummary() {
+    if (_existingImageCount > 0) {
+      return '${_photos.length} new · $_existingImageCount existing';
+    }
+    return '${_photos.length}';
+  }
+
+  /// The Review step's action buttons, which differ by mode:
+  ///  - create: Save as Draft (server, offline fallback) + Submit;
+  ///  - edit a draft: Save Changes + Submit;
+  ///  - edit a submitted report: Save Changes only (status is manager-driven).
+  Widget _reviewActions() {
+    if (!_isEditing) {
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              key: const Key('save_draft_button'),
+              onPressed: _busy ? null : _saveDraft,
+              child: const Text('Save as Draft'),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                key: const Key('submit_button'),
-                onPressed: _busy ? null : _submit,
-                child: _busy
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Submit Report'),
-              ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              key: const Key('submit_button'),
+              onPressed: _busy ? null : _submit,
+              child: _primaryChild('Submit Report'),
             ),
-          ],
+          ),
+        ],
+      );
+    }
+    // Editing a submitted report: it stays submitted, so only offer Save.
+    if (_editingStatus != 'draft') {
+      return FilledButton(
+        key: const Key('save_changes_button'),
+        onPressed: _busy ? null : () => _saveEdit(thenSubmit: false),
+        child: _primaryChild('Save Changes'),
+      );
+    }
+    // Editing a draft: save the edits, or save-and-submit.
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            key: const Key('save_changes_button'),
+            onPressed: _busy ? null : () => _saveEdit(thenSubmit: false),
+            child: const Text('Save Changes'),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            key: const Key('submit_button'),
+            onPressed: _busy ? null : () => _saveEdit(thenSubmit: true),
+            child: _primaryChild('Submit'),
+          ),
         ),
       ],
     );
   }
+
+  Widget _primaryChild(String label) => _busy
+      ? const SizedBox(
+          height: 20,
+          width: 20,
+          child:
+              CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+        )
+      : Text(label);
 
   /// "300 (140 male · 160 female · 90 youth)" — only the parts recorded.
   String _reachSummary() {

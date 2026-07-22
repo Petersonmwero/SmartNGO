@@ -11,6 +11,7 @@ import '../../projects/widgets/evm_cards.dart' show formatKes;
 import '../models/activity_type.dart';
 import '../models/report.dart';
 import '../report_repository.dart';
+import 'submit_report_screen.dart';
 
 /// Full report detail: title, structured results (spend and reach), impact
 /// narrative, GPS, description, photo gallery, and the approve action.
@@ -66,7 +67,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
             );
           }
           final report = snap.data!;
-          return _ReportBody(report: report, onApproved: () => setState(_load));
+          return _ReportBody(report: report, onReload: () => setState(_load));
         },
       ),
     );
@@ -75,8 +76,32 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
 
 class _ReportBody extends StatelessWidget {
   final Report report;
-  final VoidCallback onApproved;
-  const _ReportBody({required this.report, required this.onApproved});
+
+  /// Reload the report after it changes (approve or edit).
+  final VoidCallback onReload;
+  const _ReportBody({required this.report, required this.onReload});
+
+  /// Who may edit, mirroring the backend rule matrix: approved is frozen;
+  /// a submitted report is manager/admin only; a draft is editable by a
+  /// manager/admin or by the officer who authored it.
+  bool _canEdit(String role, int? userId) {
+    final isManager = role == 'admin' || role == 'manager';
+    switch (report.status) {
+      case 'approved':
+        return false;
+      case 'submitted':
+        return isManager;
+      default: // draft
+        return isManager || report.officerId == userId;
+    }
+  }
+
+  Future<void> _openEditor(BuildContext context) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => SubmitReportScreen(editing: report)),
+    );
+    if (changed == true) onReload();
+  }
 
   /// Full-width banner reflecting the workflow state.
   Widget _statusBanner(BuildContext context) {
@@ -119,21 +144,23 @@ class _ReportBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final role = context.read<AuthProvider>().user?.role ?? '';
+    final user = context.read<AuthProvider>().user;
+    final role = user?.role ?? '';
     final canApprove =
         (role == 'admin' || role == 'manager') && report.status == 'submitted';
+    final canEdit = _canEdit(role, user?.id);
 
     return Column(
       children: [
         _statusBanner(context),
         Expanded(
-          child: _buildContent(context, canApprove),
+          child: _buildContent(context, canApprove, canEdit),
         ),
       ],
     );
   }
 
-  Widget _buildContent(BuildContext context, bool canApprove) {
+  Widget _buildContent(BuildContext context, bool canApprove, bool canEdit) {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -156,6 +183,20 @@ class _ReportBody extends StatelessWidget {
                   ReportActivityType.labelFor(report.activityType)),
           ],
         ),
+        if (canEdit) ...[
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const Key('edit_report_button'),
+              onPressed: () => _openEditor(context),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: Text(report.status == 'draft'
+                  ? 'Edit draft'
+                  : 'Edit before approving'),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
 
         // Structured donor reporting: what it cost and who it reached.
@@ -309,7 +350,7 @@ class _ReportBody extends StatelessWidget {
 
         // Approve button — manager/admin only, when submitted
         if (canApprove)
-          _ApproveButton(reportId: report.id, onApproved: onApproved),
+          _ApproveButton(reportId: report.id, onApproved: onReload),
       ],
     );
   }

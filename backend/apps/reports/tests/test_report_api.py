@@ -127,19 +127,68 @@ class TestWorkflow:
 
 
 class TestEditLocking:
-    def test_cannot_edit_submitted_report(self, auth_client, officer_user, draft_report):
-        auth_client(officer_user).post(f"{REPORTS}{draft_report.id}/submit/")
-        resp = auth_client(officer_user).patch(
-            f"{REPORTS}{draft_report.id}/", {"title": "changed"}, format="json"
-        )
-        assert resp.status_code == 400
-
-    def test_can_edit_draft(self, auth_client, officer_user, draft_report):
+    def test_author_officer_can_edit_own_draft(self, auth_client, officer_user, draft_report):
         resp = auth_client(officer_user).patch(
             f"{REPORTS}{draft_report.id}/", {"title": "changed"}, format="json"
         )
         assert resp.status_code == 200
         assert resp.data["title"] == "changed"
+
+    def test_officer_cannot_edit_another_officers_draft(
+        self, auth_client, ngo, draft_report
+    ):
+        from apps.accounts.models import Role, User
+        from apps.projects.models import ProjectAssignment
+
+        other = User.objects.create_user(
+            email="officer2@test.org", password="pass1234",
+            first_name="Other", last_name="Officer", role=Role.OFFICER, ngo=ngo,
+        )
+        ProjectAssignment.objects.create(
+            project=draft_report.project, user=other, role="officer"
+        )
+        resp = auth_client(other).patch(
+            f"{REPORTS}{draft_report.id}/", {"title": "hijack"}, format="json"
+        )
+        assert resp.status_code == 403
+
+    def test_officer_cannot_edit_submitted_report(self, auth_client, officer_user, draft_report):
+        auth_client(officer_user).post(f"{REPORTS}{draft_report.id}/submit/")
+        resp = auth_client(officer_user).patch(
+            f"{REPORTS}{draft_report.id}/", {"title": "changed"}, format="json"
+        )
+        assert resp.status_code == 403
+
+    def test_manager_can_edit_submitted_report(
+        self, auth_client, officer_user, manager_user, draft_report
+    ):
+        auth_client(officer_user).post(f"{REPORTS}{draft_report.id}/submit/")
+        resp = auth_client(manager_user).patch(
+            f"{REPORTS}{draft_report.id}/", {"title": "corrected by manager"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.data["title"] == "corrected by manager"
+
+    def test_admin_can_edit_submitted_report(
+        self, auth_client, officer_user, admin_user, draft_report
+    ):
+        auth_client(officer_user).post(f"{REPORTS}{draft_report.id}/submit/")
+        resp = auth_client(admin_user).patch(
+            f"{REPORTS}{draft_report.id}/", {"title": "corrected by admin"},
+            format="json",
+        )
+        assert resp.status_code == 200
+
+    def test_approved_report_is_frozen(
+        self, auth_client, officer_user, manager_user, draft_report
+    ):
+        auth_client(officer_user).post(f"{REPORTS}{draft_report.id}/submit/")
+        auth_client(manager_user).post(f"{REPORTS}{draft_report.id}/approve/")
+        resp = auth_client(manager_user).patch(
+            f"{REPORTS}{draft_report.id}/", {"title": "too late"}, format="json"
+        )
+        assert resp.status_code == 400
 
 
 class TestScoping:
