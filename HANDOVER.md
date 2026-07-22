@@ -4,7 +4,7 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `dfa574a` (pushed) · tree clean
+Last updated: 2026-07-22 · `main` @ `4083f9b` (pushed) · tree clean
 
 | | |
 |---|---|
