@@ -2,8 +2,8 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `312925c` (local, unpushed)
-**Backend 261 tests · Flutter 86 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-22 · `main` @ `5901411` (local, unpushed)
+**Backend 263 tests · Flutter 87 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -115,6 +115,11 @@ properties — no migrations, no caching.
   (offline → local fallback), so drafts are reachable to edit. `project_name`
   added read-only to `ReportSerializer`. +7 backend / +7 Flutter tests →
   **261 backend / 86 Flutter**.
+- [x] Remove photos when editing (2026-07-22, `5901411`): the edit Photos step
+  shows attached images as thumbnails with an ✕; removing one deletes it on
+  save (via new `deleteImage`, retry-safe, before new uploads so the 5-image
+  cap holds). `ReportImageViewSet.perform_destroy` refuses removal from an
+  approved report. +2 backend / +1 Flutter tests → **263 backend / 87 Flutter**.
 
 **Reporting trend series (2026-07-22, `5246b7e`)**
 - [x] `GET /analytics/reports-series/` — a contiguous run of months (`months`
@@ -183,7 +188,7 @@ schedule reading.
 - Backend **257 tests** pass on SQLite test settings.
 - OpenAPI schema is clean: `spectacular --validate` → **0 errors / 0 warnings**
   (was 12 / 21); `/api/v1/schema/` and `/api/v1/docs/` both serve 200.
-- Backend **261 tests** and Flutter **86 tests** pass; `flutter analyze` 0
+- Backend **263 tests** and Flutter **87 tests** pass; `flutter analyze` 0
   issues; `flutter build web` OK.
 - User edit flow verified live in Chrome (tap card → pre-filled sheet → PATCH
   persists → list refreshes); demo data restored afterward.

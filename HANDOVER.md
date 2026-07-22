@@ -4,12 +4,12 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `312925c` (local, unpushed) · tree clean
+Last updated: 2026-07-22 · `main` @ `5901411` (local, unpushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **261 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **86 pass**, `flutter analyze` 0 issues |
+| Backend tests | **263 pass** (`pytest`, test_sqlite settings) |
+| Flutter tests | **87 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -28,7 +28,7 @@ DJANGO_SETTINGS_MODULE=config.settings.test_sqlite pytest --tb=short -q
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py runserver 0.0.0.0:8000
 DJANGO_SETTINGS_MODULE=config.settings.local_sqlite python manage.py seed_demo  # idempotent
 
-# Flutter (86 tests)
+# Flutter (87 tests)
 cd /Users/admin/Desktop/SmartNGO/mobile
 flutter analyze && flutter test
 flutter run -d chrome --dart-define=API_BASE_URL=http://localhost:8000/api/v1
@@ -130,10 +130,12 @@ Details → **Activity** → **Impact** → GPS → Photos → Review.
   a draft stays draft, a submitted report stays submitted. The Review step
   offers Save Changes + Submit for a draft, Save Changes only for a submitted
   report.
-- Existing photos aren't re-fetched into the picker; they show as a count
-  ("N already attached") and new picks are appended, capped so existing + new
-  ≤ 5. Removing an already-uploaded image from the edit screen is **not** wired
-  yet (would use the DELETE image endpoint) — noted as future work.
+- Existing photos show as thumbnails in the Photos step; new picks are
+  appended, capped so existing + new ≤ 5. Removing an existing one (`✕`) marks
+  it for deletion — on save the wizard deletes removed images (retry-safe, at
+  most once each) **before** uploading new ones, so freed slots keep it within
+  the cap (`5901411`). `perform_destroy` on the image viewset refuses removal
+  from an approved report, matching the frozen rule.
 - Create-mode **"Save as Draft" now saves server-side** (a real `draft` report,
   no submit) so it's editable and visible to managers, and falls back to a
   **local** device draft only when the server is unreachable. The two draft
