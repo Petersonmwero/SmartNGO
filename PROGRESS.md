@@ -3,7 +3,7 @@
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
 Last updated: 2026-07-22 · `main` @ `dfa574a` (pushed)
-**Backend 254 tests · Flutter 74 tests · `flutter analyze` 0 issues**
+**Backend 254 tests · Flutter 77 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -135,8 +135,8 @@ inline validation on blur, sqflite offline report drafts (in-memory on web).
 (role-aware), projects list, project detail (4 tabs + EVM cards + phase
 management), create/edit project, submit report (4-step wizard, GPS, photos),
 reports list, report detail, beneficiaries list, register beneficiary (Kenya
-5-level cascading picker), notifications, profile, user management, NGO
-management, analytics (fl_chart).
+5-level cascading picker), notifications, profile, user management (list,
+create, **edit**, activate/deactivate), NGO management, analytics (fl_chart).
 
 **Visual language** — eCitizen / Kenya-government: green #006633 + gold
 #CC9900, Inter, squared corners, `OfficialCard` with gold left rule, flag
@@ -164,7 +164,9 @@ schedule reading.
 - Backend **254 tests** pass on SQLite test settings.
 - OpenAPI schema is clean: `spectacular --validate` → **0 errors / 0 warnings**
   (was 12 / 21); `/api/v1/schema/` and `/api/v1/docs/` both serve 200.
-- Flutter **74 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- Flutter **77 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
+- User edit flow verified live in Chrome (tap card → pre-filled sheet → PATCH
+  persists → list refreshes); demo data restored afterward.
 - Live 4-role browser pass: every screen renders with zero console/API errors.
 - `docs/screenshots/` regenerated 2026-07-21 against the current build and the
   reseeded demo data (15 app frames + 2 Django verify-email pages); every frame
@@ -177,6 +179,5 @@ schedule reading.
 
 ## Backlog
 
-- User detail/edit screen.
 - Key Kenya ward/location dicts by (constituency, ward) to fix same-named
   wards sharing one location list.

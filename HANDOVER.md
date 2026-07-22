@@ -9,7 +9,7 @@ Last updated: 2026-07-22 · `main` @ `dfa574a` (pushed) · tree clean
 | | |
 |---|---|
 | Backend tests | **254 pass** (`pytest`, test_sqlite settings) |
-| Flutter tests | **74 pass**, `flutter analyze` 0 issues |
+| Flutter tests | **77 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
 
@@ -323,8 +323,6 @@ Two capture lessons from this session:
    scroll one screen), and the EVM tracks on the project register and dashboard
    rows.
 2. Open follow-ups (all optional, none blocking):
-   - User detail/edit screen (admin can list/create/deactivate users but not
-     edit an existing one in the app).
    - Key the Kenya ward/location dicts by (constituency, ward) so same-named
      wards in different constituencies stop sharing one location list.
 

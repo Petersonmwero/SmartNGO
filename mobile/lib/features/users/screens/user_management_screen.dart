@@ -43,9 +43,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const _CreateUserSheet(),
+      builder: (_) => const _UserFormSheet(),
     );
     if (created == true && mounted) setState(_load);
+  }
+
+  Future<void> _editUser(ManagedUser user) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _UserFormSheet(existing: user),
+    );
+    if (saved == true && mounted) setState(_load);
   }
 
   @override
@@ -100,8 +109,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 height: 52,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   children: [
                     for (final entry in _roles.entries)
                       Padding(
@@ -113,8 +124,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               setState(() => _roleFilter = entry.key),
                           selectedColor: AppColors.primary,
                           labelStyle: TextStyle(
-                            color:
-                                _roleFilter == entry.key ? Colors.white : null,
+                            color: _roleFilter == entry.key
+                                ? Colors.white
+                                : null,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -124,8 +136,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               ),
               Expanded(
                 child: users.isEmpty
-                    ? const EmptyState(Icons.person_search_outlined,
-                        'No users', 'No users match this filter.')
+                    ? const EmptyState(
+                        Icons.person_search_outlined,
+                        'No users',
+                        'No users match this filter.',
+                      )
                     : RefreshIndicator(
                         onRefresh: () async => setState(_load),
                         child: ListView.separated(
@@ -134,8 +149,10 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           separatorBuilder: (_, _) =>
                               const SizedBox(height: 10),
                           itemBuilder: (context, i) => _UserCard(
-                              user: users[i],
-                              onToggled: () => setState(_load)),
+                            user: users[i],
+                            onToggled: () => setState(_load),
+                            onEdit: () => _editUser(users[i]),
+                          ),
                         ),
                       ),
               ),
@@ -160,16 +177,19 @@ class _StatTile extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Column(
             children: [
-              Text('$value',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: AppColors.accent,
-                        fontWeight: FontWeight.w700,
-                      )),
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.muted)),
+              Text(
+                '$value',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                label,
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.muted),
+              ),
             ],
           ),
         ),
@@ -181,7 +201,12 @@ class _StatTile extends StatelessWidget {
 class _UserCard extends StatefulWidget {
   final ManagedUser user;
   final VoidCallback onToggled;
-  const _UserCard({required this.user, required this.onToggled});
+  final VoidCallback onEdit;
+  const _UserCard({
+    required this.user,
+    required this.onToggled,
+    required this.onEdit,
+  });
 
   @override
   State<_UserCard> createState() => _UserCardState();
@@ -206,106 +231,156 @@ class _UserCardState extends State<_UserCard> {
   /// Avatar tint by role: admin=red, manager=green, officer=amber,
   /// donor=blue.
   Color get _roleColor => switch (widget.user.role) {
-        'admin' => AppColors.danger,
-        'manager' => AppColors.success,
-        'officer' => AppColors.accent,
-        'donor' => AppColors.info,
-        _ => AppColors.neutral,
-      };
+    'admin' => AppColors.danger,
+    'manager' => AppColors.success,
+    'officer' => AppColors.accent,
+    'donor' => AppColors.info,
+    _ => AppColors.neutral,
+  };
 
   @override
   Widget build(BuildContext context) {
     final u = widget.user;
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: _roleColor.withValues(alpha: 0.14),
-              child: Text(
-                u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
-                style:
-                    TextStyle(color: _roleColor, fontWeight: FontWeight.w700),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(u.fullName,
-                      style: Theme.of(context).textTheme.titleSmall),
-                  Text(u.email,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: AppColors.muted)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      StatusBadge('completed', label: u.roleLabel),
-                      if (!u.isActive) const StatusBadge('inactive'),
-                    ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: widget.onEdit,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: _roleColor.withValues(alpha: 0.14),
+                child: Text(
+                  u.fullName.isNotEmpty ? u.fullName[0].toUpperCase() : '?',
+                  style: TextStyle(
+                    color: _roleColor,
+                    fontWeight: FontWeight.w700,
                   ),
-                ],
+                ),
               ),
-            ),
-            _toggling
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : Switch(
-                    value: u.isActive,
-                    onChanged: (_) => _toggle(),
-                  ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      u.fullName,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Text(
+                      u.email,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: AppColors.muted),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        StatusBadge('completed', label: u.roleLabel),
+                        if (!u.isActive) const StatusBadge('inactive'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              _toggling
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Switch(value: u.isActive, onChanged: (_) => _toggle()),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Bottom sheet form for creating a new user in the admin's NGO.
-class _CreateUserSheet extends StatefulWidget {
-  const _CreateUserSheet();
+/// Bottom sheet form used for both creating a user and editing an existing
+/// one. In create mode it collects email + a temporary password; in edit mode
+/// email is shown read-only (it is the login identity) and the password field
+/// is dropped — passwords go through the reset flow — while phone becomes
+/// editable.
+class _UserFormSheet extends StatefulWidget {
+  final ManagedUser? existing;
+  const _UserFormSheet({this.existing});
 
   @override
-  State<_CreateUserSheet> createState() => _CreateUserSheetState();
+  State<_UserFormSheet> createState() => _UserFormSheetState();
 }
 
-class _CreateUserSheetState extends State<_CreateUserSheet> {
+class _UserFormSheetState extends State<_UserFormSheet> {
   final _formKey = GlobalKey<FormState>();
-  final _firstName = TextEditingController();
-  final _lastName = TextEditingController();
+  late final TextEditingController _firstName;
+  late final TextEditingController _lastName;
+  late final TextEditingController _phone;
   final _email = TextEditingController();
   final _password = TextEditingController();
-  String _role = 'officer';
+  late String _role;
   bool _busy = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final u = widget.existing;
+    _firstName = TextEditingController(text: u?.firstName ?? '');
+    _lastName = TextEditingController(text: u?.lastName ?? '');
+    _phone = TextEditingController(text: u?.phone ?? '');
+    _role = u?.role ?? 'officer';
+  }
 
   @override
   void dispose() {
     _firstName.dispose();
     _lastName.dispose();
+    _phone.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  /// Role options offered in the picker. Admins cannot be minted or promoted
+  /// to here, so "admin" appears only to keep an existing admin's row valid.
+  List<DropdownMenuItem<String>> get _roleItems {
+    final items = <DropdownMenuItem<String>>[
+      if (_isEdit && widget.existing!.role == 'admin')
+        const DropdownMenuItem(value: 'admin', child: Text('Administrator')),
+      const DropdownMenuItem(value: 'manager', child: Text('Manager')),
+      const DropdownMenuItem(value: 'officer', child: Text('Officer')),
+      const DropdownMenuItem(value: 'donor', child: Text('Donor')),
+    ];
+    return items;
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _busy = true);
     try {
-      await context.read<UserRepository>().create(
-            firstName: _firstName.text.trim(),
-            lastName: _lastName.text.trim(),
-            email: _email.text.trim(),
-            password: _password.text,
-            role: _role,
-          );
+      final repo = context.read<UserRepository>();
+      if (_isEdit) {
+        await repo.update(
+          id: widget.existing!.id,
+          firstName: _firstName.text.trim(),
+          lastName: _lastName.text.trim(),
+          role: _role,
+          phone: _phone.text.trim(),
+        );
+      } else {
+        await repo.create(
+          firstName: _firstName.text.trim(),
+          lastName: _lastName.text.trim(),
+          email: _email.text.trim(),
+          password: _password.text,
+          role: _role,
+        );
+      }
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) {
@@ -330,15 +405,17 @@ class _CreateUserSheetState extends State<_CreateUserSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Add User', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              _isEdit ? 'Edit User' : 'Add User',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _firstName,
-                    decoration:
-                        const InputDecoration(labelText: 'First name'),
+                    decoration: const InputDecoration(labelText: 'First name'),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Required' : null,
                   ),
@@ -353,42 +430,61 @@ class _CreateUserSheetState extends State<_CreateUserSheet> {
               ],
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
-              validator: (v) => (v == null || !v.contains('@'))
-                  ? 'Enter a valid email'
-                  : null,
-            ),
+            if (_isEdit)
+              // Email is the login identity — shown for reference, not edited.
+              TextFormField(
+                initialValue: widget.existing!.email,
+                enabled: false,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  helperText: "Email can't be changed here.",
+                ),
+              )
+            else
+              TextFormField(
+                controller: _email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+                validator: (v) => (v == null || !v.contains('@'))
+                    ? 'Enter a valid email'
+                    : null,
+              ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _password,
-              obscureText: true,
-              decoration:
-                  const InputDecoration(labelText: 'Temporary password'),
-              validator: (v) => (v == null || v.length < 8)
-                  ? 'At least 8 characters'
-                  : null,
-            ),
+            if (_isEdit)
+              TextFormField(
+                controller: _phone,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  hintText: 'Optional',
+                ),
+              )
+            else
+              TextFormField(
+                controller: _password,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Temporary password',
+                ),
+                validator: (v) => (v == null || v.length < 8)
+                    ? 'At least 8 characters'
+                    : null,
+              ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: _role,
               decoration: const InputDecoration(labelText: 'Role'),
-              items: const [
-                DropdownMenuItem(value: 'manager', child: Text('Manager')),
-                DropdownMenuItem(value: 'officer', child: Text('Officer')),
-                DropdownMenuItem(value: 'donor', child: Text('Donor')),
-              ],
-              onChanged: (v) => setState(() => _role = v ?? 'officer'),
+              items: _roleItems,
+              onChanged: (v) => setState(() => _role = v ?? _role),
             ),
             const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed:
-                        _busy ? null : () => Navigator.pop(context, false),
+                    onPressed: _busy
+                        ? null
+                        : () => Navigator.pop(context, false),
                     child: const Text('Cancel'),
                   ),
                 ),
@@ -401,8 +497,11 @@ class _CreateUserSheetState extends State<_CreateUserSheet> {
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Create'),
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(_isEdit ? 'Save Changes' : 'Create'),
                   ),
                 ),
               ],
