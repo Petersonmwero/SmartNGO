@@ -175,3 +175,34 @@ Draft-store tests run against real SQLite via `sqflite_common_ffi`.
 **Impact:** Low. Backend contract unchanged; 172 backend tests unaffected.
 **Action to reverse:** Reinstate the server `createReport` call in
 `_saveDraft()` and drop the DraftStore wiring.
+
+---
+
+## D-011 — Kenya ward locations keyed by (constituency, ward)
+
+**Context:** The cascading location picker's reference data
+(`apps/beneficiaries/kenya_locations.py`) originally keyed `WARD_LOCATIONS` by
+bare ward name. Ward names are not unique nationally: 79 of them are shared
+across the 290 constituencies (e.g. "Biashara" is a ward in Nakuru Town East,
+Naivasha and Ruiru), so a bare-name lookup returned the same locations for
+every same-named ward.
+**Decision:** `WARD_LOCATIONS` is now built keyed by the `(constituency, ward)`
+pair, from the curated lists plus a generated `"<ward> A/B"` fallback. A curated
+list belongs to exactly one constituency; when the ward name is ambiguous,
+`CURATED_WARD_CONSTITUENCY` pins the intended one and the others fall back to
+generated locations. Reads go through `locations_for_ward(constituency, ward)`,
+and the `/locations/kenya/` endpoint takes `constituency` alongside `ward`
+(checked before the bare-constituency → wards case). A `ward` without a
+`constituency` degrades to generated locations rather than guessing another
+constituency's list.
+**Reason:** Correctness — only "Biashara" had a curated list under the old
+scheme, and it leaked to Naivasha's and Ruiru's Biashara wards. Keying by the
+pair is the minimal structural fix; the pin keeps the one genuinely ambiguous
+curated entry unambiguous without hand-reorganising all 37 curated lists.
+**Impact:** Low. The stored `Beneficiary.ward`/`location` fields are free
+strings, so no data migration is needed; only the picker's lookup changed. The
+Flutter picker passes the selected constituency it already holds. Covered by an
+API-level regression test (Nakuru vs Naivasha "Biashara").
+**Action to reverse:** Re-key `WARD_LOCATIONS` by bare ward name and drop the
+`constituency` argument from `locations_for_ward` and the endpoint's ward
+branch.
