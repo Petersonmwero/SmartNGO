@@ -98,10 +98,18 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
   final Set<String> _uploadedPhotoPaths = {};
 
   // ── Edit mode ─────────────────────────────────────────────────────────
-  /// Photos already attached to the report being edited. They stay put; the
-  /// wizard only appends newly picked ones, so the available slots shrink by
-  /// this many.
-  int _existingImageCount = 0;
+  /// Photos already attached to the report being edited and kept. Newly
+  /// picked photos in [_photos] are appended to these; removing one here
+  /// marks it for deletion on save and frees a slot.
+  final List<ReportImage> _existingImages = [];
+
+  /// Ids of already-attached images the officer removed. Deleted on save;
+  /// [_deletedImageIds] records which deletes have gone through so a retry
+  /// after a mid-save failure doesn't re-issue them.
+  final Set<int> _removedImageIds = {};
+  final Set<int> _deletedImageIds = {};
+
+  int get _existingImageCount => _existingImages.length;
 
   bool get _isEditing => widget.editing != null;
 
@@ -220,7 +228,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
 
   /// Pre-fill the form from an existing report when editing it.
   void _prefillFromReport(Report report) {
-    _existingImageCount = report.images.length;
+    _existingImages.addAll(report.images);
     _title.text = report.title;
     _description.text = report.description;
     _reportType = report.reportType;
@@ -435,6 +443,16 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
     return skipped;
   }
 
+  /// Delete the images the officer removed while editing. Retry-safe: each id
+  /// is deleted at most once even if a later step fails and the save is retried.
+  Future<void> _deleteRemovedImages(ReportRepository repo, int reportId) async {
+    for (final id in _removedImageIds) {
+      if (_deletedImageIds.contains(id)) continue;
+      await repo.deleteImage(reportId, id);
+      _deletedImageIds.add(id);
+    }
+  }
+
   static String _withSkipNote(String base, int skipped) => skipped == 0
       ? base
       : '$base $skipped photo(s) were no longer available on this device and '
@@ -528,6 +546,9 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
         recommendations: _recommendations.text.trim(),
         nextSteps: _nextSteps.text.trim(),
       );
+      // Delete removed images before uploading new ones, so freed slots keep
+      // the report within the 5-image cap.
+      await _deleteRemovedImages(repo, reportId);
       final skipped = await _uploadNewPhotos(repo, reportId);
       if (thenSubmit) await repo.submit(reportId);
       if (!mounted) return;
@@ -1079,8 +1100,7 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
-              '$_existingImageCount already attached · these stay on the '
-              'report',
+              '$_existingImageCount already attached · tap ✕ to remove',
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -1095,6 +1115,17 @@ class _SubmitReportScreenState extends State<SubmitReportScreen> {
           mainAxisSpacing: 8,
           crossAxisSpacing: 8,
           children: [
+            // Already-uploaded images first: removing one marks it for
+            // deletion on save.
+            for (int i = 0; i < _existingImages.length; i++)
+              _ExistingPhotoSlot(
+                key: ValueKey('existing_${_existingImages[i].id}'),
+                image: _existingImages[i],
+                onRemove: () => setState(() {
+                  _removedImageIds.add(_existingImages[i].id);
+                  _existingImages.removeAt(i);
+                }),
+              ),
             for (int i = 0; i < _photos.length; i++)
               _PhotoSlot(
                 file: _photos[i],
@@ -1503,6 +1534,52 @@ class _PhotoSlotState extends State<_PhotoSlot> {
           top: 4,
           child: GestureDetector(
             onTap: widget.onRemove,
+            child: const CircleAvatar(
+              radius: 12,
+              backgroundColor: Colors.black54,
+              child: Icon(Icons.close, size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A photo already uploaded to the report being edited, shown from its URL
+/// with a remove control that marks it for deletion on save.
+class _ExistingPhotoSlot extends StatelessWidget {
+  final ReportImage image;
+  final VoidCallback onRemove;
+  const _ExistingPhotoSlot({
+    super.key,
+    required this.image,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.network(
+            image.imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => Container(
+              color: AppColors.border,
+              child: const Icon(Icons.broken_image_outlined,
+                  color: AppColors.muted),
+            ),
+          ),
+        ),
+        Positioned(
+          right: 4,
+          top: 4,
+          child: GestureDetector(
+            key: Key('remove_existing_${image.id}'),
+            onTap: onRemove,
             child: const CircleAvatar(
               radius: 12,
               backgroundColor: Colors.black54,

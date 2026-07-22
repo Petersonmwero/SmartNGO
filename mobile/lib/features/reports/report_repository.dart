@@ -161,6 +161,13 @@ class ReportRepository {
     });
   }
 
+  /// Remove one image from a report.
+  Future<void> deleteImage(int reportId, int imageId) {
+    return apiGuard(() async {
+      await _api.dio.delete('/reports/$reportId/images/$imageId/');
+    });
+  }
+
   /// Transition a draft report to submitted.
   Future<void> submit(int reportId) {
     return apiGuard(() async {

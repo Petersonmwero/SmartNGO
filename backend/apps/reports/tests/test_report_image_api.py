@@ -60,6 +60,33 @@ class TestUpload:
         assert resp.status_code == 400
 
 
+class TestDelete:
+    def _upload(self, client, report_id, name="p.png"):
+        resp = client.post(
+            _images_url(report_id), {"image": make_image_file(name)},
+            format="multipart",
+        )
+        return resp.data["id"]
+
+    def test_officer_removes_image_from_draft(self, auth_client, officer_user, draft_report):
+        client = auth_client(officer_user)
+        img_id = self._upload(client, draft_report.id)
+        resp = client.delete(f"{_images_url(draft_report.id)}{img_id}/")
+        assert resp.status_code == 204
+        assert not ReportImage.objects.filter(id=img_id).exists()
+
+    def test_cannot_remove_image_from_approved_report(
+        self, auth_client, officer_user, manager_user, draft_report
+    ):
+        client = auth_client(officer_user)
+        img_id = self._upload(client, draft_report.id)
+        client.post(f"/api/v1/reports/{draft_report.id}/submit/")
+        auth_client(manager_user).post(f"/api/v1/reports/{draft_report.id}/approve/")
+        resp = client.delete(f"{_images_url(draft_report.id)}{img_id}/")
+        assert resp.status_code == 400
+        assert ReportImage.objects.filter(id=img_id).exists()
+
+
 class TestAccess:
     def test_image_nested_in_report_serializer(self, auth_client, officer_user, draft_report):
         auth_client(officer_user).post(

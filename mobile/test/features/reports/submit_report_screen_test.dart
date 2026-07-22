@@ -25,6 +25,7 @@ class FakeReportRepository implements ReportRepository {
   int submitAttempts = 0;
   int updateCount = 0;
   int? lastUpdatedId;
+  final List<int> deletedImageIds = [];
 
   /// Structured payload of the last updateReport (edit) call.
   Map<String, dynamic> lastUpdate = const {};
@@ -124,6 +125,11 @@ class FakeReportRepository implements ReportRepository {
       required String filename,
       String caption = ''}) async {
     uploadCount++;
+  }
+
+  @override
+  Future<void> deleteImage(int reportId, int imageId) async {
+    deletedImageIds.add(imageId);
   }
 
   @override
@@ -673,5 +679,28 @@ void main() {
       await tester.pumpAndSettle();
     }
     expect(find.textContaining('2 already attached'), findsOneWidget);
+  });
+
+  testWidgets('removing an existing photo deletes it on save', (tester) async {
+    await tester.pumpWidget(_harness(fake, store,
+        editing: _existingReport(status: 'draft', imageCount: 2)));
+    // Step to the Photos step and remove the first existing image (id 1).
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.byKey(const Key('next_button')));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.byKey(const Key('remove_existing_1')));
+    await tester.pumpAndSettle();
+    // One removed → "1 already attached".
+    expect(find.textContaining('1 already attached'), findsOneWidget);
+
+    // On to Review and save.
+    await tester.tap(find.byKey(const Key('next_button')));
+    await tester.pumpAndSettle();
+    await _tapKey(tester, 'save_changes_button');
+
+    expect(fake.deletedImageIds, contains(1));
+    expect(fake.deletedImageIds, isNot(contains(2)));
+    expect(fake.updateCount, 1);
   });
 }

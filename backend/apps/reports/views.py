@@ -166,3 +166,9 @@ class ReportImageViewSet(
         if report.status == Report.Status.APPROVED:
             raise ValidationError("Cannot add images to an approved report.")
         serializer.save(report=report)
+
+    def perform_destroy(self, instance):
+        # An approved report is frozen, images included.
+        if instance.report.status == Report.Status.APPROVED:
+            raise ValidationError("Cannot remove images from an approved report.")
+        instance.delete()
