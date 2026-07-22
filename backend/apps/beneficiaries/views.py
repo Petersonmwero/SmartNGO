@@ -19,7 +19,7 @@ from .kenya_locations import (
     COUNTY_CONSTITUENCIES,
     KENYA_COUNTIES,
     LOCATION_SUBLOCATION,
-    WARD_LOCATIONS,
+    locations_for_ward,
 )
 from .models import Beneficiary
 from .serializers import BeneficiarySerializer
@@ -35,10 +35,13 @@ class _LocationListResponse(serializers.Serializer):
 class KenyaLocationView(APIView):
     """Public reference data for the cascading Kenya location picker.
 
-    Exactly one query parameter selects the level returned:
+    Exactly one level is selected per call:
     ``?counties=true`` → all 47 counties (alphabetical);
     ``?county=<name>`` → constituencies; ``?constituency=<name>`` → wards;
-    ``?ward=<name>`` → locations; ``?location=<name>`` → sub-locations.
+    ``?constituency=<name>&ward=<name>`` → locations; ``?location=<name>`` →
+    sub-locations. The location lookup takes the constituency too, so
+    same-named wards in different constituencies resolve correctly; passing
+    ``ward`` without ``constituency`` degrades to generated locations.
     Unknown names (and levels without data yet) return an empty list rather
     than an error, so the client can degrade gracefully.
     """
@@ -49,8 +52,8 @@ class KenyaLocationView(APIView):
         parameters=[
             OpenApiParameter("counties", str, description="Any value: list all counties"),
             OpenApiParameter("county", str, description="List constituencies of this county"),
-            OpenApiParameter("constituency", str, description="List wards of this constituency"),
-            OpenApiParameter("ward", str, description="List locations of this ward"),
+            OpenApiParameter("constituency", str, description="List wards of this constituency (or, with ward, scope its locations)"),
+            OpenApiParameter("ward", str, description="With constituency: list that ward's locations"),
             OpenApiParameter("location", str, description="List sub-locations of this location"),
         ],
         responses={200: _LocationListResponse},
@@ -62,28 +65,38 @@ class KenyaLocationView(APIView):
         if "counties" in query:
             return Response({"status": "success", "data": sorted(KENYA_COUNTIES)})
 
-        for param, table in (
-            ("county", COUNTY_CONSTITUENCIES),
-            ("constituency", CONSTITUENCY_WARDS),
-            ("ward", WARD_LOCATIONS),
-            ("location", LOCATION_SUBLOCATION),
-        ):
-            name = query.get(param)
-            if name:
-                return Response(
-                    {"status": "success", "data": table.get(name, [])}
-                )
+        county = query.get("county")
+        if county:
+            return self._ok(COUNTY_CONSTITUENCIES.get(county, []))
+
+        # Ward locations are keyed by (constituency, ward), so this must be
+        # checked before the bare-constituency (→ wards) case below.
+        ward = query.get("ward")
+        if ward:
+            return self._ok(locations_for_ward(query.get("constituency", ""), ward))
+
+        constituency = query.get("constituency")
+        if constituency:
+            return self._ok(CONSTITUENCY_WARDS.get(constituency, []))
+
+        location = query.get("location")
+        if location:
+            return self._ok(LOCATION_SUBLOCATION.get(location, []))
 
         return Response(
             {
                 "status": "error",
                 "message": (
-                    "Provide: counties, county, constituency, ward, "
-                    "or location parameter"
+                    "Provide: counties, county, constituency, ward "
+                    "(with constituency), or location parameter"
                 ),
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    @staticmethod
+    def _ok(data):
+        return Response({"status": "success", "data": data})
 
 # Officers register beneficiaries, so they may write (on their assigned projects).
 WRITE_PERMISSION = IsSystemAdmin | IsProjectManager | IsFieldOfficer

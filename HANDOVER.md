@@ -8,7 +8,7 @@ Last updated: 2026-07-22 · `main` @ `4083f9b` (pushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **254 pass** (`pytest`, test_sqlite settings) |
+| Backend tests | **257 pass** (`pytest`, test_sqlite settings) |
 | Flutter tests | **77 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
@@ -259,9 +259,13 @@ gold #CC9900), Kenya 5-level location picker, shimmer loading everywhere.
 4. Donor quick actions substitute View Analytics/Notifications for the spec's
    "Download PDF"; project PDFs are API-reachable but have no button.
 5. "Member since" omitted from Profile — not in the `/auth/me/` payload.
-6. Kenya location dicts are keyed by bare ward name, so same-named wards in
-   different constituencies share one location list (1,282 unique names vs
-   1,378 ward entries). A fix would key by (constituency, ward).
+6. (Resolved) Kenya location lookup is now keyed by (constituency, ward), so
+   same-named wards in different constituencies no longer share a location list
+   (79 ward names are duplicated across the 290 constituencies; only "Biashara"
+   had a curated list, which used to leak to Naivasha/Ruiru). `WARD_LOCATIONS`
+   is built keyed by the pair; read it via `locations_for_ward(constituency,
+   ward)`. The API's location lookup takes `constituency` alongside `ward` —
+   `ward` without it degrades to generated locations rather than guessing.
 7. Milestone auto-overdue runs in the serializer's `to_representation`; there
    is no standalone cron command for it.
 8. The dev DB has been flushed several times — manual accounts are gone; use
@@ -322,9 +326,9 @@ Two capture lessons from this session:
    chart, the health card's earned-vs-planned line (project detail → Overview →
    scroll one screen), and the EVM tracks on the project register and dashboard
    rows.
-2. Open follow-ups (all optional, none blocking):
-   - Key the Kenya ward/location dicts by (constituency, ward) so same-named
-     wards in different constituencies stop sharing one location list.
+2. Open follow-ups: none outstanding — every item logged after the phase work
+   (structured reporting, reporting-trend chart, Swagger cleanup, user edit,
+   Kenya ward keying) is now done. New work would be scope beyond the backlog.
 
 ## Blockers
 

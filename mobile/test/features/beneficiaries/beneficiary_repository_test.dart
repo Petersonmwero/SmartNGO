@@ -36,11 +36,13 @@ class BeneficiaryStub implements HttpClientAdapter {
       if (q['county'] == 'Kisumu') {
         return _json({'status': 'success', 'data': ['Kisumu East', 'Seme']}, 200);
       }
+      // Ward locations are scoped by (constituency, ward); check ward before
+      // the bare-constituency (→ wards) case, matching the real API's order.
+      if (q['ward'] == 'Nyalenda A' && q['constituency'] == 'Kisumu East') {
+        return _json({'status': 'success', 'data': ['Nyalenda A', 'Nyalenda B']}, 200);
+      }
       if (q['constituency'] == 'Kisumu East') {
         return _json({'status': 'success', 'data': ['Kolwa East', 'Nyalenda A']}, 200);
-      }
-      if (q['ward'] == 'Nyalenda A') {
-        return _json({'status': 'success', 'data': ['Nyalenda A', 'Nyalenda B']}, 200);
       }
       if (q['location'] == 'Nyalenda A') {
         return _json({'status': 'success', 'data': ['Nyalenda A1', 'Nyalenda A2']}, 200);
@@ -96,7 +98,7 @@ void main() {
     expect(await repo.kenyaCounties(), ['Nairobi', 'Kisumu']);
     expect(await repo.kenyaConstituencies('Kisumu'), ['Kisumu East', 'Seme']);
     expect(await repo.kenyaWards('Kisumu East'), ['Kolwa East', 'Nyalenda A']);
-    expect(await repo.kenyaLocations('Nyalenda A'),
+    expect(await repo.kenyaLocations('Kisumu East', 'Nyalenda A'),
         ['Nyalenda A', 'Nyalenda B']);
     expect(await repo.kenyaSubLocations('Nyalenda A'),
         ['Nyalenda A1', 'Nyalenda A2']);

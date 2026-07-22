@@ -27,11 +27,13 @@ class LocationStub implements HttpClientAdapter {
     if (q['county'] == 'Kisumu') {
       return _json({'status': 'success', 'data': ['Kisumu East', 'Seme']});
     }
+    // Locations are scoped by (constituency, ward); match ward before the
+    // bare-constituency (→ wards) case, mirroring the real API's precedence.
+    if (q['ward'] == 'Nyalenda A' && q['constituency'] == 'Kisumu East') {
+      return _json({'status': 'success', 'data': ['Nyalenda Loc A', 'Nyalenda Loc B']});
+    }
     if (q['constituency'] == 'Kisumu East') {
       return _json({'status': 'success', 'data': ['Kolwa East', 'Nyalenda A']});
-    }
-    if (q['ward'] == 'Nyalenda A') {
-      return _json({'status': 'success', 'data': ['Nyalenda Loc A', 'Nyalenda Loc B']});
     }
     return _json({'status': 'success', 'data': []});
   }

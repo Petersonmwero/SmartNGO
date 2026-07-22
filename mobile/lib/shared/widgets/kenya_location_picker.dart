@@ -106,8 +106,12 @@ class _KenyaLocationPickerState extends State<KenyaLocationPicker> {
   Future<void> _loadLocations(String ward) async {
     setState(() => _loadingLocations = true);
     try {
-      final locations =
-          await context.read<BeneficiaryRepository>().kenyaLocations(ward);
+      // A ward can only be picked after a constituency, so `_constituency` is
+      // set here — it scopes the location lookup so same-named wards elsewhere
+      // don't leak in.
+      final locations = await context
+          .read<BeneficiaryRepository>()
+          .kenyaLocations(_constituency ?? '', ward);
       if (!mounted) return;
       setState(() => _locations = locations);
     } on ApiException {

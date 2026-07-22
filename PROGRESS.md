@@ -3,7 +3,7 @@
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
 Last updated: 2026-07-22 · `main` @ `4083f9b` (pushed)
-**Backend 254 tests · Flutter 77 tests · `flutter analyze` 0 issues**
+**Backend 257 tests · Flutter 77 tests · `flutter analyze` 0 issues**
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
@@ -161,7 +161,7 @@ schedule reading.
 
 ## Verification state
 
-- Backend **254 tests** pass on SQLite test settings.
+- Backend **257 tests** pass on SQLite test settings.
 - OpenAPI schema is clean: `spectacular --validate` → **0 errors / 0 warnings**
   (was 12 / 21); `/api/v1/schema/` and `/api/v1/docs/` both serve 200.
 - Flutter **77 tests** pass; `flutter analyze` 0 issues; `flutter build web` OK.
@@ -179,5 +179,6 @@ schedule reading.
 
 ## Backlog
 
-- Key Kenya ward/location dicts by (constituency, ward) to fix same-named
-  wards sharing one location list.
+- Empty — every logged post-phase item is complete (structured donor
+  reporting, reporting-trend chart, Swagger cleanup, user edit, Kenya ward
+  keying). Further work would be new scope.

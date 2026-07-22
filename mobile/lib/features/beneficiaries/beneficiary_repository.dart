@@ -70,8 +70,10 @@ class BeneficiaryRepository {
   Future<List<String>> kenyaWards(String constituency) =>
       _kenyaLocations({'constituency': constituency});
 
-  Future<List<String>> kenyaLocations(String ward) =>
-      _kenyaLocations({'ward': ward});
+  // Locations are scoped by (constituency, ward) so same-named wards in
+  // different constituencies resolve to their own list.
+  Future<List<String>> kenyaLocations(String constituency, String ward) =>
+      _kenyaLocations({'constituency': constituency, 'ward': ward});
 
   Future<List<String>> kenyaSubLocations(String location) =>
       _kenyaLocations({'location': location});

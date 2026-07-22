@@ -11,10 +11,13 @@ Coverage:
   for the demo/urban counties; the remainder supplied by the project — see
   HANDOVER for provenance).
 - WARD_LOCATIONS / LOCATION_SUBLOCATION: curated locations/sub-locations
-  for a representative ward subset. Wards without curated data get
-  generated "<ward> A/B" locations (see the loop at the bottom) so the
-  Location level is always selectable; sub-locations for generated
-  locations stay empty and the picker shows them as skippable.
+  for a representative ward subset. WARD_LOCATIONS is keyed by
+  ``(constituency, ward)`` (built at the bottom of this module) so that
+  same-named wards in different constituencies never share a location list;
+  use ``locations_for_ward(constituency, ward)`` to read it. Wards without
+  curated data get generated "<ward> A/B" locations so the Location level is
+  always selectable; sub-locations for generated locations stay empty and the
+  picker shows them as skippable.
 """
 
 KENYA_COUNTIES = [
@@ -847,7 +850,7 @@ CONSTITUENCY_WARDS = {
     "Borabu": ["Metembe", "Nyansiongo", "Esise", "Bosamaro"],
 }
 
-WARD_LOCATIONS = {
+_CURATED_WARD_LOCATIONS = {
     # ── Nairobi ──────────────────────────────────────────────────────────
     "Kitisuru": ["Kitisuru", "Peponi", "Tigoni"],
     "Parklands/Highridge": ["Parklands", "Highridge", "Westlands"],
@@ -938,9 +941,47 @@ LOCATION_SUBLOCATION = {
     "Kalokol": ["Kalokol A", "Kalokol B"],
 }
 
-# Wards without curated location data get predictable "<ward> A/B" entries
-# (project decision) so the picker's Location level always has options.
-# setdefault keeps every curated list above authoritative.
-for _wards in CONSTITUENCY_WARDS.values():
+# A curated ward name in `_CURATED_WARD_LOCATIONS` is authored for one specific
+# constituency. When the same ward name also exists in *other* constituencies
+# (e.g. "Biashara" is a ward in Nakuru Town East, Naivasha and Ruiru), this map
+# pins which constituency the curated list belongs to; the others fall back to
+# generated locations instead of wrongly inheriting it.
+CURATED_WARD_CONSTITUENCY = {
+    "Biashara": "Nakuru Town East",
+}
+
+
+def _generated_locations(ward):
+    """Predictable "<ward> A/B" locations so the Location level is never empty."""
+    return [f"{ward} A", f"{ward} B"]
+
+
+# Authoritative location lookup, keyed by (constituency, ward). Keying on the
+# pair — not the bare ward name — means same-named wards in different
+# constituencies no longer share a single location list. Curated lists apply to
+# their one constituency (pinned above when the name is ambiguous); every other
+# ward gets generated locations.
+WARD_LOCATIONS = {}
+for _constituency, _wards in CONSTITUENCY_WARDS.items():
     for _ward in _wards:
-        WARD_LOCATIONS.setdefault(_ward, [f"{_ward} A", f"{_ward} B"])
+        _curated = _CURATED_WARD_LOCATIONS.get(_ward)
+        _pinned = CURATED_WARD_CONSTITUENCY.get(_ward)
+        if _curated is not None and (_pinned is None or _pinned == _constituency):
+            WARD_LOCATIONS[(_constituency, _ward)] = _curated
+        else:
+            WARD_LOCATIONS[(_constituency, _ward)] = _generated_locations(_ward)
+
+
+def locations_for_ward(constituency, ward):
+    """Locations for a ward, disambiguated by its constituency.
+
+    With the constituency, the exact per-ward list is returned. When it is
+    missing or does not name a real (constituency, ward) pair, we fall back to
+    generated "<ward> A/B" locations rather than risk returning another
+    constituency's curated list — unknown wards yield an empty list.
+    """
+    exact = WARD_LOCATIONS.get((constituency, ward))
+    if exact is not None:
+        return exact
+    ward_exists = any(ward in wards for wards in CONSTITUENCY_WARDS.values())
+    return _generated_locations(ward) if ward_exists else []
