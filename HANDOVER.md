@@ -4,11 +4,11 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-22 · `main` @ `ba82975` (pushed) · tree clean
+Last updated: 2026-07-23 · `main` @ `bf24bf9` (local, unpushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **274 pass** (`pytest`, test_sqlite settings) |
+| Backend tests | **293 pass** (`pytest`, test_sqlite settings) |
 | Flutter tests | **88 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
@@ -58,6 +58,32 @@ scoping. Full CRUD for NGOs, projects (+ phases, assignments), beneficiaries,
 indicators, milestones, reports (+ images, draft→submitted→approved workflow),
 notifications (signal-driven), users, analytics dashboard, ReportLab PDFs, CSV
 export, email verification, password reset.
+
+**Beneficiary verification workflow** (backend, complete — commits `aa89400`
+→ `bf24bf9`) — `Beneficiary` gained a photo, identity fields (national_id,
+guardian name/phone, postal_address), `consent_given`, and an approval workflow
+(`approval_status` pending/approved/rejected, `approved_by`/`approved_at`,
+`rejection_reason`, `registered_by`).
+
+- **Rules are age-conditional and frozen at registration** —
+  `Beneficiary.age_at_registration()` measures against `created_at` (today for a
+  new record) so someone who later turns 18 never becomes retroactively invalid.
+  Serializer enforces: consent required; adults (18+) need a national ID; minors
+  need guardian name + phone; every beneficiary needs one contact number; Kenyan
+  phone format when present. Photo is required to **approve**, never to register.
+- **Approve/reject** are manager/admin `@action`s (`POST /beneficiaries/{id}/
+  approve/` — 400 without a photo; `.../reject/` — 400 without a reason).
+  Registration emits a "beneficiary awaiting approval" notification to the
+  project's manager(s) via the existing signal pattern.
+- **Donor PII scoping (Kenya DPA 2019)** — donors only ever see *approved*
+  beneficiaries (register queryset + analytics dashboard total), and
+  `BeneficiarySerializer.to_representation` strips server-side to
+  name/gender/age/location/project/approval_status; officers/managers/admins get
+  the full record + audit trail.
+- ⚠️ **Migration `beneficiaries/0004` must be applied and the data reseeded on
+  the live DBs.** This session ran against `test_sqlite` only (no MySQL/Docker
+  here). Run `migrate` + `seed_demo` on the `local_sqlite` demo DB and on MySQL;
+  `_beneficiary` backfills the new fields onto pre-existing rows on reseed.
 
 **Structured donor reporting** (complete — commits 1-3) — `Report` gained
 an activity type, optional links to a phase and a milestone, `amount_spent`,

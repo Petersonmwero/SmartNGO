@@ -2,8 +2,17 @@
 
 **Current state snapshot.** Dated per-session entries live in `git log`.
 
-Last updated: 2026-07-22 · `main` @ `ba82975` (pushed)
-**Backend 274 tests · Flutter 88 tests · `flutter analyze` 0 issues**
+Last updated: 2026-07-23 · `main` @ `bf24bf9` (local, unpushed)
+**Backend 293 tests · Flutter 88 tests · `flutter analyze` 0 issues**
+
+Latest post-phase work: **beneficiary verification workflow (backend only)** —
+photo + identity/guardian/consent fields, age-conditional registration
+validation frozen at registration age, manager/admin approve (photo-gated) /
+reject (reason-gated) actions, manager notification on registration, and donor
+PII scoping (approved-only + server-side field stripping per Kenya DPA 2019).
+Seed data backfilled; project progress figures unchanged. Migration
+`beneficiaries/0004` still needs applying + reseeding on the live MySQL/local
+demo DBs (this session had SQLite only).
 
 **All 5 build phases complete — the project is assessment-ready.** Everything
 since is post-phase improvement.
