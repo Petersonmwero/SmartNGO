@@ -110,6 +110,24 @@ class TestScopingAndSoftDelete:
         resp = auth_client(manager_user).get(BENEFICIARIES, {"project_id": project.id})
         assert {row["name"] for row in resp.data["results"]} == {"A"}
 
+    def test_officer_list_scoped_to_assigned_projects(
+        self, auth_client, officer_user, assigned_project, project
+    ):
+        # assigned_project and project share the same NGO, so this isolates
+        # ProjectScopedViewSetMixin.get_queryset's officer-by-assignment filter
+        # (not NGO scoping): the officer is assigned to the former, not the latter.
+        in_scope = Beneficiary.objects.create(
+            name="Assigned Ben", gender="male", project=assigned_project
+        )
+        out_of_scope = Beneficiary.objects.create(
+            name="Unassigned Ben", gender="male", project=project
+        )
+        resp = auth_client(officer_user).get(BENEFICIARIES)
+        assert resp.status_code == 200
+        ids = [row["id"] for row in resp.data["results"]]
+        assert in_scope.id in ids
+        assert out_of_scope.id not in ids
+
 
 # A DOB roughly 30 years ago (adult) and one roughly 10 years ago (minor),
 # both derived from today so the tests never drift as the clock advances.
