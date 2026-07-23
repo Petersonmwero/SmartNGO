@@ -28,6 +28,7 @@ from apps.projects.models import (
     ProjectPhase,
 )
 from apps.reports.models import Report, ReportImage
+from core.utils import compute_age
 from apps.reports.services import post_report
 
 DEMO_PASSWORD = "DemoPass123!"
@@ -363,14 +364,56 @@ class Command(BaseCommand):
         ProjectAssignment.objects.get_or_create(
             project=project, user=user, defaults={"role": role})
 
+    def _placeholder_photo_name(self):
+        """Ensure one shared placeholder image exists under MEDIA_ROOT and return
+        its storage-relative path.
+
+        Seeded beneficiaries predate the photo field; every one is given this
+        placeholder so the seed is internally consistent with the approval rule
+        (a photo is required to be approved) without generating a file per row.
+        """
+        from django.core.files.storage import default_storage
+
+        name = "beneficiary_photos/placeholder.png"
+        if not default_storage.exists(name):
+            buffer = io.BytesIO()
+            Image.new("RGB", (200, 200), color=(123, 175, 122)).save(buffer, "PNG")
+            default_storage.save(name, ContentFile(buffer.getvalue()))
+        return name
+
+    @staticmethod
+    def _demo_national_id(name):
+        """Deterministic 8-digit placeholder national ID (no uniqueness needed)."""
+        return str(10_000_000 + sum(ord(c) for c in name) % 90_000_000)
+
     def _beneficiary(self, name, gender, dob, project, county, constituency,
                      ward, location, sub_location, village):
-        Beneficiary.objects.get_or_create(
+        # Requirements are age-conditional at registration (== dob here): adults
+        # carry a national ID, minors carry guardian details. Every seeded
+        # beneficiary is consented, approved, and photographed so the demo data
+        # satisfies the verification workflow without any rule being weakened.
+        is_adult = compute_age(dob) >= 18
+        verification = {
+            "consent_given": True,
+            "approval_status": Beneficiary.ApprovalStatus.APPROVED,
+            "photo": self._placeholder_photo_name(),
+            "phone": "0712000000",
+            "national_id": self._demo_national_id(name) if is_adult else "",
+            "guardian_name": "" if is_adult else f"Guardian of {name}",
+            "guardian_phone": "" if is_adult else "0722000000",
+        }
+        obj, created = Beneficiary.objects.get_or_create(
             name=name, project=project,
             defaults={"gender": gender, "date_of_birth": dob,
                       "county": county, "constituency": constituency,
                       "ward": ward, "location": location,
-                      "sub_location": sub_location, "village": village})
+                      "sub_location": sub_location, "village": village,
+                      **verification})
+        if not created:
+            # Backfill the verification fields onto rows seeded before they existed.
+            for field, value in verification.items():
+                setattr(obj, field, value)
+            obj.save(update_fields=list(verification))
 
     def _indicator(self, project, name, target, current, unit):
         Indicator.objects.get_or_create(
