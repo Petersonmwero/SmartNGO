@@ -1,7 +1,11 @@
 """Tests for beneficiary CRUD: age computation, soft-delete, officer access."""
+from datetime import date, timedelta
+
 import pytest
+from django.utils import timezone
 
 from apps.beneficiaries.models import Beneficiary
+from apps.beneficiaries.serializers import BeneficiarySerializer
 from apps.projects.models import Project, ProjectAssignment
 
 BENEFICIARIES = "/api/v1/beneficiaries/"
@@ -22,11 +26,18 @@ def assigned_project(ngo, officer_user):
 
 
 def _payload(project_id, **over):
+    # Fully populated so it satisfies both the minor rules (guardian present)
+    # and the adult rules (national_id present); individual tests strip fields
+    # to exercise the age-conditional validation.
     data = {
         "name": "Baby Doe",
         "gender": "female",
         "date_of_birth": "2020-06-17",
-        "phone": "0700",
+        "phone": "0712345678",
+        "national_id": "12345678",
+        "guardian_name": "Jane Doe",
+        "guardian_phone": "0722000000",
+        "consent_given": True,
         "county": "Nandi",
         "constituency": "Chesumei",
         "ward": "Kaptel/Kamoiywo",
@@ -98,3 +109,105 @@ class TestScopingAndSoftDelete:
         Beneficiary.objects.create(name="B", gender="male", project=other)
         resp = auth_client(manager_user).get(BENEFICIARIES, {"project_id": project.id})
         assert {row["name"] for row in resp.data["results"]} == {"A"}
+
+
+# A DOB roughly 30 years ago (adult) and one roughly 10 years ago (minor),
+# both derived from today so the tests never drift as the clock advances.
+ADULT_DOB = (date.today() - timedelta(days=30 * 365)).isoformat()
+MINOR_DOB = (date.today() - timedelta(days=10 * 365)).isoformat()
+
+
+class TestAgeConditionalValidation:
+    """Requirements are frozen at registration age (Part 2)."""
+
+    def test_adult_without_national_id_rejected(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, date_of_birth=ADULT_DOB, national_id=""),
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "national_id" in resp.data["error"]
+
+    def test_adult_without_guardian_allowed(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, date_of_birth=ADULT_DOB, guardian_name="", guardian_phone=""),
+            format="json",
+        )
+        assert resp.status_code == 201
+
+    def test_minor_without_national_id_allowed(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, date_of_birth=MINOR_DOB, national_id=""),
+            format="json",
+        )
+        assert resp.status_code == 201
+
+    def test_minor_without_guardian_rejected(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, date_of_birth=MINOR_DOB, guardian_name="", guardian_phone=""),
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "guardian_name" in resp.data["error"] or "guardian_phone" in resp.data["error"]
+
+    def test_no_contact_rejected(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, date_of_birth=ADULT_DOB, phone="", guardian_phone=""),
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_guardian_phone_only_allowed(self, auth_client, manager_user, project):
+        # Minor with no personal phone but a guardian phone is reachable.
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, date_of_birth=MINOR_DOB, phone=""),
+            format="json",
+        )
+        assert resp.status_code == 201
+
+    def test_no_consent_rejected(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, consent_given=False),
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "consent_given" in resp.data["error"]
+
+    def test_invalid_kenyan_phone_rejected(self, auth_client, manager_user, project):
+        resp = auth_client(manager_user).post(
+            BENEFICIARIES,
+            _payload(project.id, phone="12345"),
+            format="json",
+        )
+        assert resp.status_code == 400
+        assert "phone" in resp.data["error"]
+
+    def test_minor_stays_valid_after_turning_18(self, manager_user, project):
+        """A beneficiary registered as a minor is not retroactively invalidated
+        once they cross 18 — the rules are pinned to registration age."""
+        # Registered 10 years ago at age 8 (guardian, no national_id); now ~18.
+        b = Beneficiary.objects.create(
+            name="Grown Up",
+            gender="male",
+            date_of_birth=date.today() - timedelta(days=18 * 365),
+            guardian_name="Guardian",
+            guardian_phone="0722000000",
+            consent_given=True,
+            project=project,
+        )
+        Beneficiary.objects.filter(pk=b.pk).update(
+            created_at=timezone.now() - timedelta(days=10 * 365)
+        )
+        b.refresh_from_db()
+        # Age today is ~18, but at registration they were ~8 (a minor).
+        assert b.age_at_registration() < 18
+        # A partial update (no national_id) must still validate.
+        serializer = BeneficiarySerializer(instance=b, data={"name": "Grown Up"}, partial=True)
+        assert serializer.is_valid(), serializer.errors
