@@ -4,9 +4,20 @@ from datetime import date
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.accounts.models import Role
 from core.utils import compute_age
 
 from .models import Beneficiary
+
+# Fields a donor is allowed to see. Everything else — phone, national_id,
+# guardian details, postal address, DOB, consent, and the audit trail — is
+# stripped SERVER-SIDE for donors (Kenya Data Protection Act 2019).
+_DONOR_VISIBLE_FIELDS = frozenset({
+    "id", "name", "gender", "age",
+    "country", "county", "constituency", "ward",
+    "location", "sub_location", "village", "full_location",
+    "project", "project_name", "approval_status",
+})
 
 # The age (in years, at registration) at and above which a beneficiary is
 # treated as an adult for the ID/guardian rules.
@@ -87,6 +98,19 @@ class BeneficiarySerializer(serializers.ModelSerializer):
             "rejection_reason",
             "registered_by",
         ]
+
+    def to_representation(self, instance):
+        """Strip PII for donors; everyone else sees the full record.
+
+        Officers/managers/admins receive every field including the audit trail;
+        donors receive only the non-identifying subset in ``_DONOR_VISIBLE_FIELDS``.
+        """
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role == Role.DONOR:
+            return {k: v for k, v in data.items() if k in _DONOR_VISIBLE_FIELDS}
+        return data
 
     @extend_schema_field(serializers.CharField())
     def get_full_location(self, obj):

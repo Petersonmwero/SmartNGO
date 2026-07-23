@@ -103,10 +103,15 @@ class AnalyticsDashboardView(APIView):
         return Project.objects.filter(ngo=user.ngo)
 
     def _beneficiaries_qs(self, user, role, projects_qs):
-        """Return active Beneficiary queryset scoped by the caller's projects."""
-        return Beneficiary.objects.filter(
-            project__in=projects_qs, is_active=True
-        )
+        """Return active Beneficiary queryset scoped by the caller's projects.
+
+        Donors only ever count approved beneficiaries, matching the donor
+        register so the dashboard total and the list stay consistent.
+        """
+        qs = Beneficiary.objects.filter(project__in=projects_qs, is_active=True)
+        if role == Role.DONOR:
+            qs = qs.filter(approval_status=Beneficiary.ApprovalStatus.APPROVED)
+        return qs
 
     def _reports_qs(self, user, role, projects_qs):
         """Return Report queryset scoped by role."""

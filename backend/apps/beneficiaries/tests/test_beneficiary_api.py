@@ -211,3 +211,156 @@ class TestAgeConditionalValidation:
         # A partial update (no national_id) must still validate.
         serializer = BeneficiarySerializer(instance=b, data={"name": "Grown Up"}, partial=True)
         assert serializer.is_valid(), serializer.errors
+
+
+def _png_upload():
+    """A tiny valid PNG suitable for an ImageField, as an uploaded file."""
+    from io import BytesIO
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    buffer = BytesIO()
+    Image.new("RGB", (1, 1)).save(buffer, format="PNG")
+    return SimpleUploadedFile("photo.png", buffer.getvalue(), content_type="image/png")
+
+
+def _approved_beneficiary(project, **over):
+    """A directly-created, already-approved adult beneficiary (bypasses the API)."""
+    defaults = dict(
+        name="Approved Person",
+        gender="male",
+        date_of_birth=date.today() - timedelta(days=30 * 365),
+        phone="0712345678",
+        national_id="12345678",
+        consent_given=True,
+        approval_status=Beneficiary.ApprovalStatus.APPROVED,
+        project=project,
+    )
+    defaults.update(over)
+    return Beneficiary.objects.create(**defaults)
+
+
+class TestApprovalWorkflow:
+    def test_registration_notifies_project_manager(self, auth_client, officer_user, ngo, manager_user):
+        from apps.notifications.models import Notification
+
+        project = Project.objects.create(project_name="Notify", ngo=ngo)
+        ProjectAssignment.objects.create(project=project, user=officer_user, role="officer")
+        ProjectAssignment.objects.create(project=project, user=manager_user, role="manager")
+
+        resp = auth_client(officer_user).post(
+            BENEFICIARIES, _payload(project.id), format="json"
+        )
+        assert resp.status_code == 201
+        assert resp.data["approval_status"] == "pending"
+        assert Notification.objects.filter(
+            user=manager_user, title="Beneficiary awaiting approval"
+        ).exists()
+
+    def test_approve_without_photo_rejected(self, auth_client, manager_user, project):
+        b = _approved_beneficiary(
+            project, approval_status=Beneficiary.ApprovalStatus.PENDING, photo=None
+        )
+        resp = auth_client(manager_user).post(f"{BENEFICIARIES}{b.id}/approve/")
+        assert resp.status_code == 400
+        b.refresh_from_db()
+        assert b.approval_status == "pending"
+
+    def test_approve_with_photo_succeeds(self, auth_client, manager_user, project):
+        b = _approved_beneficiary(
+            project,
+            approval_status=Beneficiary.ApprovalStatus.PENDING,
+            photo=_png_upload(),
+        )
+        resp = auth_client(manager_user).post(f"{BENEFICIARIES}{b.id}/approve/")
+        assert resp.status_code == 200
+        b.refresh_from_db()
+        assert b.approval_status == "approved"
+        assert b.approved_by_id == manager_user.id
+        assert b.approved_at is not None
+
+    def test_officer_cannot_approve(self, auth_client, officer_user, assigned_project):
+        b = _approved_beneficiary(
+            assigned_project,
+            approval_status=Beneficiary.ApprovalStatus.PENDING,
+            photo=_png_upload(),
+        )
+        resp = auth_client(officer_user).post(f"{BENEFICIARIES}{b.id}/approve/")
+        assert resp.status_code == 403
+
+    def test_reject_without_reason_rejected(self, auth_client, manager_user, project):
+        b = _approved_beneficiary(
+            project, approval_status=Beneficiary.ApprovalStatus.PENDING
+        )
+        resp = auth_client(manager_user).post(
+            f"{BENEFICIARIES}{b.id}/reject/", {}, format="json"
+        )
+        assert resp.status_code == 400
+        b.refresh_from_db()
+        assert b.approval_status == "pending"
+
+    def test_reject_with_reason_succeeds(self, auth_client, manager_user, project):
+        b = _approved_beneficiary(
+            project, approval_status=Beneficiary.ApprovalStatus.PENDING
+        )
+        resp = auth_client(manager_user).post(
+            f"{BENEFICIARIES}{b.id}/reject/",
+            {"rejection_reason": "Duplicate record"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        b.refresh_from_db()
+        assert b.approval_status == "rejected"
+        assert b.rejection_reason == "Duplicate record"
+
+
+class TestDonorScopingAndPII:
+    def test_pending_excluded_from_donor_register(self, auth_client, donor_user, project):
+        approved = _approved_beneficiary(project, name="Visible")
+        _approved_beneficiary(
+            project, name="Hidden", approval_status=Beneficiary.ApprovalStatus.PENDING
+        )
+        resp = auth_client(donor_user).get(BENEFICIARIES)
+        names = {row["name"] for row in resp.data["results"]}
+        assert names == {"Visible"}
+        assert approved.name in names
+
+    def test_pending_excluded_from_donor_stats(self, auth_client, donor_user, project):
+        _approved_beneficiary(project, name="Counted")
+        _approved_beneficiary(
+            project, name="Uncounted", approval_status=Beneficiary.ApprovalStatus.PENDING
+        )
+        resp = auth_client(donor_user).get("/api/v1/analytics/dashboard/")
+        assert resp.status_code == 200
+        assert resp.data["data"]["beneficiaries"]["total"] == 1
+
+    def test_donor_detail_omits_pii(self, auth_client, donor_user, project):
+        b = _approved_beneficiary(
+            project,
+            phone="0712345678",
+            national_id="12345678",
+            guardian_name="Guardian",
+            guardian_phone="0722000000",
+            postal_address="P.O. Box 1",
+        )
+        resp = auth_client(donor_user).get(f"{BENEFICIARIES}{b.id}/")
+        assert resp.status_code == 200
+        for pii in ("phone", "national_id", "guardian_name", "guardian_phone", "postal_address", "date_of_birth"):
+            assert pii not in resp.data
+        # But the non-identifying subset is present.
+        for visible in ("name", "gender", "age", "approval_status", "project"):
+            assert visible in resp.data
+
+    def test_officer_detail_includes_pii(self, auth_client, officer_user, assigned_project):
+        b = _approved_beneficiary(
+            assigned_project,
+            phone="0712345678",
+            national_id="12345678",
+            registered_by=officer_user,
+        )
+        resp = auth_client(officer_user).get(f"{BENEFICIARIES}{b.id}/")
+        assert resp.status_code == 200
+        assert resp.data["phone"] == "0712345678"
+        assert resp.data["national_id"] == "12345678"
+        assert "registered_by" in resp.data

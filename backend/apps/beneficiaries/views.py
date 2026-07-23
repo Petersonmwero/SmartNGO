@@ -2,6 +2,7 @@ import csv
 import io
 
 from django.http import HttpResponse
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
@@ -9,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import Role
 from apps.accounts.permissions import IsFieldOfficer, IsProjectManager, IsSystemAdmin
 from apps.common.mixins import ProjectScopedViewSetMixin
 from core.utils import compute_age
@@ -100,6 +102,8 @@ class KenyaLocationView(APIView):
 
 # Officers register beneficiaries, so they may write (on their assigned projects).
 WRITE_PERMISSION = IsSystemAdmin | IsProjectManager | IsFieldOfficer
+# Only managers/admins may adjudicate a pending registration.
+APPROVE_PERMISSION = IsSystemAdmin | IsProjectManager
 
 
 class BeneficiaryViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
@@ -112,15 +116,69 @@ class BeneficiaryViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
         # Soft-deleted beneficiaries are hidden.
         return Beneficiary.objects.filter(is_active=True).select_related("project")
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # Donors only ever see approved beneficiaries (register + stats parity).
+        if getattr(self.request.user, "role", None) == Role.DONOR:
+            qs = qs.filter(approval_status=Beneficiary.ApprovalStatus.APPROVED)
+        return qs
+
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [WRITE_PERMISSION()]
+        if self.action in ("approve", "reject"):
+            return [APPROVE_PERMISSION()]
         return [IsAuthenticated()]
+
+    def perform_create(self, serializer):
+        # Record the registering user for the audit trail; project access is
+        # validated by the mixin.
+        self.validate_project_access(self._resolve_project(serializer))
+        serializer.save(registered_by=self.request.user)
 
     def perform_destroy(self, instance):
         # Soft delete — never hard delete beneficiaries.
         instance.is_active = False
         instance.save(update_fields=["is_active"])
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        """Approve a pending beneficiary. A verification photo is required."""
+        beneficiary = self.get_object()
+        if not beneficiary.photo:
+            raise serializers.ValidationError(
+                {"photo": "A verification photo is required before approval."}
+            )
+        beneficiary.approval_status = Beneficiary.ApprovalStatus.APPROVED
+        beneficiary.approved_by = request.user
+        beneficiary.approved_at = timezone.now()
+        beneficiary.rejection_reason = ""
+        beneficiary.save(
+            update_fields=[
+                "approval_status", "approved_by", "approved_at", "rejection_reason"
+            ]
+        )
+        return Response(self.get_serializer(beneficiary).data)
+
+    @action(detail=True, methods=["post"], url_path="reject")
+    def reject(self, request, pk=None):
+        """Reject a pending beneficiary. A non-empty reason is required."""
+        reason = (request.data.get("rejection_reason") or "").strip()
+        if not reason:
+            raise serializers.ValidationError(
+                {"rejection_reason": "A rejection reason is required."}
+            )
+        beneficiary = self.get_object()
+        beneficiary.approval_status = Beneficiary.ApprovalStatus.REJECTED
+        beneficiary.rejection_reason = reason
+        beneficiary.approved_by = None
+        beneficiary.approved_at = None
+        beneficiary.save(
+            update_fields=[
+                "approval_status", "approved_by", "approved_at", "rejection_reason"
+            ]
+        )
+        return Response(self.get_serializer(beneficiary).data)
 
     @action(detail=False, methods=["get"], url_path="export")
     def export(self, request):

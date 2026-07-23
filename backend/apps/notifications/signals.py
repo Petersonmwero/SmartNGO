@@ -7,10 +7,11 @@ management command for those.
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
+from apps.beneficiaries.models import Beneficiary
 from apps.projects.models import ProjectAssignment
 from apps.reports.models import Report
 
-from .services import notify
+from .services import notify, notify_users
 
 
 @receiver(post_save, sender=ProjectAssignment)
@@ -44,6 +45,26 @@ def _stash_report_status(sender, instance, **kwargs):
         )
     else:
         instance._old_status = None
+
+
+@receiver(post_save, sender=Beneficiary)
+def notify_on_beneficiary_registered(sender, instance, created, **kwargs):
+    """Notify the project's manager(s) that a beneficiary awaits approval."""
+    if not created:
+        return
+    managers = {
+        assignment.user
+        for assignment in instance.project.assignments.select_related("user").filter(
+            role=ProjectAssignment.Role.MANAGER
+        )
+    }
+    if managers:
+        notify_users(
+            managers,
+            "Beneficiary awaiting approval",
+            f"'{instance.name}' was registered on "
+            f"'{instance.project.project_name}' and needs approval.",
+        )
 
 
 @receiver(post_save, sender=Report)
