@@ -4,11 +4,11 @@
 describes the system as it stands and the things that are not obvious from the
 code.
 
-Last updated: 2026-07-23 · `main` @ `bf24bf9` (local, unpushed) · tree clean
+Last updated: 2026-07-23 · `main` @ export-fix (local, unpushed) · tree clean
 
 | | |
 |---|---|
-| Backend tests | **293 pass** (`pytest`, test_sqlite settings) |
+| Backend tests | **295 pass** (`pytest`, test_sqlite settings) |
 | Flutter tests | **88 pass**, `flutter analyze` 0 issues |
 | Swagger | `/api/v1/docs/` — **0 errors / 0 warnings** (`spectacular --validate` clean) |
 | Phases | All 5 complete; work since then is post-phase improvement |
@@ -80,6 +80,14 @@ guardian name/phone, postal_address), `consent_given`, and an approval workflow
   `BeneficiarySerializer.to_representation` strips server-side to
   name/gender/age/location/project/approval_status; officers/managers/admins get
   the full record + audit trail.
+- **CSV export is manager/admin only** — `GET /beneficiaries/export/` writes raw
+  model columns (phone, DOB) directly, bypassing the serializer's donor PII
+  strip, so `get_permissions` gates it to `APPROVE_PERMISSION`
+  (`IsSystemAdmin | IsProjectManager`). Officers and donors get 403. The Flutter
+  app exposes **no** beneficiary-CSV button, so nothing is broken client-side by
+  this; if one is added later it must be role-gated to manager/admin. (The PDF
+  builders in `apps/common/pdf.py` read no individual beneficiary records — only
+  report-derived aggregates — so no PII path there.)
 - ⚠️ **Migration `beneficiaries/0004` must be applied and the data reseeded on
   the live DBs.** This session ran against `test_sqlite` only (no MySQL/Docker
   here). Run `migrate` + `seed_demo` on the `local_sqlite` demo DB and on MySQL;

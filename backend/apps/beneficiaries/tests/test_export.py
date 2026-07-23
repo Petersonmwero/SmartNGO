@@ -60,24 +60,32 @@ class TestBeneficiaryExport:
         # Only the header row; no data rows.
         assert len(rows) == 1
 
-    def test_officer_sees_only_assigned_project_beneficiaries(
-        self, auth_client, officer_user, project, beneficiary
-    ):
-        # Officer has no assignment → should get empty export.
-        resp = auth_client(officer_user).get(EXPORT)
-        reader = csv.reader(io.StringIO(resp.content.decode()))
-        rows = list(reader)
-        assert len(rows) == 1  # header only
-
-    def test_officer_with_assignment_sees_beneficiary(
-        self, auth_client, officer_user, project, beneficiary
-    ):
-        ProjectAssignment.objects.create(project=project, user=officer_user, role="officer")
-        resp = auth_client(officer_user).get(EXPORT)
-        reader = csv.reader(io.StringIO(resp.content.decode()))
-        rows = list(reader)
-        assert len(rows) == 2  # header + 1 data row
-
     def test_unauthenticated_returns_401(self, api_client):
         resp = api_client.get(EXPORT)
         assert resp.status_code == 401
+
+
+class TestExportPermissions:
+    """Export writes raw columns (phone, DOB) that bypass the serializer's
+    donor PII stripping, so it is restricted to managers/admins (per spec).
+    Officers and donors — who now had scoped export access — are denied."""
+
+    def test_donor_forbidden(self, auth_client, donor_user, beneficiary):
+        resp = auth_client(donor_user).get(EXPORT)
+        assert resp.status_code == 403
+
+    def test_officer_forbidden(self, auth_client, officer_user, project, beneficiary):
+        # Even assigned to the project, an officer cannot export.
+        ProjectAssignment.objects.create(project=project, user=officer_user, role="officer")
+        resp = auth_client(officer_user).get(EXPORT)
+        assert resp.status_code == 403
+
+    def test_manager_downloads_csv(self, auth_client, manager_user, beneficiary):
+        resp = auth_client(manager_user).get(EXPORT)
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "text/csv"
+        assert "Alice Mwangi" in resp.content.decode()
+
+    def test_admin_allowed(self, auth_client, admin_user, beneficiary):
+        resp = auth_client(admin_user).get(EXPORT)
+        assert resp.status_code == 200

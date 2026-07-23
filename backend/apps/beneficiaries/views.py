@@ -126,7 +126,9 @@ class BeneficiaryViewSet(ProjectScopedViewSetMixin, viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [WRITE_PERMISSION()]
-        if self.action in ("approve", "reject"):
+        if self.action in ("approve", "reject", "export"):
+            # export writes raw model columns (phone, DOB) that bypass the
+            # serializer's donor PII stripping — manager/admin only, per spec.
             return [APPROVE_PERMISSION()]
         return [IsAuthenticated()]
 
